@@ -160,9 +160,9 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, sans commenta
 function renderAnalyzeResult(r, cvErrors, container) {
   // Support ancien format (score) et nouveau (score_global)
   const sc  = r.score_global ?? r.score ?? 0;
-  const col = sc >= 70 ? '#1A7A8A' : sc >= 50 ? '#D97706' : '#DC2626';
+  const col = sc >= 70 ? 'var(--teal)' : sc >= 50 ? '#D97706' : 'var(--red)';
   const bg  = sc >= 70 ? 'var(--teal-bg)'     : sc >= 50 ? 'var(--sand-bg)'  : 'var(--red-bg)';
-  const bd  = sc >= 70 ? 'var(--teal-border)' : sc >= 50 ? '#D4B98A'         : 'var(--red-border)';
+  const bd  = sc >= 70 ? 'var(--teal-border)' : sc >= 50 ? 'var(--border)'   : 'var(--red-border)';
   const lbl = sc >= 70 ? '✅ Bonne compatibilité' : sc >= 50 ? '⚠️ Compatibilité moyenne' : '❌ Faible compatibilité';
 
   const circ = 2 * Math.PI * 36;
@@ -171,10 +171,10 @@ function renderAnalyzeResult(r, cvErrors, container) {
   // ── Erreurs CV détectées en JS ──
   let errHtml = '';
   if (cvErrors && (cvErrors.errors.length || cvErrors.warnings.length)) {
-    errHtml = `<div class="card" style="border-color:#F59E0B;background:#FFFBEB">
-      <div class="ctitle" style="color:#92400E">⚠️ Points à améliorer dans ton CV</div>
-      ${cvErrors.errors.map(e => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #FDE68A;font-size:13px;align-items:flex-start"><span style="color:#DC2626;font-weight:700;flex-shrink:0">✗</span><span style="color:var(--ink)">${esc(e)}</span></div>`).join('')}
-      ${cvErrors.warnings.map(w => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #FDE68A;font-size:13px;align-items:flex-start"><span style="color:#D97706;font-weight:700;flex-shrink:0">!</span><span style="color:var(--ink2)">${esc(w)}</span></div>`).join('')}
+    errHtml = `<div class="card" style="border-color:var(--border)">
+      <div class="ctitle">⚠️ Points à améliorer dans ton CV</div>
+      ${cvErrors.errors.map(e => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);font-size:13px;align-items:flex-start"><span style="color:var(--red);font-weight:700;flex-shrink:0">✗</span><span style="color:var(--ink)">${esc(e)}</span></div>`).join('')}
+      ${cvErrors.warnings.map(w => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);font-size:13px;align-items:flex-start"><span style="color:#D97706;font-weight:700;flex-shrink:0">!</span><span style="color:var(--ink2)">${esc(w)}</span></div>`).join('')}
     </div>`;
   }
 
@@ -187,7 +187,7 @@ function renderAnalyzeResult(r, cvErrors, container) {
         { label: 'Expériences',         val: r.score_experience }
       ].map(({ label, val }) => {
         if (val === undefined) return '';
-        const c = val >= 70 ? 'var(--teal)' : val >= 50 ? '#D97706' : '#DC2626';
+        const c = val >= 70 ? 'var(--teal)' : val >= 50 ? '#D97706' : 'var(--red)';
         return `<div>
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
             <span style="color:var(--ink2);font-weight:500">${label}</span>
@@ -228,8 +228,8 @@ function renderAnalyzeResult(r, cvErrors, container) {
       <div class="ctitle">Exigences du poste</div>
       ${r.must_have?.length ? `
         <div style="margin-bottom:12px">
-          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#DC2626;margin-bottom:8px">Indispensables</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">${r.must_have.map(k => `<span style="padding:4px 11px;border-radius:100px;font-size:12.5px;font-weight:600;background:#FEF2F2;color:#DC2626;border:1.5px solid #FECACA">${esc(k)}</span>`).join('')}</div>
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--red);margin-bottom:8px">Indispensables</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${r.must_have.map(k => `<span style="padding:4px 11px;border-radius:100px;font-size:12.5px;font-weight:600;background:var(--red-bg);color:var(--red);border:1.5px solid var(--red-border)">${esc(k)}</span>`).join('')}</div>
         </div>` : ''}
       ${r.nice_to_have?.length ? `
         <div>

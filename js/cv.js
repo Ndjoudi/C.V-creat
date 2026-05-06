@@ -206,9 +206,9 @@ function renderCVAnalysis(ai, errors, warnings, container) {
   // ── Score + verdict IA ──
   if (ai) {
     const sc  = ai.score_qualite || 0;
-    const col = sc >= 70 ? 'var(--teal)' : sc >= 50 ? '#D97706' : '#DC2626';
+    const col = sc >= 70 ? 'var(--teal)' : sc >= 50 ? '#D97706' : 'var(--red)';
     const bg  = sc >= 70 ? 'var(--teal-bg)' : sc >= 50 ? 'var(--sand-bg)' : 'var(--red-bg)';
-    const bd  = sc >= 70 ? 'var(--teal-border)' : sc >= 50 ? '#D4B98A' : 'var(--red-border)';
+    const bd  = sc >= 70 ? 'var(--teal-border)' : sc >= 50 ? 'var(--border)' : 'var(--red-border)';
 
     html += `<div class="card" style="background:${bg};border-color:${bd};margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -248,18 +248,18 @@ function renderCVAnalysis(ai, errors, warnings, container) {
 
       html += `<div class="card" style="margin-bottom:12px">
         <div class="ctitle">⚡ Améliorations recommandées</div>
-        ${renderAmelios(hautes,  '#DC2626', 'var(--red-bg)',  'var(--red-border)',  'Priorité haute')}
-        ${renderAmelios(moyennes,'#D97706', '#FFFBEB',        '#FDE68A',            'Priorité moyenne')}
+        ${renderAmelios(hautes,  'var(--red)',   'var(--red-bg)',  'var(--red-border)', 'Priorité haute')}
+        ${renderAmelios(moyennes,'#D97706',     '#FFFBEB',       '#FDE68A',           'Priorité moyenne')}
       </div>`;
     }
   }
 
   // ── Erreurs détectées en JS (toujours fiables) ──
   if (errors.length || warnings.length) {
-    html += `<div class="card" style="border-color:#F59E0B;background:#FFFBEB;margin-bottom:12px">
-      <div class="ctitle" style="color:#92400E">⚠️ Problèmes détectés dans ton profil</div>
-      ${errors.map(e   => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #FDE68A;font-size:13px;align-items:flex-start"><span style="color:#DC2626;font-weight:700;flex-shrink:0">✗</span><span>${esc(e)}</span></div>`).join('')}
-      ${warnings.map(w => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #FDE68A;font-size:13px;align-items:flex-start"><span style="color:#D97706;font-weight:700;flex-shrink:0">!</span><span style="color:var(--ink2)">${esc(w)}</span></div>`).join('')}
+    html += `<div class="card" style="margin-bottom:12px">
+      <div class="ctitle">⚠️ Problèmes détectés dans ton profil</div>
+      ${errors.map(e   => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);font-size:13px;align-items:flex-start"><span style="color:var(--red);font-weight:700;flex-shrink:0">✗</span><span>${esc(e)}</span></div>`).join('')}
+      ${warnings.map(w => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);font-size:13px;align-items:flex-start"><span style="color:#D97706;font-weight:700;flex-shrink:0">!</span><span style="color:var(--ink2)">${esc(w)}</span></div>`).join('')}
     </div>`;
   }
 
