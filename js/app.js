@@ -47,22 +47,8 @@ let P = ls('sc_profile', DEF_PROFILE);
 ['customSkills','education','languages'].forEach(k => { if (!P[k]) P[k] = []; });
 ['linkedin','mobility'].forEach(k => { if (!P[k]) P[k] = ''; });
 
-// ── THEME ──────────────────────────────────────────────────
-let DARK = ls('sc_dark', false);
-function applyTheme() {
-  document.documentElement.setAttribute('data-theme', DARK ? 'dark' : 'light');
-  const iconName = DARK ? 'sun' : 'moon';
-  ['theme-icon', 'theme-icon-top'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.setAttribute('data-lucide', iconName);
-      el.innerHTML = ''; // clear old SVG so Lucide re-renders it
-    }
-  });
-  if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-function toggleTheme() { DARK = !DARK; ss('sc_dark', DARK); applyTheme(); }
-applyTheme();
+// ── THEME (mode clair fixe) ────────────────────────────────
+document.documentElement.setAttribute('data-theme', 'light');
 
 // ── TOAST ──────────────────────────────────────────────────
 function toast(msg, dur = 2800) {
