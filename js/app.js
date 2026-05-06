@@ -51,10 +51,15 @@ let P = ls('sc_profile', DEF_PROFILE);
 let DARK = ls('sc_dark', false);
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', DARK ? 'dark' : 'light');
-  const icon = DARK ? '☀️' : '🌙';
-  document.getElementById('theme-btn').textContent = icon;
-  const tb = document.getElementById('theme-btn-top');
-  if (tb) tb.textContent = icon;
+  const iconName = DARK ? 'sun' : 'moon';
+  ['theme-icon', 'theme-icon-top'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.setAttribute('data-lucide', iconName);
+      el.innerHTML = ''; // clear old SVG so Lucide re-renders it
+    }
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 function toggleTheme() { DARK = !DARK; ss('sc_dark', DARK); applyTheme(); }
 applyTheme();
@@ -74,6 +79,9 @@ function toast(msg, dur = 2800) {
 
 // ── INIT ───────────────────────────────────────────────────
 window.onload = () => {
+  // Render all static Lucide icons
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
   const key = localStorage.getItem('sc_key');
   if (key) showApp();
   document.getElementById('key-input').addEventListener('keydown', e => {

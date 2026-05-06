@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/base.css"/>
 <link rel="stylesheet" href="css/components.css"/>
 <link rel="stylesheet" href="css/cv.css"/>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
 
@@ -19,13 +20,13 @@
 <!-- ── SETUP SCREEN ──────────────────────────────────────── -->
 <div id="setup-sc" class="setup-sc">
   <div class="setup-card">
-    <div class="setup-logo">🔄</div>
+    <div class="setup-logo"><i data-lucide="zap"></i></div>
     <div class="setup-title">Supply Copilot</div>
     <div class="setup-sub">Ton copilote IA pour ta carrière supply chain — analyse d'offres, CV optimisé, lettres de motivation et simulation d'entretien.</div>
     <div class="setup-steps">
-      <div class="setup-step"><div class="sn">🔑</div>Clé Groq gratuite</div>
-      <div class="setup-step"><div class="sn">◉</div>Profil SC</div>
-      <div class="setup-step"><div class="sn">✦</div>IA activée</div>
+      <div class="setup-step"><div class="sn"><i data-lucide="key-round"></i></div>Clé Groq gratuite</div>
+      <div class="setup-step"><div class="sn"><i data-lucide="circle-user"></i></div>Profil SC</div>
+      <div class="setup-step"><div class="sn"><i data-lucide="sparkles"></i></div>IA activée</div>
     </div>
     <div class="fg">
       <label class="lb" style="text-align:left;display:block;margin-bottom:6px">Clé API Groq (gratuite)</label>
@@ -41,10 +42,10 @@
 
   <!-- Mobile topbar -->
   <div class="topbar">
-    <div class="topbar-logo">🔄 Supply Copilot</div>
+    <div class="topbar-logo"><i data-lucide="zap" style="width:16px;height:16px;vertical-align:-3px"></i> Supply Copilot</div>
     <div style="display:flex;gap:8px">
-      <button class="theme-btn" onclick="toggleTheme()" id="theme-btn-top" title="Thème">🌙</button>
-      <button class="menu-btn" onclick="openMobileMenu()">☰</button>
+      <button class="theme-btn" onclick="toggleTheme()" id="theme-btn-top" title="Thème"><i data-lucide="moon" id="theme-icon-top"></i></button>
+      <button class="menu-btn" onclick="openMobileMenu()"><i data-lucide="menu"></i></button>
     </div>
   </div>
 
@@ -55,23 +56,23 @@
   <div class="sb" id="sidebar">
     <div class="sb-logo">
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <div class="sb-icon">🔄</div>
-        <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" title="Thème clair/sombre">🌙</button>
+        <div class="sb-icon"><i data-lucide="zap"></i></div>
+        <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" title="Thème clair/sombre"><i data-lucide="moon" id="theme-icon"></i></button>
       </div>
       <div class="sb-name">Supply<br>Copilot</div>
       <div class="sb-sub">Career Intelligence</div>
     </div>
     <nav class="nav" id="nav">
       <div class="nav-section">Principal</div>
-      <div class="ni on"  data-sc="dash">      <span class="ni-icon">⊞</span>Tableau de bord</div>
-      <div class="ni"     data-sc="profile">   <span class="ni-icon">◉</span>Mon Profil</div>
-      <div class="ni"     data-sc="cv">        <span class="ni-icon">◧</span>Mon CV</div>
+      <div class="ni on"  data-sc="dash">     <i data-lucide="layout-dashboard" class="ni-icon"></i>Tableau de bord</div>
+      <div class="ni"     data-sc="profile">  <i data-lucide="circle-user"      class="ni-icon"></i>Mon Profil</div>
+      <div class="ni"     data-sc="cv">       <i data-lucide="file-text"        class="ni-icon"></i>Mon CV</div>
       <div class="nav-section" style="margin-top:8px">IA</div>
-      <div class="ni"     data-sc="analyze">   <span class="ni-icon">✦</span>Analyser une offre</div>
-      <div class="ni"     data-sc="interview"> <span class="ni-icon">🎤</span>Simulation entretien <span class="ni-badge" id="badge-new">Nouveau</span></div>
-      <div class="ni"     data-sc="history">   <span class="ni-icon">📋</span>Mes analyses <span class="ni-badge" id="badge-hist" style="display:none"></span></div>
+      <div class="ni"     data-sc="analyze">  <i data-lucide="sparkles"         class="ni-icon"></i>Analyser une offre</div>
+      <div class="ni"     data-sc="interview"><i data-lucide="mic"              class="ni-icon"></i>Simulation entretien <span class="ni-badge" id="badge-new">Nouveau</span></div>
+      <div class="ni"     data-sc="history">  <i data-lucide="history"          class="ni-icon"></i>Mes analyses <span class="ni-badge" id="badge-hist" style="display:none"></span></div>
       <div class="nav-section" style="margin-top:8px">Suivi</div>
-      <div class="ni"     data-sc="tracker">   <span class="ni-icon">◫</span>Candidatures <span class="ni-badge" id="badge-cands" style="display:none"></span></div>
+      <div class="ni"     data-sc="tracker">  <i data-lucide="briefcase"        class="ni-icon"></i>Candidatures <span class="ni-badge" id="badge-cands" style="display:none"></span></div>
     </nav>
     <div class="sb-ft">
       <div id="sb-profile-info" class="hidden" style="margin-bottom:10px">
@@ -81,8 +82,8 @@
       </div>
       <div class="sb-actions">
         <button class="btn btn-g" onclick="resetKey()" style="flex:1;justify-content:center;font-size:12px;padding:7px 10px">Changer la clé</button>
-        <button class="btn-icon" onclick="exportAllData()" title="Exporter toutes les données">📤</button>
-        <button class="btn-icon" onclick="importAllData()" title="Importer une sauvegarde">📥</button>
+        <button class="btn-icon" onclick="exportAllData()" title="Exporter toutes les données"><i data-lucide="upload"></i></button>
+        <button class="btn-icon" onclick="importAllData()" title="Importer une sauvegarde"><i data-lucide="download"></i></button>
       </div>
     </div>
   </div>
@@ -120,22 +121,22 @@
       <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:13px">Actions rapides</div>
       <div class="g2" style="max-width:700px">
         <div class="card card-hi ac" onclick="goTo('analyze')">
-          <div style="font-size:22px;margin-bottom:10px">✦</div>
+          <div class="dash-card-icon" style="color:var(--teal)"><i data-lucide="sparkles"></i></div>
           <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Analyser une offre</div>
           <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">CV adapté + lettre de motivation générée par l'IA</div>
         </div>
         <div class="card ac" onclick="goTo('interview')">
-          <div style="font-size:22px;margin-bottom:10px">🎤</div>
+          <div class="dash-card-icon" style="color:var(--teal)"><i data-lucide="mic"></i></div>
           <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Simulation entretien</div>
           <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">Questions sur mesure + conseils de réponse</div>
         </div>
         <div class="card ac" onclick="goTo('cv')">
-          <div style="font-size:22px;margin-bottom:10px">◧</div>
+          <div class="dash-card-icon" style="color:var(--teal)"><i data-lucide="file-text"></i></div>
           <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Mon CV</div>
           <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">Prévisualise et télécharge ton CV PDF ATS</div>
         </div>
         <div class="card ac" onclick="goTo('tracker')">
-          <div style="font-size:22px;margin-bottom:10px">◫</div>
+          <div class="dash-card-icon" style="color:var(--teal)"><i data-lucide="briefcase"></i></div>
           <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Candidatures</div>
           <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">Suis tous tes dossiers en cours</div>
         </div>
@@ -151,7 +152,7 @@
         </div>
       </div>
       <div class="tabs">
-        <div class="tab on"  data-tab="import">📥 Importer un CV</div>
+        <div class="tab on"  data-tab="import"><i data-lucide="arrow-down-to-line" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"></i>Importer un CV</div>
         <div class="tab"     data-tab="info">Infos</div>
         <div class="tab"     data-tab="skills">Compétences</div>
         <div class="tab"     data-tab="exp">Expériences</div>
@@ -171,7 +172,7 @@
           </div>
           <textarea class="inp" id="import-cv-txt" rows="14" placeholder="Jean Dupont&#10;Responsable Supply Chain | 8 ans d'expérience&#10;jean.dupont@email.com · +33 6 12 34 56 78 · Paris&#10;&#10;EXPÉRIENCES&#10;Responsable Approvisionnement — Carrefour (2020-2024)&#10;• Gestion de 3 000 références fournisseurs...&#10;&#10;COMPÉTENCES&#10;SAP MM, Excel avancé, Power BI..."></textarea>
           <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <button class="btn btn-p" id="import-cv-btn" onclick="importCVFromText()">✦ Extraire avec l'IA</button>
+            <button class="btn btn-p" id="import-cv-btn" onclick="importCVFromText()"><i data-lucide="sparkles" class="btn-icon-sm"></i>Extraire avec l'IA</button>
             <button class="btn btn-g" onclick="document.getElementById('import-cv-txt').value=''">Effacer</button>
             <span style="font-size:12px;color:var(--ink3)">⚠️ Tes données actuelles seront remplacées</span>
           </div>
@@ -275,7 +276,7 @@
             <div class="psub" style="margin-bottom:0">Format A4 — PDF texte lisible par les ATS</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <button class="btn btn-g" id="analyze-cv-btn" onclick="analyzeCV()">🔍 Analyser mon CV</button>
+            <button class="btn btn-g" id="analyze-cv-btn" onclick="analyzeCV()"><i data-lucide="scan-search" class="btn-icon-sm"></i>Analyser mon CV</button>
             <button class="btn btn-p" onclick="printCV()">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Télécharger PDF
@@ -302,7 +303,7 @@
         <textarea class="inp" id="offer-txt" style="min-height:190px" placeholder="Copie-colle le texte complet de l'offre (LinkedIn, Indeed, APEC, France Travail...)"></textarea>
         <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
           <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
-            <button class="btn btn-p" id="analyze-btn" onclick="doAnalyze()">✦ Analyser avec l'IA</button>
+            <button class="btn btn-p" id="analyze-btn" onclick="doAnalyze()"><i data-lucide="sparkles" class="btn-icon-sm"></i>Analyser avec l'IA</button>
             <button class="btn btn-g" onclick="clearOffer()">Effacer</button>
           </div>
           <div class="tog is-on" id="anon-tog" onclick="toggleAnon()">
@@ -351,7 +352,7 @@
           <textarea class="inp" id="itv-offer" rows="3" placeholder="Colle le texte de l'offre pour des questions ultra-personnalisées..."></textarea>
         </div>
         <div style="display:flex;gap:9px;flex-wrap:wrap">
-          <button class="btn btn-p" id="itv-btn" onclick="generateInterview()">🎤 Générer la simulation</button>
+          <button class="btn btn-p" id="itv-btn" onclick="generateInterview()"><i data-lucide="mic" class="btn-icon-sm"></i>Générer la simulation</button>
           <button class="btn btn-g" onclick="clearInterview()">Effacer</button>
         </div>
       </div>
