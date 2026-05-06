@@ -24,7 +24,7 @@
   color:var(--ink);background:var(--bg3);outline:none;
   transition:border-color .14s,box-shadow .14s;
 }
-.inp:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,113,227,.1)}
+.inp:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,0,0,.08)}
 .inp::placeholder{color:var(--ink3);opacity:.6}
 textarea.inp{resize:vertical;min-height:80px;line-height:1.6}
 select.inp{cursor:pointer}
@@ -58,12 +58,12 @@ select.inp{cursor:pointer}
 /* Bouton primaire — bleu Apple */
 .btn-p{
   background:var(--teal);color:#fff;
-  box-shadow:0 2px 8px rgba(0,113,227,.22);
+  box-shadow:0 2px 8px rgba(0,0,0,.12);
 }
 .btn-p:hover:not(:disabled){
   background:var(--teal-d);
   transform:translateY(-1px);
-  box-shadow:0 6px 18px rgba(0,113,227,.3);
+  box-shadow:0 6px 18px rgba(0,0,0,.18);
 }
 .btn-p:active:not(:disabled){transform:translateY(0);box-shadow:none;background:var(--teal-dd)}
 .btn-p:disabled{opacity:.4;cursor:not-allowed}

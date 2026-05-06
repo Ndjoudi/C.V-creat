@@ -4,9 +4,9 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Inter',syste
 
 /* ── VARIABLES (palette Apple) ─────────────────────────── */
 :root{
-  /* Blue — Apple #0071E3 */
-  --teal:#0071E3;--teal-d:#0062C4;--teal-dd:#004D9A;
-  --teal-bg:#EBF4FF;--teal-border:#C7DFFF;
+  /* Accent — Noir */
+  --teal:#000000;--teal-d:#1D1D1F;--teal-dd:#3A3A3C;
+  --teal-bg:#F2F2F2;--teal-border:#D2D2D7;
 
   /* Neutral grays (remplace sand) */
   --sand:#86868B;--sand-bg:#F5F5F7;--sand-dark:#1D1D1F;
@@ -44,8 +44,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Inter',syste
   --ink:#F5F5F7;--ink2:#EBEBF0;--ink3:#86868B;
   --border:#3A3A3C;--border2:#2C2C2E;
   --card:#1C1C1E;
-  --teal:#2997FF;--teal-d:#1A85F5;--teal-dd:#0A6FD6;
-  --teal-bg:#001D3D;--teal-border:#003E84;
+  --teal:#FFFFFF;--teal-d:#F5F5F7;--teal-dd:#EBEBF0;
+  --teal-bg:#2C2C2E;--teal-border:#3A3A3C;
   --sand:#636366;--sand-bg:#2C2C2E;--sand-dark:#EBEBF0;
   --shadow:0 1px 3px rgba(0,0,0,.5),0 4px 16px rgba(0,0,0,.35);
   --shadow-md:0 4px 20px rgba(0,0,0,.55);
@@ -80,7 +80,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Inter',syste
 .setup-logo{
   width:64px;height:64px;background:var(--teal);
   border-radius:18px;display:flex;align-items:center;justify-content:center;
-  margin:0 auto 22px;box-shadow:0 6px 24px rgba(0,113,227,.3);
+  margin:0 auto 22px;box-shadow:0 6px 24px rgba(0,0,0,.18);
   color:#fff;
 }
 .setup-logo svg{width:28px;height:28px}
@@ -114,7 +114,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Inter',syste
   width:36px;height:36px;
   background:var(--teal);
   border-radius:10px;display:flex;align-items:center;justify-content:center;
-  margin-bottom:10px;box-shadow:0 3px 12px rgba(0,113,227,.2);
+  margin-bottom:10px;box-shadow:0 3px 12px rgba(0,0,0,.12);
   color:#fff;
 }
 .sb-icon svg{width:18px;height:18px}
@@ -135,7 +135,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Inter',syste
 .ni:hover{background:var(--teal-bg);color:var(--teal)}
 .ni.on{
   background:var(--teal-bg);color:var(--teal);font-weight:600;
-  box-shadow:inset 0 0 0 1px rgba(0,113,227,.15);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);
 }
 .ni-icon{
   width:18px;height:18px;flex-shrink:0;
