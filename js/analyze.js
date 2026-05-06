@@ -84,7 +84,7 @@ function detectCVErrors() {
 // ── ANALYZE ────────────────────────────────────────────────
 async function doAnalyze() {
   const offer = document.getElementById('offer-txt').value.trim();
-  if (!offer) { toast('⚠️ Colle d\'abord une offre d\'emploi'); return; }
+  if (!offer) { toast('Colle d\'abord une offre d\'emploi'); return; }
 
   const btn   = document.getElementById('analyze-btn');
   const ldg   = document.getElementById('analyze-loading');
@@ -146,13 +146,13 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, sans commenta
     if (hist.length > 20) hist.pop();
     ss('sc_history', hist);
     refreshBadges();
-    toast('✅ Analyse sauvegardée dans l\'historique');
+    toast('Analyse sauvegardée');
   } catch (e) {
     errEl.textContent = groqErrorMessage(e);
     errEl.classList.remove('hidden');
   } finally {
     ldg.classList.add('hidden');
-    btn.disabled = false; btn.innerHTML = '✦ Analyser avec l\'IA';
+    btn.disabled = false; btn.innerHTML = 'Analyser avec l\'IA';
   }
 }
 
@@ -163,7 +163,7 @@ function renderAnalyzeResult(r, cvErrors, container) {
   const col = sc >= 70 ? 'var(--teal)' : sc >= 50 ? '#D97706' : 'var(--red)';
   const bg  = sc >= 70 ? 'var(--teal-bg)'     : sc >= 50 ? 'var(--sand-bg)'  : 'var(--red-bg)';
   const bd  = sc >= 70 ? 'var(--teal-border)' : sc >= 50 ? 'var(--border)'   : 'var(--red-border)';
-  const lbl = sc >= 70 ? '✅ Bonne compatibilité' : sc >= 50 ? '⚠️ Compatibilité moyenne' : '❌ Faible compatibilité';
+  const lbl = sc >= 70 ? 'Bonne compatibilité' : sc >= 50 ? 'Compatibilité moyenne' : 'Faible compatibilité';
 
   const circ = 2 * Math.PI * 36;
   const dash = (sc / 100) * circ;
@@ -172,7 +172,7 @@ function renderAnalyzeResult(r, cvErrors, container) {
   let errHtml = '';
   if (cvErrors && (cvErrors.errors.length || cvErrors.warnings.length)) {
     errHtml = `<div class="card" style="border-color:var(--border)">
-      <div class="ctitle">⚠️ Points à améliorer dans ton CV</div>
+      <div class="ctitle">Points à améliorer</div>
       ${cvErrors.errors.map(e => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);font-size:13px;align-items:flex-start"><span style="color:var(--red);font-weight:700;flex-shrink:0">✗</span><span style="color:var(--ink)">${esc(e)}</span></div>`).join('')}
       ${cvErrors.warnings.map(w => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);font-size:13px;align-items:flex-start"><span style="color:#D97706;font-weight:700;flex-shrink:0">!</span><span style="color:var(--ink2)">${esc(w)}</span></div>`).join('')}
     </div>`;
@@ -279,8 +279,8 @@ function renderAnalyzeResult(r, cvErrors, container) {
         <span style="font-size:11px;color:var(--sand-dark);background:var(--sand-bg);border:1px solid #D4B98A;padding:3px 9px;border-radius:100px;font-weight:600">✨ Suggestion IA — à personnaliser</span>
       </div>
       <div style="display:flex;gap:7px;margin-bottom:12px">
-        <button class="btn btn-g" style="font-size:12.5px" onclick="copyLetter()">📋 Copier</button>
-        <button class="btn btn-g" style="font-size:12.5px" onclick="downloadLetter()">📤 Télécharger</button>
+        <button class="btn btn-g" style="font-size:12.5px" onclick="copyLetter()">Copier</button>
+        <button class="btn btn-g" style="font-size:12.5px" onclick="downloadLetter()">Télécharger</button>
       </div>
       <div class="covl" id="cover-letter-txt">${esc(r.cover_letter)}</div>
     </div>`;
@@ -290,12 +290,12 @@ function renderAnalyzeResult(r, cvErrors, container) {
   window._coverLetter = r.cover_letter || '';
 }
 
-function copyLetter() { navigator.clipboard.writeText(window._coverLetter || ''); toast('📋 Lettre copiée dans le presse-papier'); }
+function copyLetter() { navigator.clipboard.writeText(window._coverLetter || ''); toast('Lettre copiée'); }
 function downloadLetter() {
   const blob = new Blob([window._coverLetter || ''], { type: 'text/plain' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a'); a.href = url; a.download = 'lettre-motivation.txt';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast('📥 Lettre téléchargée');
+  toast('Lettre téléchargée');
 }

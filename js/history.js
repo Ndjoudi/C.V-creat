@@ -4,7 +4,7 @@ function renderHistory() {
   const hist = ls('sc_history', []);
   const el   = document.getElementById('history-list');
   if (!hist.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-ic">📋</div><div class="empty-t">Aucune analyse</div><div class="empty-s">Lance une analyse d'offre pour commencer</div></div>`;
+    el.innerHTML = `<div class="empty"><div class="empty-ic"></div><div class="empty-t">Aucune analyse</div><div class="empty-s">Lance une analyse d'offre pour commencer</div></div>`;
     return;
   }
   el.innerHTML = hist.map(h => {

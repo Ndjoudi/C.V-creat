@@ -7,9 +7,9 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=3"/>
-<link rel="stylesheet" href="css/components.css?v=3"/>
-<link rel="stylesheet" href="css/cv.css?v=3"/>
+<link rel="stylesheet" href="css/base.css?v=4"/>
+<link rel="stylesheet" href="css/components.css?v=4"/>
+<link rel="stylesheet" href="css/cv.css?v=4"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -44,7 +44,6 @@
   <div class="topbar">
     <div class="topbar-logo"><i data-lucide="zap" style="width:16px;height:16px;vertical-align:-3px"></i> Supply Copilot</div>
     <div style="display:flex;gap:8px">
-      <button class="theme-btn" onclick="toggleTheme()" id="theme-btn-top" title="Thème"><i data-lucide="moon" id="theme-icon-top"></i></button>
       <button class="menu-btn" onclick="openMobileMenu()"><i data-lucide="menu"></i></button>
     </div>
   </div>
@@ -55,10 +54,7 @@
   <!-- ── SIDEBAR ─────────────────────────────────────────── -->
   <div class="sb" id="sidebar">
     <div class="sb-logo">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div class="sb-icon"><i data-lucide="zap"></i></div>
-        <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" title="Thème clair/sombre"><i data-lucide="moon" id="theme-icon"></i></button>
-      </div>
+      <div class="sb-icon"><i data-lucide="zap"></i></div>
       <div class="sb-name">Supply<br>Copilot</div>
       <div class="sb-sub">Career Intelligence</div>
     </div>
@@ -94,7 +90,7 @@
     <!-- DASHBOARD -->
     <div id="sc-dash" class="screen on">
       <div id="onboard-block" class="onboard hidden">
-        <div style="font-size:19px;font-weight:800;color:var(--ink);margin-bottom:8px">👋 Commence par créer ton profil</div>
+        <div style="font-size:19px;font-weight:800;color:var(--ink);margin-bottom:8px">Commence par créer ton profil</div>
         <div style="font-size:13.5px;color:var(--ink3);margin-bottom:18px;line-height:1.65">Renseigne tes compétences supply chain — outils, certifications, expériences. L'IA s'en sert pour tout personnaliser automatiquement.</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-p" onclick="goTo('profile')">Créer mon profil →</button>
@@ -103,7 +99,7 @@
       </div>
       <div class="page-header">
         <div>
-          <div class="ptitle" id="dash-title">Bonjour 👋</div>
+          <div class="ptitle" id="dash-title">Bonjour</div>
           <div class="psub">Ton copilote de carrière supply chain propulsé par l'IA</div>
         </div>
       </div>
@@ -162,7 +158,7 @@
       <!-- TAB IMPORT -->
       <div id="tab-import">
         <div class="card card-hi" style="margin-bottom:16px">
-          <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px">📥 Importer ton CV existant</div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px">Importer ton CV existant</div>
           <div style="font-size:13px;color:var(--ink3);line-height:1.65">Copie-colle le texte de ton CV (depuis Word, PDF, LinkedIn...). L'IA extrait automatiquement toutes les informations et remplit ton profil. Tu pourras vérifier et corriger avant de valider.</div>
         </div>
         <div class="card">
@@ -174,14 +170,14 @@
           <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <button class="btn btn-p" id="import-cv-btn" onclick="importCVFromText()"><i data-lucide="sparkles" class="btn-icon-sm"></i>Extraire avec l'IA</button>
             <button class="btn btn-g" onclick="document.getElementById('import-cv-txt').value=''">Effacer</button>
-            <span style="font-size:12px;color:var(--ink3)">⚠️ Tes données actuelles seront remplacées</span>
+            <span style="font-size:12px;color:var(--ink3)">Tes données actuelles seront remplacées</span>
           </div>
         </div>
         <div id="import-cv-loading" class="ldg hidden"><div class="sp"></div>L'IA analyse ton CV et extrait les informations...</div>
         <div id="import-cv-error" class="hidden" style="padding:13px 18px;background:var(--red-bg);border-radius:10px;color:var(--red);font-size:13.5px;margin-bottom:12px;border:1px solid var(--red-border)"></div>
         <div id="import-cv-preview" class="hidden">
           <div class="card" style="border-color:var(--teal-border);background:var(--teal-bg)">
-            <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:14px">✅ Profil extrait — vérifie avant de valider</div>
+            <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:14px">Profil extrait — vérifie avant de valider</div>
             <div id="import-cv-summary" style="font-size:13px;color:var(--ink2);line-height:1.9"></div>
             <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
               <button class="btn btn-p" onclick="applyImportedCV()">✓ Appliquer au profil</button>
@@ -283,7 +279,7 @@
             </button>
           </div>
         </div>
-        <div style="font-size:11.5px;color:var(--ink3);margin-bottom:14px">💡 Dans la boîte d'impression : choisir <strong>"Enregistrer en PDF"</strong>, désactiver les en-têtes/pieds de page</div>
+        <div style="font-size:11.5px;color:var(--ink3);margin-bottom:14px">Dans la boîte d'impression : choisir <strong>"Enregistrer en PDF"</strong>, désactiver les en-têtes/pieds de page</div>
         <div id="cv-analysis-result" style="margin-bottom:16px"></div>
         <div class="cv-doc" id="cv-doc"></div>
         <div style="margin-top:12px;font-size:12px;color:var(--ink3)">PDF généré par le navigateur — rendu identique à l'aperçu</div>
@@ -381,7 +377,7 @@
           <div class="psub">Suis l'avancement de tous tes dossiers</div>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-g" onclick="exportCSV()" style="font-size:12.5px">📤 Export CSV</button>
+          <button class="btn btn-g" onclick="exportCSV()" style="font-size:12.5px">Export CSV</button>
           <button class="btn btn-p" onclick="toggleAddForm()">+ Ajouter</button>
         </div>
       </div>
@@ -459,15 +455,15 @@
 </div>
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=3"></script>
-<script src="js/app.js?v=3"></script>
-<script src="js/profile.js?v=3"></script>
-<script src="js/import-cv.js?v=3"></script>
-<script src="js/cv.js?v=3"></script>
-<script src="js/analyze.js?v=3"></script>
-<script src="js/interview.js?v=3"></script>
-<script src="js/history.js?v=3"></script>
-<script src="js/tracker.js?v=3"></script>
-<script src="js/modal.js?v=3"></script>
+<script src="js/api.js?v=4"></script>
+<script src="js/app.js?v=4"></script>
+<script src="js/profile.js?v=4"></script>
+<script src="js/import-cv.js?v=4"></script>
+<script src="js/cv.js?v=4"></script>
+<script src="js/analyze.js?v=4"></script>
+<script src="js/interview.js?v=4"></script>
+<script src="js/history.js?v=4"></script>
+<script src="js/tracker.js?v=4"></script>
+<script src="js/modal.js?v=4"></script>
 </body>
 </html>

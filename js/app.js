@@ -97,8 +97,8 @@ window.onload = () => {
 // ── KEY / APP ──────────────────────────────────────────────
 function saveKey() {
   const k = document.getElementById('key-input').value.trim();
-  if (!k) { toast('⚠️ Entre une clé API Groq valide'); return; }
-  if (!k.startsWith('gsk_')) { toast('⚠️ La clé doit commencer par gsk_'); return; }
+  if (!k) { toast('Entre une clé API Groq valide'); return; }
+  if (!k.startsWith('gsk_')) { toast('La clé doit commencer par gsk_'); return; }
   localStorage.setItem('sc_key', k);
   showApp();
 }
@@ -182,7 +182,7 @@ function refreshDash() {
   document.getElementById('onboard-block').classList.toggle('hidden', !!hp);
   document.getElementById('dash-stats').classList.toggle('hidden', !hp);
   if (hp) {
-    document.getElementById('dash-title').textContent = 'Bonjour, ' + P.firstName + ' 👋';
+    document.getElementById('dash-title').textContent = 'Bonjour, ' + P.firstName';
     const fields = [P.firstName, P.lastName, P.email, P.title, P.yearsExp,
       P.subdomains.length > 0, P.tools.length > 0, P.experiences.length > 0, P.education.length > 0];
     const pct = Math.round(fields.filter(Boolean).length / 9 * 100);
@@ -199,7 +199,7 @@ function refreshDash() {
       { n: cands.length, l: 'Candidatures' }
     ].map(({ n, l }) => `<div class="stat"><div class="stat-n">${n}</div><div class="stat-l">${l}</div></div>`).join('');
   } else {
-    document.getElementById('dash-title').textContent = 'Bonjour 👋';
+    document.getElementById('dash-title').textContent = 'Bonjour';
   }
 }
 
@@ -211,7 +211,7 @@ function exportAllData() {
   const a = document.createElement('a'); a.href = url; a.download = 'supply-copilot-backup.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast('✅ Sauvegarde complète téléchargée');
+  toast('Sauvegarde téléchargée');
 }
 
 // ── IMPORT ALL DATA ─────────────────────────────────────────
@@ -232,9 +232,9 @@ function importAllData() {
         if (data.candidatures)  ss('sc_cands', data.candidatures);
         if (data.historique)    ss('sc_history', data.historique);
         showApp();
-        toast('✅ Données importées avec succès');
+        toast('Données importées');
       } catch {
-        toast('❌ Fichier JSON invalide');
+        toast('Fichier JSON invalide');
       }
     };
     reader.readAsText(file);

@@ -41,7 +41,7 @@ Réponds UNIQUEMENT en JSON valide: {"questions":[{"q":"Question 1","category":"
   } finally {
     ldg.classList.add('hidden');
     btn.disabled = false;
-    btn.innerHTML = '🎤 Générer la simulation';
+    btn.innerHTML = 'Générer la simulation';
   }
 }
 
@@ -56,7 +56,7 @@ function renderInterview(r) {
   const qs = r.questions || [];
 
   let html = `<div class="card card-hi" style="margin-bottom:20px">
-    <div style="font-size:15px;font-weight:700;margin-bottom:4px">🎤 Simulation prête — ${qs.length} questions</div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">Simulation prête — ${qs.length} questions</div>
     <div style="font-size:13px;color:var(--ink3)">Prépare tes réponses avec la méthode STAR (Situation, Tâche, Action, Résultat)</div>
   </div>`;
 
@@ -71,7 +71,7 @@ function renderInterview(r) {
       <div class="iqcard-q">${esc(q.q||'')}</div>
       <details>
         <summary style="font-size:12.5px;color:var(--teal);cursor:pointer;font-weight:600;user-select:none;list-style:none;display:flex;align-items:center;gap:5px">
-          <span>💡</span> Voir le conseil de réponse
+          Voir le conseil de réponse
         </summary>
         <div class="iqcard-tip" style="margin-top:8px">${esc(q.tip||'')}</div>
       </details>

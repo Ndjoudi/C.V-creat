@@ -70,7 +70,7 @@ function selectTone(el, val) {
 function submitTone() { const val = document.getElementById('tone-btn').dataset.val; if (!val) return; submitModalAnswerVal(val); }
 function submitModalAnswer() {
   const val = (document.getElementById('m-inp')?.value || '').trim();
-  if (!val) { toast('⚠️ Entre une réponse pour continuer'); return; }
+  if (!val) { toast('Entre une réponse pour continuer'); return; }
   submitModalAnswerVal(val);
 }
 function submitModalAnswerVal(val) {
@@ -111,7 +111,7 @@ Réponds UNIQUEMENT avec les bullet points (un par ligne, commençant par •).`
     modalState.generated = await callGroq(prompt, { maxTokens: 400, temperature: 0.75 });
     renderModalResult();
   } catch (e) {
-    document.getElementById('modal-body').innerHTML = `<div style="color:var(--red);font-size:13.5px;padding:14px;background:var(--red-bg);border-radius:var(--radius-sm);border:1px solid var(--red-border)">❌ Erreur: ${esc(e.message)}</div>`;
+    document.getElementById('modal-body').innerHTML = `<div style="color:var(--red);font-size:13.5px;padding:14px;background:var(--red-bg);border-radius:var(--radius-sm);border:1px solid var(--red-border)">Erreur : ${esc(e.message)}</div>`;
   }
 }
 
@@ -136,11 +136,11 @@ function applyGenerated() {
     document.getElementById('p-summary').value = txt;
     ss('sc_profile', P);
     initWordCounter();
-    toast('✅ Accroche appliquée à ton profil');
+    toast('Accroche appliquée');
   } else {
     const exp = P.experiences.find(e => e.id === modalState.expId);
     if (exp) { exp.description = txt; ss('sc_profile', P); renderExpList(); }
-    toast('✅ Description appliquée à l\'expérience');
+    toast('Description appliquée');
   }
   closeModal();
 }

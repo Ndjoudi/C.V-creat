@@ -3,8 +3,8 @@ let _importedData = null;
 
 async function importCVFromText() {
   const text = document.getElementById('import-cv-txt').value.trim();
-  if (!text) { toast('⚠️ Colle d\'abord le texte de ton CV'); return; }
-  if (text.length < 100) { toast('⚠️ Le texte semble trop court — colle l\'intégralité du CV'); return; }
+  if (!text) { toast('Colle d\'abord le texte de ton CV'); return; }
+  if (text.length < 100) { toast('Le texte semble trop court — colle l\'intégralité du CV'); return; }
 
   const btn   = document.getElementById('import-cv-btn');
   const ldg   = document.getElementById('import-cv-loading');
@@ -62,14 +62,14 @@ Réponds UNIQUEMENT en JSON valide sans markdown ni backticks :
     _importedData = data;
     renderImportPreview(data);
     prev.classList.remove('hidden');
-    toast('✅ CV analysé — vérifie les informations extraites');
+    toast('CV analysé — vérifie les informations');
   } catch (e) {
     errEl.textContent = groqErrorMessage(e);
     errEl.classList.remove('hidden');
   } finally {
     ldg.classList.add('hidden');
     btn.disabled = false;
-    btn.textContent = '✦ Extraire avec l\'IA';
+    btn.textContent = 'Extraire avec l\'IA';
   }
 }
 
@@ -115,7 +115,7 @@ function applyImportedCV() {
   document.getElementById('import-cv-txt').value = '';
   _importedData = null;
 
-  toast('✅ Profil importé — vérifie les informations dans chaque onglet');
+  toast('Profil importé');
 }
 
 function cancelImport() {

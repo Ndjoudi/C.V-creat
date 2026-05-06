@@ -51,7 +51,7 @@ function toggleAddForm() { document.getElementById('add-form').classList.toggle(
 function addCand() {
   const co    = document.getElementById('f-co').value.trim();
   const poste = document.getElementById('f-poste').value.trim();
-  if (!co || !poste) { toast('⚠️ Remplis au moins l\'entreprise et le poste'); return; }
+  if (!co || !poste) { toast('Remplis l\'entreprise et le poste'); return; }
   const cands = ls('sc_cands', []);
   cands.push({
     id: Date.now().toString(),
@@ -67,7 +67,7 @@ function addCand() {
   document.getElementById('add-form').classList.add('hidden');
   renderTracker();
   refreshBadges();
-  toast('✅ Candidature ajoutée');
+  toast('Candidature ajoutée');
 }
 
 function delCand(id) {
@@ -106,7 +106,7 @@ function closeNoteModal() {
 // ── CSV EXPORT ─────────────────────────────────────────────
 function exportCSV() {
   const cands = ls('sc_cands', []);
-  if (!cands.length) { toast('⚠️ Aucune candidature à exporter'); return; }
+  if (!cands.length) { toast('Aucune candidature à exporter'); return; }
   const headers = ['Entreprise','Poste','Date','Statut','Notes'];
   const rows = cands.map(c => [c.company,c.poste,c.date,c.status,c.notes].map(v => `"${(v||'').replace(/"/g,'""')}"`).join(';'));
   const csv = [headers.join(';'), ...rows].join('\n');
@@ -115,5 +115,5 @@ function exportCSV() {
   const a    = document.createElement('a'); a.href = url; a.download = 'candidatures-supply.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast('📊 Export CSV téléchargé');
+  toast('Export CSV téléchargé');
 }

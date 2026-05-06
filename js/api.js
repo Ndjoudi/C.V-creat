@@ -14,7 +14,7 @@ async function callGroq(prompt, { maxTokens = 2000, temperature = 0.7, model = '
 }
 
 function groqErrorMessage(e) {
-  if (e.message.includes('401')) return '❌ Clé API invalide ou expirée — vérifie ta clé Groq';
+  if (e.message.includes('401')) return 'Clé API invalide ou expirée — vérifie ta clé Groq';
   if (e.message.includes('429')) return '⏳ Trop de requêtes — attends quelques secondes et réessaie';
   return 'Erreur : ' + e.message;
 }

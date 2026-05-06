@@ -142,7 +142,7 @@ function renderCV() {
 
 // ── ANALYSE DU CV ──────────────────────────────────────────
 async function analyzeCV() {
-  if (!P.firstName) { toast('⚠️ Renseigne d\'abord ton profil'); return; }
+  if (!P.firstName) { toast('Renseigne d\'abord ton profil'); return; }
 
   const btn    = document.getElementById('analyze-cv-btn');
   const result = document.getElementById('cv-analysis-result');
@@ -196,7 +196,7 @@ Réponds UNIQUEMENT en JSON valide sans markdown :
     // Si l'IA échoue, on affiche quand même les erreurs JS
     renderCVAnalysis(null, errors, warnings, result);
   } finally {
-    btn.disabled = false; btn.textContent = '🔍 Analyser mon CV';
+    btn.disabled = false; btn.textContent = 'Analyser mon CV';
   }
 }
 
@@ -224,7 +224,7 @@ function renderCVAnalysis(ai, errors, warnings, container) {
     // Points forts
     if (ai.points_forts?.length) {
       html += `<div class="card" style="margin-bottom:12px">
-        <div class="ctitle" style="color:var(--teal)">✅ Points forts</div>
+        <div class="ctitle" style="color:var(--teal)">Points forts</div>
         ${ai.points_forts.map(p => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);font-size:13px;align-items:flex-start">
           <span style="color:var(--teal);font-weight:700;flex-shrink:0">✓</span>
           <span style="color:var(--ink2)">${esc(p)}</span>
@@ -247,7 +247,7 @@ function renderCVAnalysis(ai, errors, warnings, container) {
         </div>` : '';
 
       html += `<div class="card" style="margin-bottom:12px">
-        <div class="ctitle">⚡ Améliorations recommandées</div>
+        <div class="ctitle">Améliorations recommandées</div>
         ${renderAmelios(hautes,  'var(--red)',   'var(--red-bg)',  'var(--red-border)', 'Priorité haute')}
         ${renderAmelios(moyennes,'#D97706',     '#FFFBEB',       '#FDE68A',           'Priorité moyenne')}
       </div>`;
@@ -257,7 +257,7 @@ function renderCVAnalysis(ai, errors, warnings, container) {
   // ── Erreurs détectées en JS (toujours fiables) ──
   if (errors.length || warnings.length) {
     html += `<div class="card" style="margin-bottom:12px">
-      <div class="ctitle">⚠️ Problèmes détectés dans ton profil</div>
+      <div class="ctitle">Problèmes détectés</div>
       ${errors.map(e   => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);font-size:13px;align-items:flex-start"><span style="color:var(--red);font-weight:700;flex-shrink:0">✗</span><span>${esc(e)}</span></div>`).join('')}
       ${warnings.map(w => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);font-size:13px;align-items:flex-start"><span style="color:#D97706;font-weight:700;flex-shrink:0">!</span><span style="color:var(--ink2)">${esc(w)}</span></div>`).join('')}
     </div>`;
@@ -265,7 +265,7 @@ function renderCVAnalysis(ai, errors, warnings, container) {
 
   if (!html) {
     html = `<div class="card" style="border-color:var(--teal-border);background:var(--teal-bg)">
-      <div style="font-size:14px;font-weight:700;color:var(--teal)">✅ Ton CV semble en bon état — aucun problème détecté</div>
+      <div style="font-size:14px;font-weight:700;color:var(--teal)">Ton CV semble en bon état</div>
     </div>`;
   }
 
@@ -274,7 +274,7 @@ function renderCVAnalysis(ai, errors, warnings, container) {
 }
 
 function printCV() {
-  if (!P.firstName) { toast('⚠️ Renseigne ton prénom dans le profil'); return; }
+  if (!P.firstName) { toast('Renseigne ton prénom dans le profil'); return; }
   const docHtml = document.getElementById('cv-doc').innerHTML;
   let wrapper = document.getElementById('cv-print-wrapper');
   if (!wrapper) {
