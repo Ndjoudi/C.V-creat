@@ -182,7 +182,7 @@ function refreshDash() {
   document.getElementById('onboard-block').classList.toggle('hidden', !!hp);
   document.getElementById('dash-stats').classList.toggle('hidden', !hp);
   if (hp) {
-    document.getElementById('dash-title').textContent = 'Bonjour, ' + P.firstName';
+    document.getElementById('dash-title').textContent = 'Bonjour, ' + P.firstName;
     const fields = [P.firstName, P.lastName, P.email, P.title, P.yearsExp,
       P.subdomains.length > 0, P.tools.length > 0, P.experiences.length > 0, P.education.length > 0];
     const pct = Math.round(fields.filter(Boolean).length / 9 * 100);
