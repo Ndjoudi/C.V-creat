@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Supply Copilot — Copilote de Carrière Supply Chain</title>
+<meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/base.css"/>
+<link rel="stylesheet" href="css/components.css"/>
+<link rel="stylesheet" href="css/cv.css"/>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- ── SETUP SCREEN ──────────────────────────────────────── -->
+<div id="setup-sc" class="setup-sc">
+  <div class="setup-card">
+    <div class="setup-logo">🔄</div>
+    <div class="setup-title">Supply Copilot</div>
+    <div class="setup-sub">Ton copilote IA pour ta carrière supply chain — analyse d'offres, CV optimisé, lettres de motivation et simulation d'entretien.</div>
+    <div class="setup-steps">
+      <div class="setup-step"><div class="sn">🔑</div>Clé Groq gratuite</div>
+      <div class="setup-step"><div class="sn">◉</div>Profil SC</div>
+      <div class="setup-step"><div class="sn">✦</div>IA activée</div>
+    </div>
+    <div class="fg">
+      <label class="lb" style="text-align:left;display:block;margin-bottom:6px">Clé API Groq (gratuite)</label>
+      <input id="key-input" class="inp" type="password" placeholder="gsk_..."/>
+    </div>
+    <button class="btn btn-p" id="key-btn" onclick="saveKey()" style="width:100%;justify-content:center;padding:12px 18px;font-size:15px">Démarrer →</button>
+    <div class="note">Gratuit, fonctionne en France. Va sur <a class="alink" href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> → crée un compte → "Create API key" → copie ta clé ici.</div>
+  </div>
+</div>
+
+<!-- ── APP ──────────────────────────────────────────────── -->
+<div id="app" class="app hidden">
+
+  <!-- Mobile topbar -->
+  <div class="topbar">
+    <div class="topbar-logo">🔄 Supply Copilot</div>
+    <div style="display:flex;gap:8px">
+      <button class="theme-btn" onclick="toggleTheme()" id="theme-btn-top" title="Thème">🌙</button>
+      <button class="menu-btn" onclick="openMobileMenu()">☰</button>
+    </div>
+  </div>
+
+  <!-- Sidebar overlay -->
+  <div class="sb-overlay" id="sb-overlay" onclick="closeMobileMenu()"></div>
+
+  <!-- ── SIDEBAR ─────────────────────────────────────────── -->
+  <div class="sb" id="sidebar">
+    <div class="sb-logo">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="sb-icon">🔄</div>
+        <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" title="Thème clair/sombre">🌙</button>
+      </div>
+      <div class="sb-name">Supply<br>Copilot</div>
+      <div class="sb-sub">Career Intelligence</div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-section">Principal</div>
+      <div class="ni on"  data-sc="dash">      <span class="ni-icon">⊞</span>Tableau de bord</div>
+      <div class="ni"     data-sc="profile">   <span class="ni-icon">◉</span>Mon Profil</div>
+      <div class="ni"     data-sc="cv">        <span class="ni-icon">◧</span>Mon CV</div>
+      <div class="nav-section" style="margin-top:8px">IA</div>
+      <div class="ni"     data-sc="analyze">   <span class="ni-icon">✦</span>Analyser une offre</div>
+      <div class="ni"     data-sc="interview"> <span class="ni-icon">🎤</span>Simulation entretien <span class="ni-badge" id="badge-new">Nouveau</span></div>
+      <div class="ni"     data-sc="history">   <span class="ni-icon">📋</span>Mes analyses <span class="ni-badge" id="badge-hist" style="display:none"></span></div>
+      <div class="nav-section" style="margin-top:8px">Suivi</div>
+      <div class="ni"     data-sc="tracker">   <span class="ni-icon">◫</span>Candidatures <span class="ni-badge" id="badge-cands" style="display:none"></span></div>
+    </nav>
+    <div class="sb-ft">
+      <div id="sb-profile-info" class="hidden" style="margin-bottom:10px">
+        <div class="sb-flabel">Profil actif</div>
+        <div class="sb-fname" id="sb-pname"></div>
+        <div class="sb-frole" id="sb-prole"></div>
+      </div>
+      <div class="sb-actions">
+        <button class="btn btn-g" onclick="resetKey()" style="flex:1;justify-content:center;font-size:12px;padding:7px 10px">Changer la clé</button>
+        <button class="btn-icon" onclick="exportAllData()" title="Exporter toutes les données">📤</button>
+        <button class="btn-icon" onclick="importAllData()" title="Importer une sauvegarde">📥</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MAIN CONTENT ────────────────────────────────────── -->
+  <div class="main" id="main-content">
+
+    <!-- DASHBOARD -->
+    <div id="sc-dash" class="screen on">
+      <div id="onboard-block" class="onboard hidden">
+        <div style="font-size:19px;font-weight:800;color:var(--ink);margin-bottom:8px">👋 Commence par créer ton profil</div>
+        <div style="font-size:13.5px;color:var(--ink3);margin-bottom:18px;line-height:1.65">Renseigne tes compétences supply chain — outils, certifications, expériences. L'IA s'en sert pour tout personnaliser automatiquement.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-p" onclick="goTo('profile')">Créer mon profil →</button>
+          <button class="btn btn-g" onclick="goTo('analyze')">Analyser une offre sans profil</button>
+        </div>
+      </div>
+      <div class="page-header">
+        <div>
+          <div class="ptitle" id="dash-title">Bonjour 👋</div>
+          <div class="psub">Ton copilote de carrière supply chain propulsé par l'IA</div>
+        </div>
+      </div>
+      <div id="dash-stats" class="hidden">
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="font-size:13.5px;font-weight:700;color:var(--ink)">Complétion du profil</div>
+            <div style="font-size:13.5px;font-weight:800;color:var(--teal)" id="pct-label">0%</div>
+          </div>
+          <div class="prog"><div class="prog-f" id="pct-bar" style="width:0%"></div></div>
+          <div style="margin-top:9px;font-size:12.5px;color:var(--ink3)" id="pct-hint"></div>
+        </div>
+        <div class="g4" style="margin-bottom:20px" id="dash-counts"></div>
+      </div>
+      <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:13px">Actions rapides</div>
+      <div class="g2" style="max-width:700px">
+        <div class="card card-hi ac" onclick="goTo('analyze')">
+          <div style="font-size:22px;margin-bottom:10px">✦</div>
+          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Analyser une offre</div>
+          <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">CV adapté + lettre de motivation générée par l'IA</div>
+        </div>
+        <div class="card ac" onclick="goTo('interview')">
+          <div style="font-size:22px;margin-bottom:10px">🎤</div>
+          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Simulation entretien</div>
+          <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">Questions sur mesure + conseils de réponse</div>
+        </div>
+        <div class="card ac" onclick="goTo('cv')">
+          <div style="font-size:22px;margin-bottom:10px">◧</div>
+          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Mon CV</div>
+          <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">Prévisualise et télécharge ton CV PDF ATS</div>
+        </div>
+        <div class="card ac" onclick="goTo('tracker')">
+          <div style="font-size:22px;margin-bottom:10px">◫</div>
+          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Candidatures</div>
+          <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">Suis tous tes dossiers en cours</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="sc-profile" class="screen">
+      <div class="page-header">
+        <div>
+          <div class="ptitle">Mon Profil</div>
+          <div class="psub">Renseigne-le une fois, l'IA personnalise tout le reste</div>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab on"  data-tab="import">📥 Importer un CV</div>
+        <div class="tab"     data-tab="info">Infos</div>
+        <div class="tab"     data-tab="skills">Compétences</div>
+        <div class="tab"     data-tab="exp">Expériences</div>
+        <div class="tab"     data-tab="edu">Formation</div>
+        <div class="tab"     data-tab="langs">Langues</div>
+      </div>
+      <!-- TAB IMPORT -->
+      <div id="tab-import">
+        <div class="card card-hi" style="margin-bottom:16px">
+          <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px">📥 Importer ton CV existant</div>
+          <div style="font-size:13px;color:var(--ink3);line-height:1.65">Copie-colle le texte de ton CV (depuis Word, PDF, LinkedIn...). L'IA extrait automatiquement toutes les informations et remplit ton profil. Tu pourras vérifier et corriger avant de valider.</div>
+        </div>
+        <div class="card">
+          <div class="fg-row" style="margin-bottom:10px">
+            <label class="lb">Texte de ton CV</label>
+            <span style="font-size:11px;color:var(--ink3)">Ctrl+A dans ton PDF puis colle ici</span>
+          </div>
+          <textarea class="inp" id="import-cv-txt" rows="14" placeholder="Jean Dupont&#10;Responsable Supply Chain | 8 ans d'expérience&#10;jean.dupont@email.com · +33 6 12 34 56 78 · Paris&#10;&#10;EXPÉRIENCES&#10;Responsable Approvisionnement — Carrefour (2020-2024)&#10;• Gestion de 3 000 références fournisseurs...&#10;&#10;COMPÉTENCES&#10;SAP MM, Excel avancé, Power BI..."></textarea>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <button class="btn btn-p" id="import-cv-btn" onclick="importCVFromText()">✦ Extraire avec l'IA</button>
+            <button class="btn btn-g" onclick="document.getElementById('import-cv-txt').value=''">Effacer</button>
+            <span style="font-size:12px;color:var(--ink3)">⚠️ Tes données actuelles seront remplacées</span>
+          </div>
+        </div>
+        <div id="import-cv-loading" class="ldg hidden"><div class="sp"></div>L'IA analyse ton CV et extrait les informations...</div>
+        <div id="import-cv-error" class="hidden" style="padding:13px 18px;background:var(--red-bg);border-radius:10px;color:var(--red);font-size:13.5px;margin-bottom:12px;border:1px solid var(--red-border)"></div>
+        <div id="import-cv-preview" class="hidden">
+          <div class="card" style="border-color:var(--teal-border);background:var(--teal-bg)">
+            <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:14px">✅ Profil extrait — vérifie avant de valider</div>
+            <div id="import-cv-summary" style="font-size:13px;color:var(--ink2);line-height:1.9"></div>
+            <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+              <button class="btn btn-p" onclick="applyImportedCV()">✓ Appliquer au profil</button>
+              <button class="btn btn-g" onclick="cancelImport()">Annuler</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB INFO -->
+      <div id="tab-info" class="hidden">
+        <div class="card">
+          <div class="ctitle">Informations personnelles</div>
+          <div class="g2">
+            <div class="fg"><label class="lb">Prénom</label><input class="inp" id="p-fn"       placeholder="Jean"                           oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Nom</label>   <input class="inp" id="p-ln"       placeholder="Dupont"                         oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Email</label> <input class="inp" id="p-email"    type="email" placeholder="jean@email.com"    oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Téléphone</label><input class="inp" id="p-phone" placeholder="+33 6 12 34 56 78"              oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Localisation</label><input class="inp" id="p-loc" placeholder="Paris, Île-de-France"          oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">LinkedIn</label><input class="inp" id="p-linkedin" placeholder="linkedin.com/in/jean-dupont"  oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Années d'expérience</label>
+              <select class="inp" id="p-yexp" onchange="saveProfile()">
+                <option value="">Sélectionner...</option>
+                <option>Moins d'1 an</option><option>1-2 ans</option><option>3-5 ans</option><option>5-10 ans</option><option>10-15 ans</option><option>15+ ans</option>
+              </select>
+            </div>
+            <div class="fg"><label class="lb">Mobilité géographique</label>
+              <select class="inp" id="p-mobility" onchange="saveProfile()">
+                <option value="">Sélectionner...</option>
+                <option>Locale (même ville)</option><option>Régionale</option><option>Nationale</option><option>Internationale</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg"><label class="lb">Titre professionnel</label><input class="inp" id="p-title" placeholder="Ex: Responsable Approvisionnement | Chef de projet Logistique" oninput="saveProfile()"/></div>
+          <div class="fg">
+            <div class="fg-row">
+              <label class="lb">Résumé (accroche CV)</label>
+              <button class="btn-ai" onclick="openModal('resume')">✨ Générer avec l'IA</button>
+            </div>
+            <textarea class="inp" id="p-summary" rows="4" placeholder="Décris ton profil, ta valeur ajoutée et tes ambitions en 3-4 phrases..." oninput="saveProfile()"></textarea>
+            <div class="word-counter" id="summary-counter">0 / 80 mots</div>
+          </div>
+          <div style="padding:10px 14px;background:var(--teal-bg);border-radius:var(--radius-sm);font-size:12.5px;color:var(--teal-d);font-weight:600;border:1px solid var(--teal-border)">✓ Sauvegardé automatiquement</div>
+        </div>
+      </div>
+      <!-- TAB SKILLS -->
+      <div id="tab-skills" class="hidden">
+        <div class="card"><div class="ctitle">Sous-domaines Supply Chain</div><div class="chips" id="chips-subs"></div></div>
+        <div class="card"><div class="ctitle">Outils et Logiciels</div><div class="chips" id="chips-tools"></div></div>
+        <div class="card"><div class="ctitle">Certifications</div><div class="chips" id="chips-certs"></div></div>
+        <div class="card"><div class="ctitle">Secteurs d'activité</div><div class="chips" id="chips-sects"></div></div>
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Compétences personnalisées</span><button class="btn-ai" onclick="addCustomSkill()">+ Ajouter</button></div>
+          <div class="chips" id="chips-custom"></div>
+          <div id="custom-skill-form" class="hidden" style="margin-top:12px;display:flex;gap:8px">
+            <input class="inp" id="custom-skill-inp" placeholder="Ex: Gestion de projet Agile, RGPD..." style="flex:1"/>
+            <button class="btn btn-p" onclick="saveCustomSkill()">Ajouter</button>
+          </div>
+        </div>
+      </div>
+      <!-- TAB EXP -->
+      <div id="tab-exp" class="hidden">
+        <div id="exp-list"></div>
+        <button class="btn btn-g" onclick="addExp()" style="width:100%;justify-content:center;border:1.5px dashed var(--teal-border);color:var(--teal-d);padding:14px">+ Ajouter une expérience</button>
+      </div>
+      <!-- TAB EDU -->
+      <div id="tab-edu" class="hidden">
+        <div id="edu-list"></div>
+        <button class="btn btn-g" onclick="addEdu()" style="width:100%;justify-content:center;border:1.5px dashed var(--teal-border);color:var(--teal-d);padding:14px">+ Ajouter une formation</button>
+      </div>
+      <!-- TAB LANGS -->
+      <div id="tab-langs" class="hidden">
+        <div class="card">
+          <div class="ctitle">Langues</div>
+          <div id="lang-list"></div>
+          <button class="btn btn-g" onclick="addLang()" style="margin-top:10px">+ Ajouter une langue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CV -->
+    <div id="sc-cv" class="screen">
+      <div id="cv-empty" class="empty hidden">
+        <div class="empty-ic">◧</div>
+        <div class="empty-t">Profil vide</div>
+        <div class="empty-s">Renseigne ton profil pour générer ton CV</div>
+      </div>
+      <div id="cv-content" class="cv-wrap">
+        <div class="cv-bar page-header">
+          <div>
+            <div class="ptitle" style="margin-bottom:2px">Mon CV</div>
+            <div class="psub" style="margin-bottom:0">Format A4 — PDF texte lisible par les ATS</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-g" id="analyze-cv-btn" onclick="analyzeCV()">🔍 Analyser mon CV</button>
+            <button class="btn btn-p" onclick="printCV()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Télécharger PDF
+            </button>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--ink3);margin-bottom:14px">💡 Dans la boîte d'impression : choisir <strong>"Enregistrer en PDF"</strong>, désactiver les en-têtes/pieds de page</div>
+        <div id="cv-analysis-result" style="margin-bottom:16px"></div>
+        <div class="cv-doc" id="cv-doc"></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--ink3)">PDF généré par le navigateur — rendu identique à l'aperçu</div>
+      </div>
+    </div>
+
+    <!-- ANALYZE -->
+    <div id="sc-analyze" class="screen">
+      <div class="page-header">
+        <div>
+          <div class="ptitle">Analyser une offre</div>
+          <div class="psub">L'IA adapte ton CV et génère une lettre de motivation sur mesure</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ctitle">Colle l'offre d'emploi ici</div>
+        <textarea class="inp" id="offer-txt" style="min-height:190px" placeholder="Copie-colle le texte complet de l'offre (LinkedIn, Indeed, APEC, France Travail...)"></textarea>
+        <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-p" id="analyze-btn" onclick="doAnalyze()">✦ Analyser avec l'IA</button>
+            <button class="btn btn-g" onclick="clearOffer()">Effacer</button>
+          </div>
+          <div class="tog is-on" id="anon-tog" onclick="toggleAnon()">
+            <div class="tog-track"><div class="tog-thumb"></div></div>
+            <div>
+              <div class="tog-label" style="font-size:12.5px;font-weight:600">Mode anonyme</div>
+              <div style="font-size:11px;color:var(--ink3)">Nom, email, entreprises masqués</div>
+            </div>
+          </div>
+        </div>
+        <div id="anon-note" class="anon-note is-on">
+          Envoyé à Groq : compétences et expériences uniquement — données personnelles remplacées
+        </div>
+      </div>
+      <div id="analyze-loading" class="ldg hidden"><div class="sp"></div>L'IA analyse l'offre et prépare tes documents...</div>
+      <div id="analyze-error" style="padding:13px 18px;background:var(--red-bg);border-radius:10px;color:var(--red);font-size:13.5px;margin-bottom:12px;border:1px solid var(--red-border)" class="hidden"></div>
+      <div id="analyze-result"></div>
+    </div>
+
+    <!-- INTERVIEW -->
+    <div id="sc-interview" class="screen">
+      <div class="page-header">
+        <div>
+          <div class="ptitle">Simulation d'entretien</div>
+          <div class="psub">L'IA génère des questions personnalisées et t'aide à préparer tes réponses</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ctitle">Paramètres de simulation</div>
+        <div class="g2">
+          <div class="fg">
+            <label class="lb">Type de poste ciblé</label>
+            <input class="inp" id="itv-role" placeholder="Ex: Responsable Supply Chain, Chef de projet logistique..."/>
+          </div>
+          <div class="fg">
+            <label class="lb">Niveau d'entretien</label>
+            <select class="inp" id="itv-level">
+              <option value="junior">Junior (0-3 ans)</option>
+              <option value="confirmed" selected>Confirmé (3-8 ans)</option>
+              <option value="senior">Senior / Manager (8+ ans)</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="lb">Colle l'offre (optionnel — pour des questions encore plus ciblées)</label>
+          <textarea class="inp" id="itv-offer" rows="3" placeholder="Colle le texte de l'offre pour des questions ultra-personnalisées..."></textarea>
+        </div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn btn-p" id="itv-btn" onclick="generateInterview()">🎤 Générer la simulation</button>
+          <button class="btn btn-g" onclick="clearInterview()">Effacer</button>
+        </div>
+      </div>
+      <div id="itv-loading" class="ldg hidden"><div class="sp"></div>L'IA prépare ta simulation d'entretien...</div>
+      <div id="itv-error" style="padding:13px 18px;background:var(--red-bg);border-radius:10px;color:var(--red);font-size:13.5px;margin-bottom:12px;border:1px solid var(--red-border)" class="hidden"></div>
+      <div id="itv-result"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="sc-history" class="screen">
+      <div class="page-header">
+        <div>
+          <div class="ptitle">Mes analyses</div>
+          <div class="psub">Retrouve toutes tes analyses d'offres précédentes</div>
+        </div>
+        <button class="btn btn-g" onclick="clearHistory()" style="font-size:12px">Tout effacer</button>
+      </div>
+      <div id="history-list"></div>
+    </div>
+
+    <!-- TRACKER -->
+    <div id="sc-tracker" class="screen">
+      <div class="page-header">
+        <div>
+          <div class="ptitle">Mes Candidatures</div>
+          <div class="psub">Suis l'avancement de tous tes dossiers</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-g" onclick="exportCSV()" style="font-size:12.5px">📤 Export CSV</button>
+          <button class="btn btn-p" onclick="toggleAddForm()">+ Ajouter</button>
+        </div>
+      </div>
+      <div class="g5" style="margin-bottom:16px" id="tracker-stats"></div>
+      <div class="tracker-filters" id="tracker-filters"></div>
+      <div class="card">
+        <div id="add-form" class="hidden" style="background:var(--teal-bg);border-radius:12px;padding:18px;margin-bottom:18px;border:1.5px solid var(--teal-border)">
+          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:14px">Nouvelle candidature</div>
+          <div class="g2">
+            <div class="fg"><label class="lb">Entreprise</label><input class="inp" id="f-co"    placeholder="Carrefour"/></div>
+            <div class="fg"><label class="lb">Poste</label>     <input class="inp" id="f-poste" placeholder="Responsable Logistique"/></div>
+            <div class="fg"><label class="lb">Date</label>      <input class="inp" id="f-date"  type="date"/></div>
+            <div class="fg"><label class="lb">Statut</label>
+              <select class="inp" id="f-status">
+                <option>Envoyée</option><option>En cours</option><option>Entretien</option><option>Offre reçue</option><option>Refusée</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg"><label class="lb">Notes</label><input class="inp" id="f-notes" placeholder="Contacts, détails, relance..."/></div>
+          <div style="display:flex;gap:9px">
+            <button class="btn btn-p" onclick="addCand()">Enregistrer</button>
+            <button class="btn btn-g" onclick="toggleAddForm()">Annuler</button>
+          </div>
+        </div>
+        <div id="tracker-table"></div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ── AI GENERATION MODAL ──────────────────────────────── -->
+<div id="modal-overlay" class="overlay hidden">
+  <div class="modal" id="main-modal">
+    <div class="mhd">
+      <div>
+        <div class="mtitle" id="modal-title">✨ Générer avec l'IA</div>
+        <div class="msub"  id="modal-sub">Question 1 sur 4</div>
+      </div>
+      <button class="mclose" onclick="closeModal()">×</button>
+    </div>
+    <div class="mbody" id="modal-body"></div>
+    <div class="mfoot hidden" id="modal-foot">
+      <button class="btn btn-p" onclick="applyGenerated()" style="flex:1;justify-content:center">✓ Utiliser ce texte</button>
+      <button class="btn btn-g" onclick="closeModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HISTORY MODAL ────────────────────────────────────── -->
+<div id="hist-modal-overlay" class="overlay hidden">
+  <div class="modal modal-wide">
+    <div class="mhd">
+      <div>
+        <div class="mtitle" id="hist-modal-title">Analyse</div>
+        <div class="msub"  id="hist-modal-sub"></div>
+      </div>
+      <button class="mclose" onclick="closeHistModal()">×</button>
+    </div>
+    <div class="mbody" id="hist-modal-body"></div>
+  </div>
+</div>
+
+<!-- ── NOTE MODAL (tracker) ────────────────────────────── -->
+<div id="note-modal-overlay" class="overlay hidden">
+  <div class="modal">
+    <div class="mhd">
+      <div><div class="mtitle" id="note-modal-title">Note</div></div>
+      <button class="mclose" onclick="closeNoteModal()">×</button>
+    </div>
+    <div class="mbody">
+      <div class="note-modal-body" id="note-modal-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCRIPTS (order matters) ──────────────────────────── -->
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/import-cv.js"></script>
+<script src="js/cv.js"></script>
+<script src="js/analyze.js"></script>
+<script src="js/interview.js"></script>
+<script src="js/history.js"></script>
+<script src="js/tracker.js"></script>
+<script src="js/modal.js"></script>
+</body>
+</html>
