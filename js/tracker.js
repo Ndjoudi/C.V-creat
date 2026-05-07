@@ -75,7 +75,7 @@ function delCand(id) {
   ss('sc_cands', ls('sc_cands', []).filter(x => x.id !== id));
   renderTracker();
   refreshBadges();
-  toast('🗑️ Candidature supprimée');
+  toast('Candidature supprimée');
 }
 
 function updCand(id, k, v) {

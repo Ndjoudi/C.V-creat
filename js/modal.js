@@ -15,7 +15,8 @@ let modalState = { type: null, expId: null, step: 0, answers: {}, generated: '' 
 
 function openModal(type, expId = null) {
   modalState = { type, expId, step: 0, answers: {}, generated: '' };
-  document.getElementById('modal-title').textContent = type === 'resume' ? '✨ Générer l\'accroche' : '✨ Générer la description';
+  document.getElementById('modal-title').innerHTML = `<i data-lucide="sparkles" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"></i>${type === 'resume' ? 'Générer l\'accroche' : 'Générer la description'}`;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
   document.getElementById('modal-overlay').classList.remove('hidden');
   renderModalStep();
 }
@@ -46,11 +47,12 @@ function renderModalStep() {
   } else {
     body += `<div style="display:flex;flex-wrap:wrap;margin-top:10px">${q.choices.map(c => `<span class="cbtn" onclick="selectTone(this,'${c}')">${c}</span>`).join('')}</div>
     <div style="display:flex;justify-content:flex-end;margin-top:11px">
-      <button class="btn btn-p" id="tone-btn" onclick="submitTone()" disabled>Générer ✨</button>
+      <button class="btn btn-p" id="tone-btn" onclick="submitTone()" disabled>Générer <i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-left:3px"></i></button>
     </div>`;
   }
 
   document.getElementById('modal-body').innerHTML = body;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
   const inp = document.getElementById('m-inp');
   if (inp) {
     inp.focus();

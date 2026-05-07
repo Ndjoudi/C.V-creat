@@ -36,12 +36,18 @@ function renderCV() {
   // ── Header ──
   const contacts = [P.email, P.phone, P.location, P.linkedin].filter(Boolean);
   const contactLine = contacts.map(c => `<span>${esc(c)}</span>`).join('');
+  const extras = [P.disponibilite, P.mobility, P.permis].filter(Boolean);
+  const extraLine = extras.map(e => `<span>${esc(e)}</span>`).join('');
 
   let html = `
   <div class="cv-hd">
-    <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
-    ${P.title ? `<div class="cv-ti">${esc(P.title)}</div>` : ''}
-    ${contactLine ? `<div class="cv-contact-line">${contactLine}</div>` : ''}
+    <div style="flex:1">
+      <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
+      ${P.title ? `<div class="cv-ti">${esc(P.title)}</div>` : ''}
+      ${contactLine ? `<div class="cv-contact-line">${contactLine}</div>` : ''}
+      ${extraLine ? `<div class="cv-contact-line" style="margin-top:3px">${extraLine}</div>` : ''}
+    </div>
+    ${P.photo ? `<img src="${P.photo}" class="cv-photo"/>` : ''}
   </div>
   <div class="cv-div"></div>`;
 
@@ -134,6 +140,14 @@ function renderCV() {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Secteurs</div>
       <div class="cv-skill-tags">${P.sectors.map(s => `<span class="cv-skill-tag">${esc(s)}</span>`).join('')}</div>
+    </div>`;
+  }
+
+  // ── Centres d'intérêt ──
+  if (P.hobbies) {
+    html += `<div class="cv-sec">
+      <div class="cv-stitle">Centres d'intérêt</div>
+      <div class="cv-summary-text">${esc(P.hobbies)}</div>
     </div>`;
   }
 

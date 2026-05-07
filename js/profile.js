@@ -2,7 +2,8 @@
 const FIELD_MAP = {
   fn:'firstName', ln:'lastName', email:'email', phone:'phone',
   loc:'location', linkedin:'linkedin', title:'title',
-  yexp:'yearsExp', mobility:'mobility', summary:'summary'
+  yexp:'yearsExp', mobility:'mobility', summary:'summary',
+  permis:'permis', disponibilite:'disponibilite', hobbies:'hobbies'
 };
 
 function loadProfileToForm() {
@@ -11,6 +12,7 @@ function loadProfileToForm() {
     if (el) el.value = P[v] || '';
   });
   initWordCounter();
+  renderPhotoPreview();
 }
 
 function saveProfile() {
@@ -122,11 +124,12 @@ function renderExpList() {
       <div class="fg">
         <div class="fg-row">
           <label class="lb">Missions et réalisations</label>
-          <button class="btn-ai" onclick="openModal('exp','${e.id}')">✨ Générer avec l'IA</button>
+          <button class="btn-ai" onclick="openModal('exp','${e.id}')"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l'IA</button>
         </div>
         <textarea class="inp" rows="3" placeholder="Gestion des stocks, KPIs, réalisations chiffrées..." oninput="updExp('${e.id}','description',this.value)">${esc(e.description)}</textarea>
       </div>
     </div>`).join('');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function addExp() {
@@ -141,7 +144,8 @@ function updExp(id, key, val) { const e = P.experiences.find(x => x.id === id); 
 function renderEduList() {
   const el = document.getElementById('edu-list');
   if (!P.education.length) {
-    el.innerHTML = `<div class="empty" style="padding:30px"><div class="empty-ic">🎓</div><div class="empty-t">Aucune formation</div><div class="empty-s">Ajoute tes diplômes et formations</div></div>`;
+    el.innerHTML = `<div class="empty" style="padding:30px"><div class="empty-ic"><i data-lucide="graduation-cap" style="width:32px;height:32px;color:var(--ink3)"></i></div><div class="empty-t">Aucune formation</div><div class="empty-s">Ajoute tes diplômes et formations</div></div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
     return;
   }
   el.innerHTML = P.education.map((e, i) => `
@@ -185,3 +189,43 @@ function renderLangList() {
 function addLang() { P.languages.push({ id: Date.now().toString(), name: '', level: 'Courant' }); ss('sc_profile', P); renderLangList(); }
 function delLang(id) { P.languages = P.languages.filter(l => l.id !== id); ss('sc_profile', P); renderLangList(); }
 function updLang(id, key, val) { const l = P.languages.find(x => x.id === id); if (l) { l[key] = val; ss('sc_profile', P); } }
+
+// ── PHOTO ──────────────────────────────────────────────────
+function handlePhotoUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Sélectionne une image (JPG, PNG...)'); return; }
+  if (file.size > 3 * 1024 * 1024) { toast('Photo trop lourde — max 3 Mo'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    P.photo = ev.target.result;
+    ss('sc_profile', P);
+    renderPhotoPreview();
+    toast('Photo enregistrée');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+  P.photo = '';
+  ss('sc_profile', P);
+  renderPhotoPreview();
+  toast('Photo supprimée');
+}
+
+function renderPhotoPreview() {
+  const img       = document.getElementById('photo-preview');
+  const ph        = document.getElementById('photo-placeholder');
+  const removeBtn = document.getElementById('photo-remove-btn');
+  if (!img) return;
+  if (P.photo) {
+    img.src = P.photo;
+    img.classList.remove('hidden');
+    if (ph) ph.classList.add('hidden');
+    if (removeBtn) removeBtn.classList.remove('hidden');
+  } else {
+    img.classList.add('hidden');
+    if (ph) ph.classList.remove('hidden');
+    if (removeBtn) removeBtn.classList.add('hidden');
+  }
+}

@@ -15,6 +15,7 @@ const STAT_COLORS = {
 const DEF_PROFILE = {
   firstName:'',lastName:'',email:'',phone:'',location:'',linkedin:'',
   title:'',yearsExp:'',mobility:'',summary:'',
+  permis:'',disponibilite:'',hobbies:'',photo:'',
   subdomains:[],tools:[],certifs:[],sectors:[],customSkills:[],
   experiences:[],education:[],languages:[]
 };
@@ -45,7 +46,7 @@ function esc(s) {
 let P = ls('sc_profile', DEF_PROFILE);
 // Migrate old profiles missing newer fields
 ['customSkills','education','languages'].forEach(k => { if (!P[k]) P[k] = []; });
-['linkedin','mobility'].forEach(k => { if (!P[k]) P[k] = ''; });
+['linkedin','mobility','permis','disponibilite','hobbies','photo'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
 
 // ── THEME (mode clair fixe) ────────────────────────────────
 document.documentElement.setAttribute('data-theme', 'light');

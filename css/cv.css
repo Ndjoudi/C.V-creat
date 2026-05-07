@@ -9,7 +9,12 @@
 }
 
 /* ── HEADER ────────────────────────────────────────────── */
-.cv-hd{margin-bottom:0}
+.cv-hd{margin-bottom:0;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.cv-photo{
+  width:80px;height:80px;border-radius:50%;
+  object-fit:cover;border:1.5px solid #D2D2D7;
+  flex-shrink:0;
+}
 .cv-nm{
   font-size:26px;font-weight:700;color:#000000;
   letter-spacing:-.5px;line-height:1.1;margin-bottom:5px;

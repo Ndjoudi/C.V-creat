@@ -260,7 +260,7 @@ function renderAnalyzeResult(r, cvErrors, container) {
   html += `<div class="card">
     <div class="ctitle-row">
       <span class="ctitle">Bullet points adaptés pour ton CV</span>
-      <span style="font-size:11px;color:var(--sand-dark);background:var(--sand-bg);border:1px solid #D4B98A;padding:3px 9px;border-radius:100px;font-weight:600">✨ Suggestions IA — à relire</span>
+      <span style="font-size:11px;color:var(--sand-dark);background:var(--sand-bg);border:1px solid #D4B98A;padding:3px 9px;border-radius:100px;font-weight:600;display:inline-flex;align-items:center;gap:4px"><i data-lucide="sparkles" style="width:11px;height:11px"></i>Suggestions IA — à relire</span>
     </div>
     <div style="font-size:12.5px;color:var(--ink3);margin-bottom:13px">Formule APR : Verbe d'action + Action concrète + Résultat</div>
     ${(r.adapted_bullets||[]).map(b=>`<div class="bullet">${esc(b)}</div>`).join('')}
@@ -276,7 +276,7 @@ function renderAnalyzeResult(r, cvErrors, container) {
     html += `<div class="card">
       <div class="ctitle-row">
         <span class="ctitle">Lettre de motivation</span>
-        <span style="font-size:11px;color:var(--sand-dark);background:var(--sand-bg);border:1px solid #D4B98A;padding:3px 9px;border-radius:100px;font-weight:600">✨ Suggestion IA — à personnaliser</span>
+        <span style="font-size:11px;color:var(--sand-dark);background:var(--sand-bg);border:1px solid #D4B98A;padding:3px 9px;border-radius:100px;font-weight:600;display:inline-flex;align-items:center;gap:4px"><i data-lucide="sparkles" style="width:11px;height:11px"></i>Suggestion IA — à personnaliser</span>
       </div>
       <div style="display:flex;gap:7px;margin-bottom:12px">
         <button class="btn btn-g" style="font-size:12.5px" onclick="copyLetter()">Copier</button>
@@ -287,6 +287,7 @@ function renderAnalyzeResult(r, cvErrors, container) {
   }
 
   container.innerHTML = html;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
   window._coverLetter = r.cover_letter || '';
 }
 

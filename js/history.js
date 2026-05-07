@@ -4,7 +4,8 @@ function renderHistory() {
   const hist = ls('sc_history', []);
   const el   = document.getElementById('history-list');
   if (!hist.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-ic"></div><div class="empty-t">Aucune analyse</div><div class="empty-s">Lance une analyse d'offre pour commencer</div></div>`;
+    el.innerHTML = `<div class="empty"><div class="empty-ic"><i data-lucide="clock" style="width:32px;height:32px;color:var(--ink3)"></i></div><div class="empty-t">Aucune analyse</div><div class="empty-s">Lance une analyse d'offre pour commencer</div></div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
     return;
   }
   el.innerHTML = hist.map(h => {
@@ -31,7 +32,7 @@ function delHistItem(event, id) {
   ss('sc_history', hist);
   renderHistory();
   refreshBadges();
-  toast('🗑️ Analyse supprimée');
+  toast('Analyse supprimée');
 }
 
 function openHistModal(id) {
@@ -53,5 +54,5 @@ function clearHistory() {
   ss('sc_history', []);
   renderHistory();
   refreshBadges();
-  toast('🗑️ Historique effacé');
+  toast('Historique effacé');
 }
