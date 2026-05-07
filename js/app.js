@@ -47,6 +47,13 @@ let P = ls('sc_profile', DEF_PROFILE);
 // Migrate old profiles missing newer fields
 ['customSkills','education','languages'].forEach(k => { if (!P[k]) P[k] = []; });
 ['linkedin','mobility','permis','disponibilite','hobbies','photo'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
+// Migrate experience objects to include new fields
+P.experiences.forEach(e => {
+  if (e.contractType === undefined) e.contractType = '';
+  if (e.sector === undefined) e.sector = '';
+  if (e.souvenirs === undefined) e.souvenirs = '';
+  if (e.fichemetier === undefined) e.fichemetier = '';
+});
 
 // ── THEME (mode clair fixe) ────────────────────────────────
 document.documentElement.setAttribute('data-theme', 'light');

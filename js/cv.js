@@ -65,10 +65,10 @@ function renderCV() {
     P.experiences.forEach(e => {
       html += `<div class="cv-exp">
         <div class="cv-erow">
-          <div class="cv-etitle">${esc(e.title)}</div>
+          <div class="cv-etitle">${esc(e.title)}${e.contractType ? ' <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px;background:#F2F2F2;color:#6E6E73;border:1px solid #D2D2D7;vertical-align:middle;margin-left:5px">' + esc(e.contractType) + '</span>' : ''}</div>
           <div class="cv-edates">${esc(e.duration)}</div>
         </div>
-        ${e.company ? `<div class="cv-eco">${esc(e.company)}${e.location ? ' · ' + esc(e.location) : ''}</div>` : ''}
+        ${e.company ? `<div class="cv-eco">${esc(e.company)}${e.sector ? ' · ' + esc(e.sector) : ''}${e.location ? ' · ' + esc(e.location) : ''}</div>` : ''}
         ${renderDescription(e.description)}
       </div>`;
     });

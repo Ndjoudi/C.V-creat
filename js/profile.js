@@ -106,34 +106,86 @@ function removeCustomSkill(val) {
 }
 
 // ── EXPERIENCES ────────────────────────────────────────────
+const CONTRACT_TYPES = ['CDI','CDD','Stage','Alternance','Bénévolat','Freelance','Intérim','Autre'];
+const CONTRACT_COLORS = {
+  'CDI':        ['#16A34A','#F0FDF4','#BBF7D0'],
+  'CDD':        ['#D97706','#FFFBEB','#FDE68A'],
+  'Stage':      ['#7C3AED','#F5F3FF','#DDD6FE'],
+  'Alternance': ['#2563EB','#EFF6FF','#BFDBFE'],
+  'Bénévolat':  ['#0891B2','#ECFEFF','#A5F3FC'],
+  'Freelance':  ['#DC2626','#FEF2F2','#FECACA'],
+  'Intérim':    ['#9333EA','#FAF5FF','#E9D5FF'],
+};
+
 function renderExpList() {
   const el = document.getElementById('exp-list');
   if (!P.experiences.length) { el.innerHTML = ''; return; }
-  el.innerHTML = P.experiences.map((e, i) => `
-    <div class="ecard" id="ecard-${e.id}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div style="font-size:14px;font-weight:700;color:var(--ink)">Expérience ${i + 1}</div>
-        <button class="btn-del" onclick="delExp('${e.id}')">Supprimer</button>
-      </div>
-      <div class="g2">
-        <div class="fg"><label class="lb">Intitulé du poste</label><input class="inp" value="${esc(e.title)}" placeholder="Responsable Logistique" oninput="updExp('${e.id}','title',this.value)"/></div>
-        <div class="fg"><label class="lb">Entreprise</label><input class="inp" value="${esc(e.company)}" placeholder="Carrefour" oninput="updExp('${e.id}','company',this.value)"/></div>
-        <div class="fg"><label class="lb">Durée</label><input class="inp" value="${esc(e.duration)}" placeholder="Jan 2020 – Déc 2022" oninput="updExp('${e.id}','duration',this.value)"/></div>
-        <div class="fg"><label class="lb">Localisation</label><input class="inp" value="${esc(e.location||'')}" placeholder="Paris" oninput="updExp('${e.id}','location',this.value)"/></div>
-      </div>
-      <div class="fg">
-        <div class="fg-row">
-          <label class="lb">Missions et réalisations</label>
-          <button class="btn-ai" onclick="openModal('exp','${e.id}')"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l'IA</button>
-        </div>
-        <textarea class="inp" rows="3" placeholder="Gestion des stocks, KPIs, réalisations chiffrées..." oninput="updExp('${e.id}','description',this.value)">${esc(e.description)}</textarea>
-      </div>
-    </div>`).join('');
+  el.innerHTML = P.experiences.map((e, i) => {
+    const ct = e.contractType || '';
+    const [cc, cb, cborder] = CONTRACT_COLORS[ct] || ['var(--ink3)','var(--bg)','var(--border)'];
+    const opts = CONTRACT_TYPES.map(t => '<option' + (ct === t ? ' selected' : '') + '>' + t + '</option>').join('');
+    return '<div class="ecard" id="ecard-' + e.id + '">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<div style="font-size:13.5px;font-weight:700;color:var(--ink)">Expérience ' + (i+1) + '</div>' +
+          (ct ? '<span class="contract-badge" style="color:' + cc + ';background:' + cb + ';border-color:' + cborder + '">' + esc(ct) + '</span>' : '') +
+        '</div>' +
+        '<button class="btn-del" onclick="delExp(\'' + e.id + '\')">Supprimer</button>' +
+      '</div>' +
+      '<div class="g2">' +
+        '<div class="fg"><label class="lb">Type de contrat</label>' +
+          '<select class="inp" oninput="updExp(\'' + e.id + '\',\'contractType\',this.value)">' +
+            '<option value="">Sélectionner...</option>' + opts +
+          '</select></div>' +
+        '<div class="fg"><label class="lb">Dates</label>' +
+          '<input class="inp" value="' + esc(e.duration) + '" placeholder="Jan 2020 – Déc 2022" oninput="updExp(\'' + e.id + '\',\'duration\',this.value)"/></div>' +
+      '</div>' +
+      '<div class="g2">' +
+        '<div class="fg"><label class="lb">Fonction</label>' +
+          '<input class="inp" value="' + esc(e.title) + '" placeholder="Responsable Logistique" oninput="updExp(\'' + e.id + '\',\'title\',this.value)"/></div>' +
+        '<div class="fg"><label class="lb">Entreprise</label>' +
+          '<input class="inp" value="' + esc(e.company) + '" placeholder="Carrefour" oninput="updExp(\'' + e.id + '\',\'company\',this.value)"/></div>' +
+      '</div>' +
+      '<div class="g2">' +
+        '<div class="fg"><label class="lb">Secteur d\'activité</label>' +
+          '<input class="inp" value="' + esc(e.sector||'') + '" placeholder="Ex: Retail, Industrie, Pharma..." oninput="updExp(\'' + e.id + '\',\'sector\',this.value)"/></div>' +
+        '<div class="fg"><label class="lb">Localisation</label>' +
+          '<input class="inp" value="' + esc(e.location||'') + '" placeholder="Paris" oninput="updExp(\'' + e.id + '\',\'location\',this.value)"/></div>' +
+      '</div>' +
+      '<div class="exp-section">' +
+        '<div class="exp-section-hd">' +
+          '<div><div class="exp-section-label">Fiche de poste</div>' +
+          '<div class="exp-section-sub">Périmètre du contrat · missions réelles</div></div>' +
+          '<button class="btn-ai" onclick="openModal(\'exp\',\'' + e.id + '\')"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l\'IA</button>' +
+        '</div>' +
+        '<textarea class="inp" rows="3" placeholder="• Périmètre attendu&#10;• Missions réelles effectuées&#10;• Réalisations chiffrées" oninput="updExp(\'' + e.id + '\',\'description\',this.value)">' + esc(e.description) + '</textarea>' +
+      '</div>' +
+      '<details class="exp-details">' +
+        '<summary class="exp-details-summary"><i data-lucide="notebook-pen" style="width:14px;height:14px"></i>Souvenirs de semaine</summary>' +
+        '<div style="margin-top:10px">' +
+          '<div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.6;background:var(--bg);border-radius:8px;padding:9px 12px;border:1px solid var(--border)">Je balaye la semaine de travail en notant les actions, interactions et apprentissages — à transformer ensuite en bullet points CV.</div>' +
+          '<textarea class="inp" rows="4" placeholder="Semaine du 15 jan : réunion S&OP, analyse stock mort 450 refs..." oninput="updExp(\'' + e.id + '\',\'souvenirs\',this.value)">' + esc(e.souvenirs||'') + '</textarea>' +
+        '</div>' +
+      '</details>' +
+      '<details class="exp-details">' +
+        '<summary class="exp-details-summary"><i data-lucide="search" style="width:14px;height:14px"></i>Fiche métier</summary>' +
+        '<div style="margin-top:10px">' +
+          '<div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.6;background:var(--bg);border-radius:8px;padding:9px 12px;border:1px solid var(--border)">Recherche <strong>« ' + esc(e.title||'ton poste') + ' — fiche métier »</strong> sur Google, ROME ou LinkedIn, puis colle ici les infos utiles.</div>' +
+          '<textarea class="inp" rows="3" placeholder="Compétences attendues, formations recommandées, évolutions de carrière..." oninput="updExp(\'' + e.id + '\',\'fichemetier\',this.value)">' + esc(e.fichemetier||'') + '</textarea>' +
+        '</div>' +
+      '</details>' +
+    '</div>';
+  }).join('');
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function addExp() {
-  P.experiences.push({ id: Date.now().toString(), title: '', company: '', duration: '', location: '', description: '' });
+  P.experiences.push({
+    id: Date.now().toString(),
+    contractType: '', title: '', company: '',
+    duration: '', sector: '', location: '',
+    description: '', souvenirs: '', fichemetier: ''
+  });
   ss('sc_profile', P);
   renderExpList();
 }
