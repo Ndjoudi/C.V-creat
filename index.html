@@ -7,9 +7,9 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=7"/>
-<link rel="stylesheet" href="css/components.css?v=7"/>
-<link rel="stylesheet" href="css/cv.css?v=7"/>
+<link rel="stylesheet" href="css/base.css?v=8"/>
+<link rel="stylesheet" href="css/components.css?v=8"/>
+<link rel="stylesheet" href="css/cv.css?v=8"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -153,7 +153,7 @@
         <div class="tab"     data-tab="skills">Compétences</div>
         <div class="tab"     data-tab="exp">Expériences</div>
         <div class="tab"     data-tab="edu">Formation</div>
-        <div class="tab"     data-tab="langs">Langues</div>
+        <div class="tab"     data-tab="divers">Divers</div>
       </div>
       <!-- TAB IMPORT -->
       <div id="tab-import">
@@ -224,7 +224,7 @@
               <label class="lb">Accroche CV (Profil)</label>
               <button class="btn-ai" onclick="openModal('resume')"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l'IA</button>
             </div>
-            <textarea class="inp" id="p-summary" rows="4" placeholder="Actuellement [situation]. Je recherche [objectif]. Mes points forts : [compétences clés + chiffres]." oninput="saveProfile()"></textarea>
+            <textarea class="inp" id="p-summary" rows="4" placeholder="Ex : Actuellement [situation], je recherche un CDI en tant qu'Assistant Marketing. Fort de X ans d'expérience, je maîtrise [outils/compétences clés]. Anglais B2 professionnel. Disponible immédiatement." oninput="saveProfile()"></textarea>
             <div class="word-counter" id="summary-counter">0 / 80 mots</div>
           </div>
         </div>
@@ -254,7 +254,6 @@
             <div class="fg"><label class="lb">Permis / Véhicule</label><input class="inp" id="p-permis" placeholder="Ex : Permis B, véhicule personnel" oninput="saveProfile()"/></div>
             <div class="fg"><label class="lb">Disponibilité</label><input class="inp" id="p-disponibilite" placeholder="Ex : Octobre 2025" oninput="saveProfile()"/></div>
           </div>
-          <div class="fg" style="margin-bottom:14px"><label class="lb">Centres d'intérêt</label><textarea class="inp" id="p-hobbies" rows="2" placeholder="Ex : Sport, voyages, lecture, musique..." oninput="saveProfile()"></textarea></div>
           <div style="padding:10px 14px;background:var(--teal-bg);border-radius:var(--radius-sm);font-size:12.5px;color:var(--teal-d);font-weight:600;border:1px solid var(--teal-border)"><i data-lucide="check" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"></i>Sauvegardé automatiquement</div>
         </div>
       </div>
@@ -283,13 +282,30 @@
         <div id="edu-list"></div>
         <button class="btn btn-g" onclick="addEdu()" style="width:100%;justify-content:center;border:1.5px dashed var(--teal-border);color:var(--teal-d);padding:14px">+ Ajouter une formation</button>
       </div>
-      <!-- TAB LANGS -->
-      <div id="tab-langs" class="hidden">
-        <div class="card">
-          <div class="ctitle">Langues</div>
+      <!-- TAB DIVERS -->
+      <div id="tab-divers" class="hidden">
+
+        <!-- Langues -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="section-hdg"><i data-lucide="languages" style="width:13px;height:13px"></i>Langues</div>
           <div id="lang-list"></div>
           <button class="btn btn-g" onclick="addLang()" style="margin-top:10px">+ Ajouter une langue</button>
         </div>
+
+        <!-- Bureautique & Informatique -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="section-hdg"><i data-lucide="monitor" style="width:13px;height:13px"></i>Bureautique & Informatique</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">Logiciels bureautiques, outils collaboratifs, IA générative...</div>
+          <div class="chips" id="chips-info"></div>
+        </div>
+
+        <!-- Centres d'intérêt -->
+        <div class="card">
+          <div class="section-hdg"><i data-lucide="heart" style="width:13px;height:13px"></i>Centres d'intérêt</div>
+          <textarea class="inp" id="p-hobbies" rows="3" placeholder="Ex : Sport, voyages, lecture, bénévolat, musique..." oninput="saveProfile()"></textarea>
+          <div style="font-size:11px;color:var(--ink3);margin-top:6px">Optionnel — à inclure si pertinent par rapport au poste</div>
+        </div>
+
       </div>
     </div>
 
@@ -490,15 +506,15 @@
 </div>
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=7"></script>
-<script src="js/app.js?v=7"></script>
-<script src="js/profile.js?v=7"></script>
-<script src="js/import-cv.js?v=7"></script>
-<script src="js/cv.js?v=7"></script>
-<script src="js/analyze.js?v=7"></script>
-<script src="js/interview.js?v=7"></script>
-<script src="js/history.js?v=7"></script>
-<script src="js/tracker.js?v=7"></script>
-<script src="js/modal.js?v=7"></script>
+<script src="js/api.js?v=8"></script>
+<script src="js/app.js?v=8"></script>
+<script src="js/profile.js?v=8"></script>
+<script src="js/import-cv.js?v=8"></script>
+<script src="js/cv.js?v=8"></script>
+<script src="js/analyze.js?v=8"></script>
+<script src="js/interview.js?v=8"></script>
+<script src="js/history.js?v=8"></script>
+<script src="js/tracker.js?v=8"></script>
+<script src="js/modal.js?v=8"></script>
 </body>
 </html>

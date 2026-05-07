@@ -1,9 +1,9 @@
 // ── AI GENERATION MODAL ────────────────────────────────────
 const RQ = [
-  { id:'domains', q:'Sur quels domaines supply chain tu travailles principalement ?', type:'text', ph:'Ex: appros, planification, logistique entrepôt...' },
-  { id:'win',     q:'Ta plus belle réalisation, celle dont tu es le plus fier ?',     type:'text', ph:'Ex: réduction ruptures 30%, projet WMS, déménagement entrepôt...' },
-  { id:'goal',    q:'Tu cherches quoi dans ta prochaine expérience ?',                type:'text', ph:'Ex: management, évoluer vers S&OP, nouveau secteur...' },
-  { id:'tone',    q:'Quel ton tu préfères pour ton accroche ?', type:'choice', choices:['Professionnel / Corporate','Dynamique / Ambitieux','Expert / Technique'] },
+  { id:'poste',   q:'Pour quel poste tu génères cette accroche ?',                    type:'text', ph:'Ex: CDI - Assistant Marketing, Stage Logistique, Alternance RH...' },
+  { id:'domains', q:'Quels sont tes domaines ou compétences clés pour ce poste ?',    type:'text', ph:'Ex: gestion de stock, analyse de données, relation client, pack Office...' },
+  { id:'win',     q:'Ta meilleure réalisation ou atout pour ce poste ?',              type:'text', ph:'Ex: réduction ruptures 30%, maîtrise d\'Excel, projet WMS...' },
+  { id:'tone',    q:'Quel ton tu préfères pour ton accroche ?', type:'choice', choices:['Professionnel / Sobre','Dynamique / Ambitieux','Expert / Technique'] },
 ];
 const EQ = [
   { id:'missions', q:'Quelles étaient tes missions principales sur ce poste ?',  type:'text', ph:'Ex: gestion stocks, coordination transport, planification MRP...' },
@@ -91,15 +91,23 @@ async function generateText(refine = '') {
   let prompt = '';
 
   if (modalState.type === 'resume') {
-    prompt = `Expert RH supply chain. Génère une accroche CV professionnelle en français (3-4 phrases, max 80 mots).
-Domaines: ${a.domains || P.subdomains.join(', ') || 'supply chain'}
-Expérience: ${P.yearsExp || 'non précisé'}
-Outils: ${P.tools.slice(0,5).join(', ') || '—'}
-Réalisation: ${a.win}
-Objectif: ${a.goal}
-Ton: ${a.tone}
-${refine ? 'Modification: ' + refine : ''}
-Réponds UNIQUEMENT avec le texte, sans guillemets ni titre.`;
+    const langs = P.languages.length ? P.languages.map(l => l.name + ' ' + l.level).join(', ') : '';
+    prompt = `Tu es un expert en recrutement. Génère une accroche CV percutante en français (3-4 phrases max, 60-80 mots), adaptée au poste ciblé.
+
+STRUCTURE OBLIGATOIRE (dans cet ordre) :
+1. Situation actuelle + poste ciblé : "${a.poste || 'poste ciblé'}"
+2. Années d'expérience (${P.yearsExp || 'non précisé'}) + domaines/compétences clés
+3. Meilleur atout / réalisation : "${a.win}"
+4. Si langue pertinente pour le poste (${langs || 'non renseigné'}) → la mentionner avec le niveau
+5. Disponibilité : "${P.disponibilite || 'disponible rapidement'}"
+
+PROFIL :
+Domaines / compétences : ${a.domains || P.subdomains.join(', ') || 'supply chain'}
+Outils maîtrisés : ${P.tools.slice(0,5).join(', ') || '—'}
+Ton souhaité : ${a.tone}
+${refine ? 'Modification demandée : ' + refine : ''}
+
+Réponds UNIQUEMENT avec le texte de l'accroche, sans guillemets ni titre ni numérotation.`;
   } else {
     const exp = P.experiences.find(e => e.id === modalState.expId) || {};
     prompt = `Expert RH supply chain. Génère une description de poste CV en 3-4 bullet points percutants (verbe d'action fort).

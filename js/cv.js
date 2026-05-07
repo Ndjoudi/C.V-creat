@@ -91,7 +91,7 @@ function renderCV() {
   }
 
   // ── Compétences en tags ──
-  const hasSkills = P.subdomains.length || P.tools.length || P.certifs.length || P.customSkills.length;
+  const hasSkills = P.subdomains.length || P.tools.length || P.certifs.length || P.customSkills.length || P.informatique.length;
   if (hasSkills) {
     html += `<div class="cv-sec"><div class="cv-stitle">Compétences et Outils</div>`;
 
@@ -103,8 +103,14 @@ function renderCV() {
     }
     if (P.tools.length) {
       html += `<div class="cv-skill-row">
-        <div class="cv-skill-key">Outils</div>
+        <div class="cv-skill-key">Outils SC</div>
         <div class="cv-skill-tags">${P.tools.map(s => `<span class="cv-skill-tag">${esc(s)}</span>`).join('')}</div>
+      </div>`;
+    }
+    if (P.informatique.length) {
+      html += `<div class="cv-skill-row">
+        <div class="cv-skill-key">Bureautique</div>
+        <div class="cv-skill-tags">${P.informatique.map(s => `<span class="cv-skill-tag">${esc(s)}</span>`).join('')}</div>
       </div>`;
     }
     if (P.certifs.length) {

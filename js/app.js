@@ -3,6 +3,7 @@ const SUBS  = ['Logistique / Entrepôt','Transport','Planification / S&OP','Appr
 const TOOLS = ['SAP MM','SAP WM/EWM','SAP APO/IBP','Oracle SCM','WMS','TMS','Excel avancé','Power BI','Tableau','Dynamics 365','AS400','EDI','Kinaxis','Blue Yonder','SAGE','Cegid','Generix','Reflex WMS','Manhattan WMS','Infor M3'];
 const CERTS = ['APICS CPIM','APICS CSCP','Six Sigma Green Belt','Six Sigma Black Belt','Lean Manufacturing','CILT','PMP','Prince2','Agile/Scrum','CIPS','ISO 9001','ISO 14001','Lean Six Sigma'];
 const SECTS = ['Industrie','Retail / Distribution','Agroalimentaire','Pharmacie','Automobile','Luxe / Mode','Aéronautique','Grande consommation','E-commerce','BTP','Energie','Cosmétique','Santé / Médical'];
+const INFORMATIQUE = ['Microsoft Word','Excel','PowerPoint','Outlook','Teams','Google Workspace','Google Sheets','Google Slides','Canva','Notion','Trello','Slack','Zoom','SharePoint','OneDrive','Adobe Acrobat','Salesforce','HubSpot','WordPress','ChatGPT / IA générative'];
 const STATS = ['Envoyée','En cours','Entretien','Offre reçue','Refusée'];
 const STAT_COLORS = {
   'Envoyée':      ['#3B82F6','#EFF6FF','#BFDBFE'],
@@ -16,7 +17,7 @@ const DEF_PROFILE = {
   firstName:'',lastName:'',email:'',phone:'',location:'',linkedin:'',
   title:'',yearsExp:'',mobility:'',summary:'',
   permis:'',disponibilite:'',hobbies:'',photo:'',
-  subdomains:[],tools:[],certifs:[],sectors:[],customSkills:[],
+  subdomains:[],tools:[],certifs:[],sectors:[],customSkills:[],informatique:[],
   experiences:[],education:[],languages:[]
 };
 
@@ -45,7 +46,7 @@ function esc(s) {
 // ── PROFILE STATE ──────────────────────────────────────────
 let P = ls('sc_profile', DEF_PROFILE);
 // Migrate old profiles missing newer fields
-['customSkills','education','languages'].forEach(k => { if (!P[k]) P[k] = []; });
+['customSkills','education','languages','informatique'].forEach(k => { if (!P[k]) P[k] = []; });
 ['linkedin','mobility','permis','disponibilite','hobbies','photo'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
 // Migrate experience objects to include new fields
 P.experiences.forEach(e => {

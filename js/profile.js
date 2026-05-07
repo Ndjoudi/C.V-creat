@@ -52,10 +52,11 @@ function initWordCounter() {
 
 // ── CHIPS ──────────────────────────────────────────────────
 function renderChips() {
-  renderChipGroup('chips-subs',  SUBS,  'subdomains');
-  renderChipGroup('chips-tools', TOOLS, 'tools');
-  renderChipGroup('chips-certs', CERTS, 'certifs');
-  renderChipGroup('chips-sects', SECTS, 'sectors');
+  renderChipGroup('chips-subs',  SUBS,         'subdomains');
+  renderChipGroup('chips-tools', TOOLS,        'tools');
+  renderChipGroup('chips-certs', CERTS,        'certifs');
+  renderChipGroup('chips-sects', SECTS,        'sectors');
+  renderChipGroup('chips-info',  INFORMATIQUE, 'informatique');
   renderCustomChips();
   updateSBProfile();
 }
