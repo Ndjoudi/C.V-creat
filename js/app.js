@@ -57,6 +57,7 @@ P.experiences.forEach(e => {
   if (e.sector === undefined) e.sector = '';
   if (e.souvenirs === undefined) e.souvenirs = '';
   if (e.fichemetier === undefined) e.fichemetier = '';
+  if (e.bullets === undefined) e.bullets = [];
 });
 
 // ── THEME (mode clair fixe) ────────────────────────────────
@@ -103,6 +104,8 @@ window.onload = () => {
     if (e.target.id === 'modal-overlay') closeModal();
     if (e.target.id === 'hist-modal-overlay') closeHistModal();
     if (e.target.id === 'note-modal-overlay') closeNoteModal();
+    if (e.target.id === 'bullet-picker-overlay') closeBulletPicker();
+    if (e.target.id === 'bullet-match-overlay') closeBulletMatch();
   });
 };
 

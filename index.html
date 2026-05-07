@@ -7,9 +7,9 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=9"/>
-<link rel="stylesheet" href="css/components.css?v=9"/>
-<link rel="stylesheet" href="css/cv.css?v=9"/>
+<link rel="stylesheet" href="css/base.css?v=10"/>
+<link rel="stylesheet" href="css/components.css?v=10"/>
+<link rel="stylesheet" href="css/cv.css?v=10"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -529,16 +529,52 @@
   </div>
 </div>
 
+<!-- ── BULLET PICKER MODAL ──────────────────────────────── -->
+<div id="bullet-picker-overlay" class="overlay hidden">
+  <div class="modal modal-wide">
+    <div class="mhd">
+      <div>
+        <div class="mtitle" id="bullet-picker-title">Sélectionne les bullets à garder</div>
+        <div class="msub">Décoche les bullets non pertinents — les autres seront ajoutés à ta base</div>
+      </div>
+      <button class="mclose" onclick="closeBulletPicker()">×</button>
+    </div>
+    <div class="mbody" id="bullet-picker-list"></div>
+    <div class="mfoot">
+      <button class="btn btn-p" onclick="confirmBulletPicker()" style="flex:1;justify-content:center"><i data-lucide="check" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"></i>Ajouter les bullets sélectionnés</button>
+      <button class="btn btn-g" onclick="closeBulletPicker()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BULLET MATCH MODAL ────────────────────────────────── -->
+<div id="bullet-match-overlay" class="overlay hidden">
+  <div class="modal modal-wide">
+    <div class="mhd">
+      <div>
+        <div class="mtitle" id="bullet-match-title"><i data-lucide="target" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"></i>Bullets correspondant à cette offre</div>
+        <div class="msub" id="bullet-match-sub">L'IA a sélectionné les réalisations les plus pertinentes — valide ou ajuste</div>
+      </div>
+      <button class="mclose" onclick="closeBulletMatch()">×</button>
+    </div>
+    <div class="mbody" id="bullet-match-list"></div>
+    <div class="mfoot">
+      <button class="btn btn-p" onclick="confirmBulletMatch()" style="flex:1;justify-content:center"><i data-lucide="check" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"></i>Appliquer la sélection au CV</button>
+      <button class="btn btn-g" onclick="closeBulletMatch()">Ignorer</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=9"></script>
-<script src="js/app.js?v=9"></script>
-<script src="js/profile.js?v=9"></script>
-<script src="js/import-cv.js?v=9"></script>
-<script src="js/cv.js?v=9"></script>
-<script src="js/analyze.js?v=9"></script>
-<script src="js/interview.js?v=9"></script>
-<script src="js/history.js?v=9"></script>
-<script src="js/tracker.js?v=9"></script>
-<script src="js/modal.js?v=9"></script>
+<script src="js/api.js?v=10"></script>
+<script src="js/app.js?v=10"></script>
+<script src="js/profile.js?v=10"></script>
+<script src="js/import-cv.js?v=10"></script>
+<script src="js/cv.js?v=10"></script>
+<script src="js/analyze.js?v=10"></script>
+<script src="js/interview.js?v=10"></script>
+<script src="js/history.js?v=10"></script>
+<script src="js/tracker.js?v=10"></script>
+<script src="js/modal.js?v=10"></script>
 </body>
 </html>

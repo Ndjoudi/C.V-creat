@@ -97,13 +97,18 @@ function renderCV() {
   if (P.experiences.length) {
     html += `<div class="cv-sec"><div class="cv-stitle">Expériences professionnelles</div>`;
     P.experiences.forEach(e => {
+      // Show bullets if any exist (required or selected), otherwise fall back to description
+      const activeBullets = (e.bullets || []).filter(b => b.required || b.selected);
+      const bodyHtml = activeBullets.length
+        ? `<ul class="cv-bullets">${activeBullets.map(b => `<li class="cv-bullet-item"><span class="cv-bullet-dot">▸</span><span>${esc(b.text)}</span></li>`).join('')}</ul>`
+        : renderDescription(e.description);
       html += `<div class="cv-exp">
         <div class="cv-erow">
           <div class="cv-etitle">${esc(e.title)}${e.contractType ? ' <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px;background:#F2F2F2;color:#6E6E73;border:1px solid #D2D2D7;vertical-align:middle;margin-left:5px">' + esc(e.contractType) + '</span>' : ''}</div>
           <div class="cv-edates">${esc(e.duration)}</div>
         </div>
         ${e.company ? `<div class="cv-eco">${esc(e.company)}${e.sector ? ' · ' + esc(e.sector) : ''}${e.location ? ' · ' + esc(e.location) : ''}</div>` : ''}
-        ${renderDescription(e.description)}
+        ${bodyHtml}
       </div>`;
     });
     html += `</div>`;

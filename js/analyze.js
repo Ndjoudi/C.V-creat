@@ -157,6 +157,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, sans commenta
     if (hist.length > 20) hist.pop();
     ss('sc_history', hist);
     refreshBadges();
+    proposeBulletMatches(result);
   } catch (e) {
     errEl.textContent = groqErrorMessage(e);
     errEl.classList.remove('hidden');
@@ -310,3 +311,96 @@ function downloadLetter() {
   URL.revokeObjectURL(url);
   toast('Lettre téléchargée');
 }
+
+// ── BULLET MATCHING ─────────────────────────────────────────
+async function proposeBulletMatches(result) {
+  // Gather all bullets from all experiences
+  const allBullets = [];
+  P.experiences.forEach(exp => {
+    (exp.bullets || []).forEach(b => {
+      allBullets.push({ expId: exp.id, bId: b.id, text: b.text, expTitle: exp.title || '' });
+    });
+  });
+  if (!allBullets.length) return; // no bullets yet, skip
+
+  const overlay = document.getElementById('bullet-match-overlay');
+  const listEl  = document.getElementById('bullet-match-list');
+  document.getElementById('bullet-match-title').innerHTML = '<i data-lucide="target" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"></i>Bullets correspondant à l\'offre';
+  document.getElementById('bullet-match-sub').textContent = 'L\'IA analyse tes réalisations vs l\'offre — valide ou ajuste la sélection';
+  listEl.innerHTML = '<div class="ldg"><div class="sp"></div>Analyse des bullets en cours...</div>';
+  overlay.classList.remove('hidden');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  const prompt = `Tu es un expert RH. Pour ce poste, identifie quels bullets du candidat sont les plus pertinents.
+
+POSTE : ${result.poste || ''} chez ${result.entreprise || ''}
+MOTS-CLÉS DE L'OFFRE : ${(result.keywords_missing || []).concat(result.keywords_present || []).join(', ')}
+MUST-HAVE : ${(result.must_have || []).join(', ')}
+
+BULLETS DU CANDIDAT (avec leurs IDs) :
+${allBullets.map((b, i) => `[${i}] (${b.expTitle}) ${b.text}`).join('\n')}
+
+Réponds UNIQUEMENT en JSON: {"selected": [0, 2, 4], "scores": [95, 78, 65]}
+- "selected": indices des bullets les plus pertinents pour cette offre (max 6)
+- "scores": score de pertinence 0-100 pour chaque bullet sélectionné (même ordre)`;
+
+  try {
+    const raw  = await callGroq(prompt, { maxTokens: 300, temperature: 0.2 });
+    const data = safeParseJSON(raw);
+    const selected = data.selected || [];
+    const scores   = data.scores   || [];
+
+    if (!selected.length) {
+      listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--ink3);font-size:13px">Aucun bullet particulièrement ciblé pour cette offre.<br>Ajoute des réalisations dans tes expériences pour améliorer le matching.</div>';
+      return;
+    }
+
+    // Store for confirm
+    overlay.dataset.matches = JSON.stringify(selected.map((idx, rank) => ({
+      expId: allBullets[idx]?.expId,
+      bId:   allBullets[idx]?.bId,
+      score: scores[rank] || 0
+    })).filter(m => m.expId));
+
+    listEl.innerHTML = selected.map((idx, rank) => {
+      const b = allBullets[idx];
+      if (!b) return '';
+      const sc = scores[rank] || 0;
+      const col = sc >= 80 ? 'var(--teal)' : sc >= 60 ? '#D97706' : '#6E6E73';
+      const bg  = sc >= 80 ? 'var(--teal-bg)' : sc >= 60 ? '#FFFBEB' : 'var(--bg)';
+      return `<label class="bmatch-item">
+        <input type="checkbox" id="bm-${rank}" checked style="flex-shrink:0;margin-top:3px;accent-color:#000;width:15px;height:15px"/>
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--ink3);margin-bottom:2px">${esc(b.expTitle)}</div>
+          <div style="font-size:13px;color:var(--ink);line-height:1.55">${esc(b.text)}</div>
+        </div>
+        <span class="bmatch-score" style="color:${col};background:${bg};border:1px solid ${col}">${sc}%</span>
+      </label>`;
+    }).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch(err) {
+    listEl.innerHTML = '<div style="color:var(--red);padding:14px">Erreur lors du matching. Tes bullets sont inchangés.</div>';
+  }
+}
+
+function confirmBulletMatch() {
+  const overlay  = document.getElementById('bullet-match-overlay');
+  const matches  = JSON.parse(overlay.dataset.matches || '[]');
+  // Deselect all
+  P.experiences.forEach(exp => { (exp.bullets||[]).forEach(b => { b.selected = false; }); });
+  // Select checked
+  let count = 0;
+  const checkboxes = overlay.querySelectorAll('input[type=checkbox]');
+  matches.forEach((m, i) => {
+    if (checkboxes[i]?.checked) {
+      const exp = P.experiences.find(e => e.id === m.expId);
+      const b   = (exp?.bullets||[]).find(b => b.id === m.bId);
+      if (b) { b.selected = true; count++; }
+    }
+  });
+  ss('sc_profile', P);
+  overlay.classList.add('hidden');
+  toast(count + ' bullet' + (count>1?'s':'') + ' sélectionné' + (count>1?'s':'') + ' pour ce CV');
+}
+
+function closeBulletMatch() { document.getElementById('bullet-match-overlay').classList.add('hidden'); }
