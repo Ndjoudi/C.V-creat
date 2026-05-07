@@ -2,7 +2,7 @@
 const FIELD_MAP = {
   fn:'firstName', ln:'lastName', email:'email', phone:'phone',
   loc:'location', linkedin:'linkedin', title:'title',
-  yexp:'yearsExp', mobility:'mobility', summary:'summary',
+  yexp:'yearsExp', mobility:'mobility', summary:'summary', summaryTarget:'summaryTarget',
   permis:'permis', disponibilite:'disponibilite', hobbies:'hobbies'
 };
 

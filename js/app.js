@@ -15,11 +15,14 @@ const STAT_COLORS = {
 
 const DEF_PROFILE = {
   firstName:'',lastName:'',email:'',phone:'',location:'',linkedin:'',
-  title:'',yearsExp:'',mobility:'',summary:'',
+  title:'',yearsExp:'',mobility:'',summary:'',summaryTarget:'',
   permis:'',disponibilite:'',hobbies:'',photo:'',
   subdomains:[],tools:[],certifs:[],sectors:[],customSkills:[],informatique:[],
   experiences:[],education:[],languages:[]
 };
+
+// ── CV TARGET (poste ciblé — persiste entre sessions) ──────
+let _cvTarget = localStorage.getItem('sc_cv_target') || '';
 
 // ── LOCALSTORAGE HELPERS ───────────────────────────────────
 function ls(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }
@@ -47,7 +50,7 @@ function esc(s) {
 let P = ls('sc_profile', DEF_PROFILE);
 // Migrate old profiles missing newer fields
 ['customSkills','education','languages','informatique'].forEach(k => { if (!P[k]) P[k] = []; });
-['linkedin','mobility','permis','disponibilite','hobbies','photo'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
+['linkedin','mobility','permis','disponibilite','hobbies','photo','summaryTarget'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
 // Migrate experience objects to include new fields
 P.experiences.forEach(e => {
   if (e.contractType === undefined) e.contractType = '';

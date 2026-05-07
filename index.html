@@ -7,9 +7,9 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=8"/>
-<link rel="stylesheet" href="css/components.css?v=8"/>
-<link rel="stylesheet" href="css/cv.css?v=8"/>
+<link rel="stylesheet" href="css/base.css?v=9"/>
+<link rel="stylesheet" href="css/components.css?v=9"/>
+<link rel="stylesheet" href="css/cv.css?v=9"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -211,21 +211,36 @@
           </div>
         </div>
 
-        <!-- ② TITRE -->
+        <!-- ② TITRE & ACCROCHE -->
         <div class="card" style="margin-bottom:16px">
-          <div class="section-hdg"><i data-lucide="type" style="width:13px;height:13px"></i>Titre</div>
-          <div class="fg" style="margin-bottom:6px">
-            <label class="lb">Titre professionnel</label>
-            <input class="inp" id="p-title" placeholder="Ex: Alternance en Développement d'affaires" oninput="saveProfile()"/>
-            <div style="font-size:11px;color:var(--ink3);margin-top:5px">Ligne directe sous ton nom sur le CV — sois concis et percutant</div>
+          <div class="section-hdg"><i data-lucide="type" style="width:13px;height:13px"></i>Titre & Accroche CV</div>
+
+          <!-- Titre général -->
+          <div class="fg">
+            <label class="lb">Titre professionnel général</label>
+            <input class="inp" id="p-title" placeholder="Ex: Supply Chain Manager · Assistant Marketing · Chargé RH" oninput="saveProfile()"/>
+            <div style="font-size:11px;color:var(--ink3);margin-top:4px">Ton titre par défaut — il sera remplacé par le <strong>Poste ciblé</strong> dans l'écran CV lors d'une candidature</div>
           </div>
-          <div class="fg" style="margin-bottom:0">
-            <div class="fg-row">
-              <label class="lb">Accroche CV (Profil)</label>
-              <button class="btn-ai" onclick="openModal('resume')"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l'IA</button>
-            </div>
-            <textarea class="inp" id="p-summary" rows="4" placeholder="Ex : Actuellement [situation], je recherche un CDI en tant qu'Assistant Marketing. Fort de X ans d'expérience, je maîtrise [outils/compétences clés]. Anglais B2 professionnel. Disponible immédiatement." oninput="saveProfile()"></textarea>
+
+          <!-- Séparateur -->
+          <div style="border-top:1px solid var(--border);margin:16px 0 14px"></div>
+
+          <!-- Mon profil (stable) -->
+          <div class="fg">
+            <label class="lb">Mon profil <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink3)">— stable, rempli une fois</span></label>
+            <div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.55">Qui tu es : formation, années d'expérience, domaines maîtrisés, points forts permanents.</div>
+            <textarea class="inp" id="p-summary" rows="3" placeholder="Ex : Diplômé en logistique avec 5 ans d'expérience en supply chain industrielle. Spécialisé en gestion des stocks, approvisionnement et pilotage ERP (SAP MM). Reconnu pour la réduction des coûts et l'optimisation des flux." oninput="saveProfile()"></textarea>
             <div class="word-counter" id="summary-counter">0 / 80 mots</div>
+          </div>
+
+          <!-- Pour ce poste (dynamique) -->
+          <div class="fg" style="margin-top:4px;margin-bottom:0">
+            <div class="fg-row">
+              <label class="lb">Pour ce poste <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--teal)">— à adapter par candidature</span></label>
+              <button class="btn-ai" onclick="openModal('target')"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l'IA</button>
+            </div>
+            <div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.55">Ce que tu apportes spécifiquement pour le poste visé : compétences correspondantes, motivation ciblée, disponibilité, langue si requise.</div>
+            <textarea class="inp" id="p-summaryTarget" rows="3" placeholder="Ex : Particulièrement motivé par ce poste de CDI - Assistant Marketing, j'apporte une maîtrise de Pack Office, Canva et une expérience en gestion de contenu. Anglais B2. Disponible immédiatement." oninput="saveProfile()"></textarea>
           </div>
         </div>
 
@@ -329,6 +344,15 @@
               Télécharger PDF
             </button>
           </div>
+        </div>
+        <!-- Poste ciblé -->
+        <div style="background:var(--card);border:1.5px solid var(--teal-border);border-radius:14px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <i data-lucide="target" style="width:15px;height:15px;color:var(--teal)"></i>
+            <span style="font-size:12px;font-weight:700;color:var(--teal)">Poste ciblé</span>
+          </div>
+          <input class="inp" id="cv-target-input" placeholder="Ex: CDI - Assistant Marketing (remplace le titre sur le CV)" style="flex:1;padding:8px 12px;font-size:13px;min-width:200px" oninput="setCVTarget(this.value)"/>
+          <div style="font-size:11px;color:var(--ink3);white-space:nowrap">Auto-rempli après analyse d'offre</div>
         </div>
         <div style="font-size:11.5px;color:var(--ink3);margin-bottom:14px;display:flex;align-items:center;gap:6px"><i data-lucide="info" style="width:13px;height:13px;flex-shrink:0"></i>Dans la boîte d'impression : choisir <strong>"Enregistrer en PDF"</strong>, désactiver les en-têtes/pieds de page</div>
         <div id="cv-analysis-result" style="margin-bottom:16px"></div>
@@ -506,15 +530,15 @@
 </div>
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=8"></script>
-<script src="js/app.js?v=8"></script>
-<script src="js/profile.js?v=8"></script>
-<script src="js/import-cv.js?v=8"></script>
-<script src="js/cv.js?v=8"></script>
-<script src="js/analyze.js?v=8"></script>
-<script src="js/interview.js?v=8"></script>
-<script src="js/history.js?v=8"></script>
-<script src="js/tracker.js?v=8"></script>
-<script src="js/modal.js?v=8"></script>
+<script src="js/api.js?v=9"></script>
+<script src="js/app.js?v=9"></script>
+<script src="js/profile.js?v=9"></script>
+<script src="js/import-cv.js?v=9"></script>
+<script src="js/cv.js?v=9"></script>
+<script src="js/analyze.js?v=9"></script>
+<script src="js/interview.js?v=9"></script>
+<script src="js/history.js?v=9"></script>
+<script src="js/tracker.js?v=9"></script>
+<script src="js/modal.js?v=9"></script>
 </body>
 </html>

@@ -26,6 +26,13 @@ function renderDescription(text) {
   return `<div class="cv-edesc">${esc(text)}</div>`;
 }
 
+// ── CV TARGET ──────────────────────────────────────────────
+function setCVTarget(val) {
+  _cvTarget = val.trim();
+  localStorage.setItem('sc_cv_target', _cvTarget);
+  renderCV();
+}
+
 // ── CV RENDER ──────────────────────────────────────────────
 function renderCV() {
   const empty = !P.firstName;
@@ -33,29 +40,56 @@ function renderCV() {
   document.getElementById('cv-content').classList.toggle('hidden', empty);
   if (empty) return;
 
+  // Restore target input if set
+  const targetInput = document.getElementById('cv-target-input');
+  if (targetInput && !targetInput.value && _cvTarget) targetInput.value = _cvTarget;
+
   // ── Header ──
-  const contacts = [P.email, P.phone, P.location, P.linkedin].filter(Boolean);
-  const contactLine = contacts.map(c => `<span>${esc(c)}</span>`).join('');
+  const displayTitle = _cvTarget || P.title;
+
+  // LinkedIn: clickable link + QR code
+  const liUrl = P.linkedin ? (P.linkedin.startsWith('http') ? P.linkedin : 'https://' + P.linkedin) : '';
+  const liShort = P.linkedin ? P.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\//, 'linkedin.com/') : '';
+  const qrSrc = liUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(liUrl)}&color=1D1D1F&bgcolor=FFFFFF&margin=3` : '';
+
+  const contacts = [
+    P.email ? `<span>${esc(P.email)}</span>` : '',
+    P.phone ? `<span>${esc(P.phone)}</span>` : '',
+    P.location ? `<span>${esc(P.location)}</span>` : '',
+    liUrl    ? `<span><a href="${liUrl}" style="color:inherit;text-decoration:none">${esc(liShort)}</a></span>` : ''
+  ].filter(Boolean).join('');
+
   const extras = [P.disponibilite, P.mobility, P.permis].filter(Boolean);
   const extraLine = extras.map(e => `<span>${esc(e)}</span>`).join('');
+
+  // Right-side: photo + QR code
+  const rightCol = (P.photo || qrSrc) ? `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
+      ${P.photo ? `<img src="${P.photo}" class="cv-photo"/>` : ''}
+      ${qrSrc ? `<div style="text-align:center">
+        <img src="${qrSrc}" style="width:60px;height:60px;border:1px solid #D2D2D7;border-radius:3px;display:block"/>
+        <div style="font-size:6.5px;color:#86868B;margin-top:2px;letter-spacing:.3px">LinkedIn</div>
+      </div>` : ''}
+    </div>` : '';
 
   let html = `
   <div class="cv-hd">
     <div style="flex:1">
       <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
-      ${P.title ? `<div class="cv-ti">${esc(P.title)}</div>` : ''}
-      ${contactLine ? `<div class="cv-contact-line">${contactLine}</div>` : ''}
+      ${displayTitle ? `<div class="cv-ti">${esc(displayTitle)}</div>` : ''}
+      ${contacts ? `<div class="cv-contact-line">${contacts}</div>` : ''}
       ${extraLine ? `<div class="cv-contact-line" style="margin-top:3px">${extraLine}</div>` : ''}
     </div>
-    ${P.photo ? `<img src="${P.photo}" class="cv-photo"/>` : ''}
+    ${rightCol}
   </div>
   <div class="cv-div"></div>`;
 
-  // ── Résumé ──
-  if (P.summary) {
+  // ── Profil (Mon profil + Pour ce poste combinés) ──
+  const fullSummary = [P.summary, P.summaryTarget].filter(Boolean).join(' ');
+  if (fullSummary) {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>
-      <div class="cv-summary-text">${esc(P.summary)}</div>
+      <div class="cv-summary-text">${esc(fullSummary)}</div>
     </div>`;
   }
 
@@ -110,7 +144,7 @@ function renderCV() {
     if (P.informatique.length) {
       html += `<div class="cv-skill-row">
         <div class="cv-skill-key">Bureautique</div>
-        <div class="cv-skill-tags">${P.informatique.map(s => `<span class="cv-skill-tag">${esc(s)}</span>`).join('')}</div>
+        <div style="flex:1;font-size:12px;color:#3A3A3C;line-height:1.7;margin-top:3px">${P.informatique.map(s => esc(s)).join(' · ')}</div>
       </div>`;
     }
     if (P.certifs.length) {

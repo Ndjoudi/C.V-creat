@@ -15,7 +15,8 @@ let modalState = { type: null, expId: null, step: 0, answers: {}, generated: '' 
 
 function openModal(type, expId = null) {
   modalState = { type, expId, step: 0, answers: {}, generated: '' };
-  document.getElementById('modal-title').innerHTML = `<i data-lucide="sparkles" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"></i>${type === 'resume' ? 'Générer l\'accroche' : 'Générer la description'}`;
+  const titles = { resume: 'Mon profil', target: 'Pour ce poste', exp: 'Générer la description' };
+  document.getElementById('modal-title').innerHTML = `<i data-lucide="sparkles" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"></i>${titles[type] || 'Générer'}`;
   if (typeof lucide !== 'undefined') lucide.createIcons();
   document.getElementById('modal-overlay').classList.remove('hidden');
   renderModalStep();
@@ -23,7 +24,7 @@ function openModal(type, expId = null) {
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
 
 function renderModalStep() {
-  const qs = modalState.type === 'resume' ? RQ : EQ;
+  const qs = (modalState.type === 'resume' || modalState.type === 'target') ? RQ : EQ;
   const { step, generated } = modalState;
   const done = step >= qs.length;
 
@@ -90,24 +91,38 @@ async function generateText(refine = '') {
   const a = modalState.answers;
   let prompt = '';
 
-  if (modalState.type === 'resume') {
+  if (modalState.type === 'resume' || modalState.type === 'target') {
     const langs = P.languages.length ? P.languages.map(l => l.name + ' ' + l.level).join(', ') : '';
-    prompt = `Tu es un expert en recrutement. Génère une accroche CV percutante en français (3-4 phrases max, 60-80 mots), adaptée au poste ciblé.
+    const isTarget = modalState.type === 'target';
 
-STRUCTURE OBLIGATOIRE (dans cet ordre) :
-1. Situation actuelle + poste ciblé : "${a.poste || 'poste ciblé'}"
-2. Années d'expérience (${P.yearsExp || 'non précisé'}) + domaines/compétences clés
-3. Meilleur atout / réalisation : "${a.win}"
-4. Si langue pertinente pour le poste (${langs || 'non renseigné'}) → la mentionner avec le niveau
-5. Disponibilité : "${P.disponibilite || 'disponible rapidement'}"
+    if (isTarget) {
+      // "Pour ce poste" — 1-2 phrases ciblées, ce qui CORRESPOND au poste spécifique
+      prompt = `Tu es un expert en recrutement. Génère 1 à 2 phrases (30-50 mots) qui montrent POURQUOI ce candidat correspond au poste ciblé.
 
-PROFIL :
-Domaines / compétences : ${a.domains || P.subdomains.join(', ') || 'supply chain'}
+POSTE CIBLÉ : "${a.poste || _cvTarget || 'poste ciblé'}"
+Ce que je mets en avant pour ce poste : ${a.domains}
+Mon meilleur atout pour ce rôle : ${a.win}
+Langues disponibles : ${langs || 'non renseigné'}
+Disponibilité : "${P.disponibilite || 'disponible rapidement'}"
+Ton : ${a.tone}
+${refine ? 'Modification : ' + refine : ''}
+
+RÈGLES : commence par "Particulièrement motivé(e) par" ou "Attiré(e) par" ou équivalent. Cite 1-2 compétences/atouts directement liés au poste. Mentionne la langue si pertinente. Termine par la disponibilité.
+Réponds UNIQUEMENT avec le texte, sans guillemets.`;
+    } else {
+      // "Mon profil" — description stable et générale
+      prompt = `Tu es un expert en recrutement. Génère 2-3 phrases (40-60 mots) décrivant le profil professionnel général de ce candidat.
+
+Années d'expérience : ${P.yearsExp || 'non précisé'}
+Domaines / compétences : ${a.domains || P.subdomains.join(', ') || 'non précisé'}
+Meilleure réalisation : ${a.win}
 Outils maîtrisés : ${P.tools.slice(0,5).join(', ') || '—'}
-Ton souhaité : ${a.tone}
-${refine ? 'Modification demandée : ' + refine : ''}
+Ton : ${a.tone}
+${refine ? 'Modification : ' + refine : ''}
 
-Réponds UNIQUEMENT avec le texte de l'accroche, sans guillemets ni titre ni numérotation.`;
+RÈGLES : ne pas mentionner le poste ciblé (c'est un profil stable). Commence par la situation (ex: "Professionnel(le) avec X ans d'expérience"). Donne une image claire des compétences permanentes.
+Réponds UNIQUEMENT avec le texte, sans guillemets ni titre.`;
+    }
   } else {
     const exp = P.experiences.find(e => e.id === modalState.expId) || {};
     prompt = `Expert RH supply chain. Génère une description de poste CV en 3-4 bullet points percutants (verbe d'action fort).
@@ -141,12 +156,18 @@ function refineText() { const val = document.getElementById('refine-inp').value.
 
 function applyGenerated() {
   const txt = modalState.generated;
-  if (modalState.type === 'resume') {
+  if (modalState.type === 'target') {
+    P.summaryTarget = txt;
+    const el = document.getElementById('p-summaryTarget');
+    if (el) el.value = txt;
+    ss('sc_profile', P);
+    toast('Accroche ciblée appliquée');
+  } else if (modalState.type === 'resume') {
     P.summary = txt;
     document.getElementById('p-summary').value = txt;
     ss('sc_profile', P);
     initWordCounter();
-    toast('Accroche appliquée');
+    toast('Profil appliqué');
   } else {
     const exp = P.experiences.find(e => e.id === modalState.expId);
     if (exp) { exp.description = txt; ss('sc_profile', P); renderExpList(); }

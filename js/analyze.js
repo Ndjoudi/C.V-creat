@@ -140,13 +140,23 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, sans commenta
     const cvErrors = detectCVErrors();
     renderAnalyzeResult(result, cvErrors, document.getElementById('analyze-result'));
 
+    // Auto-fill "Poste ciblé" dans l'écran CV
+    if (result.poste) {
+      _cvTarget = result.poste;
+      localStorage.setItem('sc_cv_target', _cvTarget);
+      const targetInput = document.getElementById('cv-target-input');
+      if (targetInput) targetInput.value = _cvTarget;
+      toast('Poste ciblé mis à jour : ' + result.poste);
+    } else {
+      toast('Analyse sauvegardée');
+    }
+
     const score = result.score_global ?? result.score ?? 0;
     const hist  = ls('sc_history', []);
     hist.unshift({ id: Date.now().toString(), date: new Date().toLocaleDateString('fr-FR'), poste: result.poste, entreprise: result.entreprise, score, result });
     if (hist.length > 20) hist.pop();
     ss('sc_history', hist);
     refreshBadges();
-    toast('Analyse sauvegardée');
   } catch (e) {
     errEl.textContent = groqErrorMessage(e);
     errEl.classList.remove('hidden');
