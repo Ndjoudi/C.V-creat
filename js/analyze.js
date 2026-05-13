@@ -151,6 +151,15 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, sans commenta
       toast('Analyse sauvegardée');
     }
 
+    // Sauvegarder les mots-clés de l'offre pour le highlighting des compétences
+    const skillKeywords = [
+      ...(result.keywords_present || []),
+      ...(result.must_have || []),
+      ...(result.nice_to_have || [])
+    ].filter(Boolean);
+    _matchedSkills = skillKeywords;
+    localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
+
     const score = result.score_global ?? result.score ?? 0;
     const hist  = ls('sc_history', []);
     hist.unshift({ id: Date.now().toString(), date: new Date().toLocaleDateString('fr-FR'), poste: result.poste, entreprise: result.entreprise, score, result });

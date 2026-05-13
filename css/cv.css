@@ -88,27 +88,52 @@
 }
 .cv-skill-tags{display:flex;flex-wrap:wrap;gap:5px}
 
-/* Noir pour les outils/domaines */
-.cv-skill-tag{
-  display:inline-block;padding:3px 9px;
-  background:#F2F2F2;color:#1D1D1F;
-  border:1px solid #D2D2D7;border-radius:4px;
-  font-size:11px;font-weight:600;
+/* Titre de section avec légende de matching */
+.cv-stitle-row{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:10px;
+}
+.cv-stitle-row .cv-stitle{margin-bottom:0}
+
+/* Légende "demandé dans cette offre" */
+.cv-match-legend{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:8.5px;font-weight:600;color:#065F46;
+  background:#D1FAE5;border:1px solid #6EE7B7;
+  border-radius:100px;padding:2px 8px;
+  letter-spacing:.3px;
+}
+.cv-match-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:#059669;flex-shrink:0;
 }
 
-/* Gris neutre pour les certifications */
+/* Style de base uniforme pour TOUS les tags compétences */
+.cv-skill-tag{
+  display:inline-block;padding:3px 9px;
+  background:#F5F5F7;color:#3A3A3C;
+  border:1px solid #D2D2D7;border-radius:4px;
+  font-size:11px;font-weight:600;
+  transition:background .15s,color .15s,border-color .15s;
+}
+
+/* Tag mis en avant (correspond à l'offre analysée) */
+.cv-skill-tag--match{
+  background:#D1FAE5;color:#065F46;
+  border-color:#6EE7B7;font-weight:700;
+}
+
+/* Rétrocompatibilité — certif et custom réutilisent le style de base */
 .cv-cert-tag{
   display:inline-block;padding:3px 9px;
   background:#F5F5F7;color:#3A3A3C;
   border:1px solid #D2D2D7;border-radius:4px;
   font-size:11px;font-weight:600;
 }
-
-/* Violet pour les compétences custom */
 .cv-custom-tag{
   display:inline-block;padding:3px 9px;
-  background:#F5F3FF;color:#5B21B6;
-  border:1px solid #DDD6FE;border-radius:4px;
+  background:#F5F5F7;color:#3A3A3C;
+  border:1px solid #D2D2D7;border-radius:4px;
   font-size:11px;font-weight:600;
 }
 

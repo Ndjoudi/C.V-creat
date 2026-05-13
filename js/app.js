@@ -24,6 +24,9 @@ const DEF_PROFILE = {
 // ── CV TARGET (poste ciblé — persiste entre sessions) ──────
 let _cvTarget = localStorage.getItem('sc_cv_target') || '';
 
+// ── MATCHED SKILLS (depuis dernière analyse d'offre) ────────
+let _matchedSkills = JSON.parse(localStorage.getItem('sc_matched_skills') || '[]');
+
 // ── LOCALSTORAGE HELPERS ───────────────────────────────────
 function ls(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }
 function ss(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
