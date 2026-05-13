@@ -52,6 +52,11 @@ function renderHighlightToggles() {
   }).join('');
 }
 
+// ── STRIP HTML (nettoyage données legacy rich-editor) ───────
+function stripHTML(html) {
+  return (html || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s{2,}/g, ' ').trim();
+}
+
 // ── SKILL MATCH HELPER ─────────────────────────────────────
 // Retourne true si la compétence correspond à un mot-clé de la dernière offre analysée
 // Matching flou : "Excel avancé" matche si l'offre mentionne "Excel" (et inversement)
@@ -149,7 +154,7 @@ function renderCV() {
 
   // ── Profil : bloc highlight auto + texte complémentaire ──
   const highlightBlock = buildProfileHighlight();
-  const fullSummary    = [P.summary, P.summaryTarget].filter(Boolean).join(' ');
+  const fullSummary    = [stripHTML(P.summary), stripHTML(P.summaryTarget)].filter(Boolean).join(' ');
   if (highlightBlock || fullSummary) {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>

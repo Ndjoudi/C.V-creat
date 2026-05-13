@@ -6,10 +6,17 @@ const FIELD_MAP = {
   permis:'permis', disponibilite:'disponibilite', contratRecherche:'contratRecherche', hobbies:'hobbies'
 };
 
+// Supprime les balises HTML résiduelles (phase rich-editor)
+function _cleanField(v) {
+  return (v || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s{2,}/g, ' ').trim();
+}
+
 function loadProfileToForm() {
   Object.entries(FIELD_MAP).forEach(([k, v]) => {
     const el = document.getElementById('p-' + k);
-    if (el) el.value = P[v] || '';
+    if (!el) return;
+    // Pour summary et summaryTarget : nettoyer l'HTML éventuel
+    el.value = (v === 'summary' || v === 'summaryTarget') ? _cleanField(P[v]) : (P[v] || '');
   });
   initWordCounter();
   renderPhotoPreview();
