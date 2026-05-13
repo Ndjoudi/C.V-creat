@@ -1,15 +1,55 @@
-// ── RICH TEXT SANITIZER (CV rendering) ─────────────────────
-// Autorise : strong, em, b, i, br + span.cv-pill.cv-pill--[gbko]
-function sanitizeRichText(html) {
-  return (html || '')
-    .replace(/<[^>]+>/g, tag => {
-      if (/^<\/?(strong|em|b|i|br)(\s[^>]*)?>$/i.test(tag)) return tag;
-      if (/^<span class="cv-pill cv-pill--[gbko]">$/i.test(tag)) return tag;
-      if (/^<\/span>$/i.test(tag)) return tag;
-      return '';
-    })
-    .replace(/&nbsp;/g, ' ')
-    .trim();
+// ── PROFILE HIGHLIGHT BUILDER ──────────────────────────────
+function buildProfileHighlight() {
+  const cfg = P.highlightConfig || {};
+  const segments = [];
+
+  if (cfg.formation) {
+    const edu = P.education && P.education[0];
+    if (edu && edu.degree) {
+      let s = `<span class="cv-phi-plain">En cursus </span>`;
+      s += `<strong class="cv-phi-formation">${esc(edu.degree)}</strong>`;
+      if (edu.school) s += `<span class="cv-phi-plain"> à </span><strong class="cv-phi-school">${esc(edu.school)}</strong>`;
+      if (edu.year)   s += `<span class="cv-phi-year">, diplômé(e) ${esc(edu.year)}</span>`;
+      segments.push(s);
+    } else if (P.yearsExp) {
+      segments.push(`<span class="cv-phi-plain">Fort(e) de </span><strong class="cv-phi-formation">${esc(P.yearsExp)} d'expérience</strong>`);
+    }
+  }
+
+  const pills = [];
+  if (cfg.contrat  && P.contratRecherche) pills.push(`<span class="cv-phi-pill cv-phi-pill--dark">${esc(P.contratRecherche)}</span>`);
+  if (cfg.dispo    && P.disponibilite)    pills.push(`<span class="cv-phi-plain" style="font-size:11px">Disponible </span><span class="cv-phi-pill cv-phi-pill--green">${esc(P.disponibilite)}</span>`);
+  if (cfg.mobility && P.mobility)         pills.push(`<span class="cv-phi-pill cv-phi-pill--blue">${esc(P.mobility)}</span>`);
+  if (cfg.permis   && P.permis)           pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
+  if (pills.length) segments.push(pills.join(''));
+
+  if (!segments.length) return '';
+  return `<div class="cv-profile-highlight">${segments.map(s => `<div class="cv-phi-line">${s}</div>`).join('')}</div>`;
+}
+
+// ── HIGHLIGHT TOGGLES ──────────────────────────────────────
+const HIGHLIGHT_CHIPS = [
+  { key:'formation', label:'Formation'     },
+  { key:'contrat',   label:'Contrat'       },
+  { key:'dispo',     label:'Disponibilité' },
+  { key:'mobility',  label:'Mobilité'      },
+  { key:'permis',    label:'Permis'        },
+];
+
+function toggleHighlight(key) {
+  P.highlightConfig[key] = !P.highlightConfig[key];
+  ss('sc_profile', P);
+  renderHighlightToggles();
+  renderCV();
+}
+
+function renderHighlightToggles() {
+  const el = document.getElementById('profile-highlight-chips');
+  if (!el) return;
+  el.innerHTML = HIGHLIGHT_CHIPS.map(c => {
+    const on = P.highlightConfig[c.key];
+    return `<button onclick="toggleHighlight('${c.key}')" class="cv-hi-chip${on ? ' on' : ''}">${c.label}</button>`;
+  }).join('');
 }
 
 // ── SKILL MATCH HELPER ─────────────────────────────────────
@@ -107,14 +147,14 @@ function renderCV() {
   </div>
   <div class="cv-div"></div>`;
 
-  // ── Profil — HTML riche (gras/italique conservés) ──
-  const summaryHTML = sanitizeRichText(P.summary || '');
-  const targetHTML  = sanitizeRichText(P.summaryTarget || '');
-  const fullHTML    = [summaryHTML, targetHTML].filter(Boolean).join(' ');
-  if (fullHTML) {
+  // ── Profil : bloc highlight auto + texte complémentaire ──
+  const highlightBlock = buildProfileHighlight();
+  const fullSummary    = [P.summary, P.summaryTarget].filter(Boolean).join(' ');
+  if (highlightBlock || fullSummary) {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>
-      <div class="cv-summary-text">${fullHTML}</div>
+      ${highlightBlock}
+      ${fullSummary ? `<div class="cv-summary-text"${highlightBlock ? ' style="margin-top:9px"' : ''}>${esc(fullSummary)}</div>` : ''}
     </div>`;
   }
 

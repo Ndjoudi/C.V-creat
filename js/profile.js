@@ -2,38 +2,24 @@
 const FIELD_MAP = {
   fn:'firstName', ln:'lastName', email:'email', phone:'phone',
   loc:'location', linkedin:'linkedin', title:'title',
-  yexp:'yearsExp', mobility:'mobility',
-  permis:'permis', disponibilite:'disponibilite', hobbies:'hobbies'
+  yexp:'yearsExp', mobility:'mobility', summary:'summary', summaryTarget:'summaryTarget',
+  permis:'permis', disponibilite:'disponibilite', contratRecherche:'contratRecherche', hobbies:'hobbies'
 };
-// Champs rich-text (contenteditable) — stockés en HTML
-const RICH_FIELDS = { summary:'summary', summaryTarget:'summaryTarget' };
 
 function loadProfileToForm() {
-  // Champs normaux
   Object.entries(FIELD_MAP).forEach(([k, v]) => {
     const el = document.getElementById('p-' + k);
     if (el) el.value = P[v] || '';
   });
-  // Champs riches
-  Object.entries(RICH_FIELDS).forEach(([k, v]) => {
-    const el = document.getElementById('p-' + k);
-    if (el) { el.innerHTML = P[v] || ''; }
-  });
-  initRichEditors();
-  updateWordCounter();
+  initWordCounter();
   renderPhotoPreview();
+  renderHighlightToggles();
 }
 
 function saveProfile() {
-  // Champs normaux
   Object.entries(FIELD_MAP).forEach(([k, v]) => {
     const el = document.getElementById('p-' + k);
     if (el) P[v] = el.value.trim();
-  });
-  // Champs riches — on stocke l'HTML sanitizé
-  Object.entries(RICH_FIELDS).forEach(([k, v]) => {
-    const el = document.getElementById('p-' + k);
-    if (el) P[v] = sanitizeRichHTML(el.innerHTML);
   });
   ss('sc_profile', P);
   updateSBProfile();
@@ -51,112 +37,19 @@ function updateSBProfile() {
   }
 }
 
-// ── RICH TEXT HELPERS ──────────────────────────────────────
-// Autorise : strong, em, b, i, br + span.cv-pill.cv-pill--[gbko]
-function sanitizeRichHTML(html) {
-  return (html || '')
-    .replace(/<[^>]+>/g, tag => {
-      if (/^<\/?(strong|em|b|i|br)(\s[^>]*)?>$/i.test(tag)) return tag;
-      if (/^<span class="cv-pill cv-pill--[gbko]">$/i.test(tag)) return tag;
-      if (/^<\/span>$/i.test(tag)) return tag;
-      return '';
-    })
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-}
-
-// ── RICH EDITOR INIT ───────────────────────────────────────
-function initRichEditors() {
-  const toolbar = document.getElementById('rich-toolbar');
-  if (!toolbar) return;
-
-  document.querySelectorAll('.rich-editor').forEach(editor => {
-    editor.addEventListener('mouseup',  () => _maybeShowToolbar(toolbar));
-    editor.addEventListener('keyup',    () => _maybeShowToolbar(toolbar));
-  });
-  document.addEventListener('mousedown', e => {
-    if (!toolbar.contains(e.target) && !e.target.closest('.rich-editor'))
-      toolbar.classList.add('hidden');
-  });
-}
-
-function _maybeShowToolbar(toolbar) {
-  const sel = window.getSelection();
-  if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-    toolbar.classList.add('hidden');
-    return;
-  }
-  const range = sel.getRangeAt(0);
-  const rect  = range.getBoundingClientRect();
-  const tw    = 110; // toolbar width approx
-  toolbar.style.top  = (rect.top + window.scrollY - 44) + 'px';
-  toolbar.style.left = Math.max(8, rect.left + rect.width / 2 - tw / 2) + 'px';
-  toolbar.classList.remove('hidden');
-}
-
-function richFormat(cmd) {
-  document.execCommand(cmd, false, null);
-  const active = document.activeElement;
-  if (active && active.classList.contains('rich-editor')) {
-    saveProfile();
-    if (active.id === 'p-summary') updateWordCounter();
-  }
-  document.getElementById('rich-toolbar')?.classList.add('hidden');
-}
-
-// Insère un badge coloré autour du texte sélectionné
-function richPill(color) {
-  const sel = window.getSelection();
-  if (!sel || sel.isCollapsed) return;
-  const txt = sel.toString().trim();
-  if (!txt) return;
-  const range = sel.getRangeAt(0);
-  range.deleteContents();
-  const span = document.createElement('span');
-  span.className = 'cv-pill cv-pill--' + color;
-  span.textContent = txt;
-  range.insertNode(span);
-  // Déplace le curseur après le badge
-  range.setStartAfter(span);
-  range.collapse(true);
-  sel.removeAllRanges();
-  sel.addRange(range);
-  const active = document.activeElement;
-  if (active && active.classList.contains('rich-editor')) {
-    saveProfile();
-    if (active.id === 'p-summary') updateWordCounter();
-  }
-  document.getElementById('rich-toolbar')?.classList.add('hidden');
-}
-
-// Supprime un badge pill autour de la sélection (remplace par le texte nu)
-function richRemovePill() {
-  const sel = window.getSelection();
-  if (!sel || !sel.anchorNode) return;
-  const node = sel.anchorNode.parentElement;
-  if (node && node.classList.contains('cv-pill')) {
-    const txt = document.createTextNode(node.textContent);
-    node.parentNode.replaceChild(txt, node);
-    const active = document.activeElement;
-    if (active && active.classList.contains('rich-editor')) saveProfile();
-  }
-  document.getElementById('rich-toolbar')?.classList.add('hidden');
-}
-
 // ── WORD COUNTER (summary) ─────────────────────────────────
-function updateWordCounter() {
-  const el = document.getElementById('p-summary');
+function initWordCounter() {
+  const ta = document.getElementById('p-summary');
   const counter = document.getElementById('summary-counter');
-  if (!el || !counter) return;
-  const text  = el.innerText || el.textContent || '';
-  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-  counter.textContent = words + ' / 80 mots';
-  counter.className   = 'word-counter' + (words > 80 ? ' over' : words > 65 ? ' warn' : '');
+  if (!ta || !counter) return;
+  function update() {
+    const words = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
+    counter.textContent = words + ' / 80 mots';
+    counter.className = 'word-counter' + (words > 80 ? ' over' : words > 65 ? ' warn' : '');
+  }
+  ta.addEventListener('input', update);
+  update();
 }
-
-// Compat alias
-function initWordCounter() { updateWordCounter(); }
 
 // ── CHIPS ──────────────────────────────────────────────────
 function renderChips() {

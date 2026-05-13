@@ -7,9 +7,9 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=17"/>
-<link rel="stylesheet" href="css/components.css?v=17"/>
-<link rel="stylesheet" href="css/cv.css?v=17"/>
+<link rel="stylesheet" href="css/base.css?v=20"/>
+<link rel="stylesheet" href="css/components.css?v=20"/>
+<link rel="stylesheet" href="css/cv.css?v=20"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -231,10 +231,8 @@
               <label class="lb">Mon profil <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink3)">— stable, rempli une fois</span></label>
               <button class="btn-ai" onclick="openModal('resume')"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l'IA</button>
             </div>
-            <div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.55">Sélectionne du texte pour le mettre <strong>en gras</strong> ou <em>en italique</em> — ça s'affichera formaté sur le CV.</div>
-            <div class="inp rich-editor" id="p-summary" contenteditable="true"
-              data-placeholder="Ex : Diplômé en logistique avec 5 ans d'expérience en supply chain industrielle. Spécialisé en gestion des stocks, approvisionnement et pilotage ERP (SAP MM)."
-              oninput="saveProfile();updateWordCounter()"></div>
+            <div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.55">Domaines, points forts, valeur ajoutée — <strong>ne répète pas</strong> ce qui est déjà mis en avant ci-dessous.</div>
+            <textarea class="inp" id="p-summary" rows="3" placeholder="Ex : Spécialisé en gestion des stocks, approvisionnement et pilotage ERP (SAP MM). Reconnu pour la réduction des coûts et l'optimisation des flux." oninput="saveProfile()"></textarea>
             <div class="word-counter" id="summary-counter">0 / 80 mots</div>
           </div>
 
@@ -244,11 +242,15 @@
               <label class="lb">Pour ce poste <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--teal)">— à adapter par candidature</span></label>
               <button class="btn-ai" onclick="openModal('target')"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l'IA</button>
             </div>
-            <div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.55">Ce que tu apportes spécifiquement pour le poste visé. Sélectionne du texte pour le mettre en avant.</div>
-            <div class="inp rich-editor" id="p-summaryTarget" contenteditable="true"
-              data-placeholder="Ex : Particulièrement motivé par ce poste de CDI - Assistant Marketing, j'apporte une maîtrise de Pack Office, Canva. Disponible immédiatement."
-              oninput="saveProfile()"></div>
+            <div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.55">Ce que tu apportes spécifiquement pour le poste visé : compétences correspondantes, motivation, langue si requise.</div>
+            <textarea class="inp" id="p-summaryTarget" rows="3" placeholder="Ex : Particulièrement motivé par ce poste de CDI - Assistant Marketing, j'apporte une maîtrise de Pack Office et Canva. Anglais B2. Disponible immédiatement." oninput="saveProfile()"></textarea>
           </div>
+
+          <!-- Bloc accroche auto -->
+          <div style="border-top:1px solid var(--border);margin:16px 0 14px"></div>
+          <div class="section-hdg" style="margin-bottom:10px"><i data-lucide="layout-list" style="width:13px;height:13px"></i>Informations mises en avant sur le CV</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:10px;line-height:1.6">Coche ce que tu veux afficher dans le bloc accroche coloré en haut de la section Profil.</div>
+          <div id="profile-highlight-chips" style="display:flex;flex-wrap:wrap;gap:7px"></div>
         </div>
 
         <!-- ③ ÉTAT CIVIL -->
@@ -274,7 +276,8 @@
               </select>
             </div>
             <div class="fg"><label class="lb">Permis / Véhicule</label><input class="inp" id="p-permis" placeholder="Ex : Permis B, véhicule personnel" oninput="saveProfile()"/></div>
-            <div class="fg"><label class="lb">Disponibilité</label><input class="inp" id="p-disponibilite" placeholder="Ex : Octobre 2025" oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Disponibilité</label><input class="inp" id="p-disponibilite" placeholder="Ex : Octobre 2026" oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Contrat recherché</label><input class="inp" id="p-contratRecherche" placeholder="Ex : CDI temps complet" oninput="saveProfile()"/></div>
           </div>
           <div style="padding:10px 14px;background:var(--teal-bg);border-radius:var(--radius-sm);font-size:12.5px;color:var(--teal-d);font-weight:600;border:1px solid var(--teal-border)"><i data-lucide="check" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"></i>Sauvegardé automatiquement</div>
         </div>
@@ -573,28 +576,16 @@
 </div>
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=17"></script>
-<script src="js/app.js?v=17"></script>
-<script src="js/profile.js?v=17"></script>
-<script src="js/import-cv.js?v=17"></script>
-<script src="js/cv.js?v=17"></script>
-<script src="js/analyze.js?v=17"></script>
-<script src="js/interview.js?v=17"></script>
-<script src="js/history.js?v=17"></script>
-<script src="js/tracker.js?v=17"></script>
-<script src="js/modal.js?v=17"></script>
+<script src="js/api.js?v=20"></script>
+<script src="js/app.js?v=20"></script>
+<script src="js/profile.js?v=20"></script>
+<script src="js/import-cv.js?v=20"></script>
+<script src="js/cv.js?v=20"></script>
+<script src="js/analyze.js?v=20"></script>
+<script src="js/interview.js?v=20"></script>
+<script src="js/history.js?v=20"></script>
+<script src="js/tracker.js?v=20"></script>
+<script src="js/modal.js?v=20"></script>
 
-<!-- ── BARRE D'OUTILS TEXTE RICHE ──────────────────────── -->
-<div id="rich-toolbar" class="rich-toolbar hidden">
-  <button onmousedown="event.preventDefault();richFormat('bold')"   title="Gras"><b>G</b></button>
-  <button onmousedown="event.preventDefault();richFormat('italic')" title="Italique"><i>I</i></button>
-  <div class="rich-sep"></div>
-  <button onmousedown="event.preventDefault();richPill('g')" title="Badge vert — disponibilité" class="rp rp-g">●</button>
-  <button onmousedown="event.preventDefault();richPill('b')" title="Badge bleu — mobilité"      class="rp rp-b">●</button>
-  <button onmousedown="event.preventDefault();richPill('o')" title="Badge orange — date / info" class="rp rp-o">●</button>
-  <button onmousedown="event.preventDefault();richPill('k')" title="Badge gris — neutre"        class="rp rp-k">●</button>
-  <div class="rich-sep"></div>
-  <button onmousedown="event.preventDefault();richFormat('removeFormat');richRemovePill()" title="Effacer le format" style="font-size:11px;opacity:.7">✕</button>
-</div>
 </body>
 </html>
