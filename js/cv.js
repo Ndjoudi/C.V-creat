@@ -1,8 +1,13 @@
 // ── RICH TEXT SANITIZER (CV rendering) ─────────────────────
-// Autorise seulement <strong>, <em>, <b>, <i>, <br> pour sécurité
+// Autorise : strong, em, b, i, br + span.cv-pill.cv-pill--[gbko]
 function sanitizeRichText(html) {
   return (html || '')
-    .replace(/<(?!\/?(?:strong|em|b|i|br)\b)[^>]+>/gi, '')
+    .replace(/<[^>]+>/g, tag => {
+      if (/^<\/?(strong|em|b|i|br)(\s[^>]*)?>$/i.test(tag)) return tag;
+      if (/^<span class="cv-pill cv-pill--[gbko]">$/i.test(tag)) return tag;
+      if (/^<\/span>$/i.test(tag)) return tag;
+      return '';
+    })
     .replace(/&nbsp;/g, ' ')
     .trim();
 }

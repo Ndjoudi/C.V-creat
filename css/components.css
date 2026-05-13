@@ -464,3 +464,30 @@ select.inp{cursor:pointer}
 }
 .rich-toolbar button:hover{ background:rgba(255,255,255,.15); }
 .rich-toolbar.hidden{ display:none; }
+
+/* ── BADGES COLORÉS (rich editor + CV) ──────────────────── */
+.cv-pill{
+  display:inline-block;padding:2px 9px;border-radius:100px;
+  font-size:11px;font-weight:600;vertical-align:middle;
+  margin:0 3px;line-height:1.5;white-space:nowrap;
+  cursor:default;
+}
+.cv-pill--g{ background:#D1FAE5;color:#065F46;border:1px solid #6EE7B7; }
+.cv-pill--b{ background:#DBEAFE;color:#1E40AF;border:1px solid #BFDBFE; }
+.cv-pill--o{ background:#FFFBEB;color:#92400E;border:1px solid #FDE68A; }
+.cv-pill--k{ background:#F3F4F6;color:#374151;border:1px solid #D1D5DB; }
+
+/* Séparateur dans la toolbar */
+.rich-sep{
+  width:1px;background:rgba(255,255,255,.2);
+  align-self:stretch;margin:2px 2px;
+}
+
+/* Boutons de couleur dans la toolbar */
+.rp{
+  font-size:14px;padding:3px 7px;line-height:1;
+}
+.rp-g{ color:#34D399; }
+.rp-b{ color:#60A5FA; }
+.rp-o{ color:#FBBF24; }
+.rp-k{ color:#9CA3AF; }

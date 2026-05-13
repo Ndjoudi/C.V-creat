@@ -7,9 +7,9 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=16"/>
-<link rel="stylesheet" href="css/components.css?v=16"/>
-<link rel="stylesheet" href="css/cv.css?v=16"/>
+<link rel="stylesheet" href="css/base.css?v=17"/>
+<link rel="stylesheet" href="css/components.css?v=17"/>
+<link rel="stylesheet" href="css/cv.css?v=17"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -573,22 +573,28 @@
 </div>
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=16"></script>
-<script src="js/app.js?v=16"></script>
-<script src="js/profile.js?v=16"></script>
-<script src="js/import-cv.js?v=16"></script>
-<script src="js/cv.js?v=16"></script>
-<script src="js/analyze.js?v=16"></script>
-<script src="js/interview.js?v=16"></script>
-<script src="js/history.js?v=16"></script>
-<script src="js/tracker.js?v=16"></script>
-<script src="js/modal.js?v=16"></script>
+<script src="js/api.js?v=17"></script>
+<script src="js/app.js?v=17"></script>
+<script src="js/profile.js?v=17"></script>
+<script src="js/import-cv.js?v=17"></script>
+<script src="js/cv.js?v=17"></script>
+<script src="js/analyze.js?v=17"></script>
+<script src="js/interview.js?v=17"></script>
+<script src="js/history.js?v=17"></script>
+<script src="js/tracker.js?v=17"></script>
+<script src="js/modal.js?v=17"></script>
 
 <!-- ── BARRE D'OUTILS TEXTE RICHE ──────────────────────── -->
 <div id="rich-toolbar" class="rich-toolbar hidden">
-  <button onmousedown="event.preventDefault();richFormat('bold')"    title="Gras"><b>G</b></button>
-  <button onmousedown="event.preventDefault();richFormat('italic')"  title="Italique"><i>I</i></button>
-  <button onmousedown="event.preventDefault();richFormat('removeFormat')" title="Effacer la mise en forme" style="font-size:11px;opacity:.75">✕</button>
+  <button onmousedown="event.preventDefault();richFormat('bold')"   title="Gras"><b>G</b></button>
+  <button onmousedown="event.preventDefault();richFormat('italic')" title="Italique"><i>I</i></button>
+  <div class="rich-sep"></div>
+  <button onmousedown="event.preventDefault();richPill('g')" title="Badge vert — disponibilité" class="rp rp-g">●</button>
+  <button onmousedown="event.preventDefault();richPill('b')" title="Badge bleu — mobilité"      class="rp rp-b">●</button>
+  <button onmousedown="event.preventDefault();richPill('o')" title="Badge orange — date / info" class="rp rp-o">●</button>
+  <button onmousedown="event.preventDefault();richPill('k')" title="Badge gris — neutre"        class="rp rp-k">●</button>
+  <div class="rich-sep"></div>
+  <button onmousedown="event.preventDefault();richFormat('removeFormat');richRemovePill()" title="Effacer le format" style="font-size:11px;opacity:.7">✕</button>
 </div>
 </body>
 </html>

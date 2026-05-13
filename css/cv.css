@@ -183,6 +183,11 @@
 .cv-summary-text b{ font-weight:700;color:#1D1D1F; }
 .cv-summary-text em,
 .cv-summary-text i{ font-style:italic; }
+/* Pills dans le texte de profil CV */
+.cv-summary-text .cv-pill{ font-size:10px; }
+@media print{
+  .cv-pill{ -webkit-print-color-adjust:exact;print-color-adjust:exact; }
+}
 
 /* ── CV TOPBAR ──────────────────────────────────────────── */
 .cv-bar{margin-bottom:20px}

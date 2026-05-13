@@ -52,10 +52,15 @@ function updateSBProfile() {
 }
 
 // ── RICH TEXT HELPERS ──────────────────────────────────────
-// Ne garde que <strong>, <em>, <b>, <i>, <br> — supprime tout le reste
+// Autorise : strong, em, b, i, br + span.cv-pill.cv-pill--[gbko]
 function sanitizeRichHTML(html) {
   return (html || '')
-    .replace(/<(?!\/?(?:strong|em|b|i|br)\b)[^>]+>/gi, '')
+    .replace(/<[^>]+>/g, tag => {
+      if (/^<\/?(strong|em|b|i|br)(\s[^>]*)?>$/i.test(tag)) return tag;
+      if (/^<span class="cv-pill cv-pill--[gbko]">$/i.test(tag)) return tag;
+      if (/^<\/span>$/i.test(tag)) return tag;
+      return '';
+    })
     .replace(/&nbsp;/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
@@ -92,11 +97,49 @@ function _maybeShowToolbar(toolbar) {
 
 function richFormat(cmd) {
   document.execCommand(cmd, false, null);
-  // Sauvegarde immédiate après formatage
   const active = document.activeElement;
   if (active && active.classList.contains('rich-editor')) {
     saveProfile();
     if (active.id === 'p-summary') updateWordCounter();
+  }
+  document.getElementById('rich-toolbar')?.classList.add('hidden');
+}
+
+// Insère un badge coloré autour du texte sélectionné
+function richPill(color) {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) return;
+  const txt = sel.toString().trim();
+  if (!txt) return;
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  const span = document.createElement('span');
+  span.className = 'cv-pill cv-pill--' + color;
+  span.textContent = txt;
+  range.insertNode(span);
+  // Déplace le curseur après le badge
+  range.setStartAfter(span);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  const active = document.activeElement;
+  if (active && active.classList.contains('rich-editor')) {
+    saveProfile();
+    if (active.id === 'p-summary') updateWordCounter();
+  }
+  document.getElementById('rich-toolbar')?.classList.add('hidden');
+}
+
+// Supprime un badge pill autour de la sélection (remplace par le texte nu)
+function richRemovePill() {
+  const sel = window.getSelection();
+  if (!sel || !sel.anchorNode) return;
+  const node = sel.anchorNode.parentElement;
+  if (node && node.classList.contains('cv-pill')) {
+    const txt = document.createTextNode(node.textContent);
+    node.parentNode.replaceChild(txt, node);
+    const active = document.activeElement;
+    if (active && active.classList.contains('rich-editor')) saveProfile();
   }
   document.getElementById('rich-toolbar')?.classList.add('hidden');
 }
