@@ -159,14 +159,15 @@ function applyGenerated() {
   if (modalState.type === 'target') {
     P.summaryTarget = txt;
     const el = document.getElementById('p-summaryTarget');
-    if (el) el.value = txt;
+    if (el) el.innerHTML = txt; // contenteditable → innerHTML
     ss('sc_profile', P);
     toast('Accroche ciblée appliquée');
   } else if (modalState.type === 'resume') {
     P.summary = txt;
-    document.getElementById('p-summary').value = txt;
+    const el = document.getElementById('p-summary');
+    if (el) el.innerHTML = txt; // contenteditable → innerHTML
     ss('sc_profile', P);
-    initWordCounter();
+    updateWordCounter();
     toast('Profil appliqué');
   } else {
     const exp = P.experiences.find(e => e.id === modalState.expId);

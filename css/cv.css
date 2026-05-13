@@ -179,6 +179,10 @@
 .cv-summary-text{
   font-size:12px;line-height:1.8;color:#3A3A3C;
 }
+.cv-summary-text strong,
+.cv-summary-text b{ font-weight:700;color:#1D1D1F; }
+.cv-summary-text em,
+.cv-summary-text i{ font-style:italic; }
 
 /* ── CV TOPBAR ──────────────────────────────────────────── */
 .cv-bar{margin-bottom:20px}

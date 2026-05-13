@@ -2,24 +2,38 @@
 const FIELD_MAP = {
   fn:'firstName', ln:'lastName', email:'email', phone:'phone',
   loc:'location', linkedin:'linkedin', title:'title',
-  yexp:'yearsExp', mobility:'mobility', summary:'summary', summaryTarget:'summaryTarget',
+  yexp:'yearsExp', mobility:'mobility',
   permis:'permis', disponibilite:'disponibilite', hobbies:'hobbies'
 };
+// Champs rich-text (contenteditable) — stockés en HTML
+const RICH_FIELDS = { summary:'summary', summaryTarget:'summaryTarget' };
 
 function loadProfileToForm() {
+  // Champs normaux
   Object.entries(FIELD_MAP).forEach(([k, v]) => {
     const el = document.getElementById('p-' + k);
     if (el) el.value = P[v] || '';
   });
-  initWordCounter();
+  // Champs riches
+  Object.entries(RICH_FIELDS).forEach(([k, v]) => {
+    const el = document.getElementById('p-' + k);
+    if (el) { el.innerHTML = P[v] || ''; }
+  });
+  initRichEditors();
+  updateWordCounter();
   renderPhotoPreview();
-  renderHighlightToggles();
 }
 
 function saveProfile() {
+  // Champs normaux
   Object.entries(FIELD_MAP).forEach(([k, v]) => {
     const el = document.getElementById('p-' + k);
     if (el) P[v] = el.value.trim();
+  });
+  // Champs riches — on stocke l'HTML sanitizé
+  Object.entries(RICH_FIELDS).forEach(([k, v]) => {
+    const el = document.getElementById('p-' + k);
+    if (el) P[v] = sanitizeRichHTML(el.innerHTML);
   });
   ss('sc_profile', P);
   updateSBProfile();
@@ -37,19 +51,69 @@ function updateSBProfile() {
   }
 }
 
-// ── WORD COUNTER (summary) ─────────────────────────────────
-function initWordCounter() {
-  const ta = document.getElementById('p-summary');
-  const counter = document.getElementById('summary-counter');
-  if (!ta || !counter) return;
-  function update() {
-    const words = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
-    counter.textContent = words + ' / 80 mots';
-    counter.className = 'word-counter' + (words > 80 ? ' over' : words > 65 ? ' warn' : '');
-  }
-  ta.addEventListener('input', update);
-  update();
+// ── RICH TEXT HELPERS ──────────────────────────────────────
+// Ne garde que <strong>, <em>, <b>, <i>, <br> — supprime tout le reste
+function sanitizeRichHTML(html) {
+  return (html || '')
+    .replace(/<(?!\/?(?:strong|em|b|i|br)\b)[^>]+>/gi, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
+
+// ── RICH EDITOR INIT ───────────────────────────────────────
+function initRichEditors() {
+  const toolbar = document.getElementById('rich-toolbar');
+  if (!toolbar) return;
+
+  document.querySelectorAll('.rich-editor').forEach(editor => {
+    editor.addEventListener('mouseup',  () => _maybeShowToolbar(toolbar));
+    editor.addEventListener('keyup',    () => _maybeShowToolbar(toolbar));
+  });
+  document.addEventListener('mousedown', e => {
+    if (!toolbar.contains(e.target) && !e.target.closest('.rich-editor'))
+      toolbar.classList.add('hidden');
+  });
+}
+
+function _maybeShowToolbar(toolbar) {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+    toolbar.classList.add('hidden');
+    return;
+  }
+  const range = sel.getRangeAt(0);
+  const rect  = range.getBoundingClientRect();
+  const tw    = 110; // toolbar width approx
+  toolbar.style.top  = (rect.top + window.scrollY - 44) + 'px';
+  toolbar.style.left = Math.max(8, rect.left + rect.width / 2 - tw / 2) + 'px';
+  toolbar.classList.remove('hidden');
+}
+
+function richFormat(cmd) {
+  document.execCommand(cmd, false, null);
+  // Sauvegarde immédiate après formatage
+  const active = document.activeElement;
+  if (active && active.classList.contains('rich-editor')) {
+    saveProfile();
+    if (active.id === 'p-summary') updateWordCounter();
+  }
+  document.getElementById('rich-toolbar')?.classList.add('hidden');
+}
+
+// ── WORD COUNTER (summary) ─────────────────────────────────
+function updateWordCounter() {
+  const el = document.getElementById('p-summary');
+  const counter = document.getElementById('summary-counter');
+  if (!el || !counter) return;
+  const text  = el.innerText || el.textContent || '';
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  counter.textContent = words + ' / 80 mots';
+  counter.className   = 'word-counter' + (words > 80 ? ' over' : words > 65 ? ' warn' : '');
+}
+
+// Compat alias
+function initWordCounter() { updateWordCounter(); }
 
 // ── CHIPS ──────────────────────────────────────────────────
 function renderChips() {

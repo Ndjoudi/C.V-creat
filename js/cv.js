@@ -1,42 +1,10 @@
-// ── PROFILE HIGHLIGHT BUILDER ──────────────────────────────
-// Génère le bloc accroche structuré — seuls les éléments activés dans highlightConfig apparaissent
-function buildProfileHighlight() {
-  const cfg = P.highlightConfig || {};
-  const segments = [];
-
-  // ── Ligne 1 : Formation ──
-  if (cfg.formation) {
-    const edu = P.education && P.education[0];
-    if (edu && edu.degree) {
-      let s = `<span class="cv-phi-plain">En cursus </span>`;
-      s += `<strong class="cv-phi-formation">${esc(edu.degree)}</strong>`;
-      if (edu.school) s += `<span class="cv-phi-plain"> à </span><strong class="cv-phi-school">${esc(edu.school)}</strong>`;
-      if (edu.year)   s += `<span class="cv-phi-year">, diplômé(e) ${esc(edu.year)}</span>`;
-      segments.push(s);
-    } else if (P.yearsExp) {
-      segments.push(`<span class="cv-phi-plain">Fort(e) de </span><strong class="cv-phi-formation">${esc(P.yearsExp)} d'expérience</strong>`);
-    }
-  }
-
-  // ── Ligne 2 : Poste ciblé ──
-  if (cfg.target) {
-    const target = _cvTarget || P.title;
-    if (target) {
-      segments.push(`<span class="cv-phi-plain">Je recherche </span><em class="cv-phi-target">${esc(target)}</em>`);
-    }
-  }
-
-  // ── Ligne 3 : Pills (dispo / mobilité / permis) ──
-  const pills = [];
-  if (cfg.dispo    && P.disponibilite) pills.push(`<span class="cv-phi-pill cv-phi-pill--green">${esc(P.disponibilite)}</span>`);
-  if (cfg.mobility && P.mobility)      pills.push(`<span class="cv-phi-pill cv-phi-pill--blue">${esc(P.mobility)}</span>`);
-  if (cfg.permis   && P.permis)        pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
-  if (pills.length) segments.push(pills.join(''));
-
-  if (!segments.length) return '';
-  return `<div class="cv-profile-highlight">${
-    segments.map(s => `<div class="cv-phi-line">${s}</div>`).join('')
-  }</div>`;
+// ── RICH TEXT SANITIZER (CV rendering) ─────────────────────
+// Autorise seulement <strong>, <em>, <b>, <i>, <br> pour sécurité
+function sanitizeRichText(html) {
+  return (html || '')
+    .replace(/<(?!\/?(?:strong|em|b|i|br)\b)[^>]+>/gi, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
 }
 
 // ── SKILL MATCH HELPER ─────────────────────────────────────
@@ -87,30 +55,6 @@ function setCVTarget(val) {
   renderCV();
 }
 
-// ── HIGHLIGHT TOGGLES ──────────────────────────────────────
-const HIGHLIGHT_CHIPS = [
-  { key:'formation', label:'Formation'     },
-  { key:'target',    label:'Poste ciblé'   },
-  { key:'dispo',     label:'Disponibilité' },
-  { key:'mobility',  label:'Mobilité'      },
-  { key:'permis',    label:'Permis'        },
-];
-
-function toggleHighlight(key) {
-  P.highlightConfig[key] = !P.highlightConfig[key];
-  ss('sc_profile', P);
-  renderHighlightToggles();
-  renderCV();
-}
-
-function renderHighlightToggles() {
-  const el = document.getElementById('profile-highlight-chips');
-  if (!el) return;
-  el.innerHTML = HIGHLIGHT_CHIPS.map(c => {
-    const on = P.highlightConfig[c.key];
-    return `<button onclick="toggleHighlight('${c.key}')" class="cv-hi-chip${on ? ' on' : ''}">${c.label}</button>`;
-  }).join('');
-}
 
 // ── CV RENDER ──────────────────────────────────────────────
 function renderCV() {
@@ -158,14 +102,14 @@ function renderCV() {
   </div>
   <div class="cv-div"></div>`;
 
-  // ── Profil : bloc highlight auto + textes manuels ──
-  const highlightBlock = buildProfileHighlight();
-  const fullSummary    = [P.summary, P.summaryTarget].filter(Boolean).join(' ');
-  if (highlightBlock || fullSummary) {
+  // ── Profil — HTML riche (gras/italique conservés) ──
+  const summaryHTML = sanitizeRichText(P.summary || '');
+  const targetHTML  = sanitizeRichText(P.summaryTarget || '');
+  const fullHTML    = [summaryHTML, targetHTML].filter(Boolean).join(' ');
+  if (fullHTML) {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>
-      ${highlightBlock}
-      ${fullSummary ? `<div class="cv-summary-text"${highlightBlock ? ' style="margin-top:9px"' : ''}>${esc(fullSummary)}</div>` : ''}
+      <div class="cv-summary-text">${fullHTML}</div>
     </div>`;
   }
 
