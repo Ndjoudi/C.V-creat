@@ -7,9 +7,9 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=14"/>
-<link rel="stylesheet" href="css/components.css?v=14"/>
-<link rel="stylesheet" href="css/cv.css?v=14"/>
+<link rel="stylesheet" href="css/base.css?v=15"/>
+<link rel="stylesheet" href="css/components.css?v=15"/>
+<link rel="stylesheet" href="css/cv.css?v=15"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -242,6 +242,12 @@
             <div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.55">Ce que tu apportes spécifiquement pour le poste visé : compétences correspondantes, motivation ciblée, disponibilité, langue si requise.</div>
             <textarea class="inp" id="p-summaryTarget" rows="3" placeholder="Ex : Particulièrement motivé par ce poste de CDI - Assistant Marketing, j'apporte une maîtrise de Pack Office, Canva et une expérience en gestion de contenu. Anglais B2. Disponible immédiatement." oninput="saveProfile()"></textarea>
           </div>
+
+          <!-- ④ Bloc accroche auto -->
+          <div style="border-top:1px solid var(--border);margin:16px 0 14px"></div>
+          <div class="section-hdg" style="margin-bottom:10px"><i data-lucide="layout-list" style="width:13px;height:13px"></i>Informations mises en avant sur le CV</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:10px;line-height:1.6">Sélectionne ce que tu veux afficher dans le bloc accroche en haut du profil CV. <strong>Ne répète pas ces infos dans ton résumé.</strong></div>
+          <div id="profile-highlight-chips" style="display:flex;flex-wrap:wrap;gap:7px"></div>
         </div>
 
         <!-- ③ ÉTAT CIVIL -->
@@ -353,11 +359,6 @@
           </div>
           <input class="inp" id="cv-target-input" placeholder="Ex: CDI - Assistant Marketing (remplace le titre sur le CV)" style="flex:1;padding:8px 12px;font-size:13px;min-width:200px" oninput="setCVTarget(this.value)"/>
           <div style="font-size:11px;color:var(--ink3);white-space:nowrap">Auto-rempli après analyse d'offre</div>
-        </div>
-        <!-- Bloc profil : toggles -->
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <span style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;flex-shrink:0">Bloc profil</span>
-          <div id="cv-highlight-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
         </div>
         <div style="font-size:11.5px;color:var(--ink3);margin-bottom:14px;display:flex;align-items:center;gap:6px"><i data-lucide="info" style="width:13px;height:13px;flex-shrink:0"></i>Dans la boîte d'impression : choisir <strong>"Enregistrer en PDF"</strong>, désactiver les en-têtes/pieds de page</div>
         <div id="cv-analysis-result" style="margin-bottom:16px"></div>
@@ -571,15 +572,15 @@
 </div>
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=14"></script>
-<script src="js/app.js?v=14"></script>
-<script src="js/profile.js?v=14"></script>
-<script src="js/import-cv.js?v=14"></script>
-<script src="js/cv.js?v=14"></script>
-<script src="js/analyze.js?v=14"></script>
-<script src="js/interview.js?v=14"></script>
-<script src="js/history.js?v=14"></script>
-<script src="js/tracker.js?v=14"></script>
-<script src="js/modal.js?v=14"></script>
+<script src="js/api.js?v=15"></script>
+<script src="js/app.js?v=15"></script>
+<script src="js/profile.js?v=15"></script>
+<script src="js/import-cv.js?v=15"></script>
+<script src="js/cv.js?v=15"></script>
+<script src="js/analyze.js?v=15"></script>
+<script src="js/interview.js?v=15"></script>
+<script src="js/history.js?v=15"></script>
+<script src="js/tracker.js?v=15"></script>
+<script src="js/modal.js?v=15"></script>
 </body>
 </html>

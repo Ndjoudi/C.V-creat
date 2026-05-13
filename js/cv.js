@@ -104,7 +104,7 @@ function toggleHighlight(key) {
 }
 
 function renderHighlightToggles() {
-  const el = document.getElementById('cv-highlight-chips');
+  const el = document.getElementById('profile-highlight-chips');
   if (!el) return;
   el.innerHTML = HIGHLIGHT_CHIPS.map(c => {
     const on = P.highlightConfig[c.key];
@@ -118,9 +118,6 @@ function renderCV() {
   document.getElementById('cv-empty').classList.toggle('hidden', !empty);
   document.getElementById('cv-content').classList.toggle('hidden', empty);
   if (empty) return;
-
-  // Render highlight toggle chips
-  renderHighlightToggles();
 
   // Restore target input if set
   const targetInput = document.getElementById('cv-target-input');

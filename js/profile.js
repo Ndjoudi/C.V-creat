@@ -13,6 +13,7 @@ function loadProfileToForm() {
   });
   initWordCounter();
   renderPhotoPreview();
+  renderHighlightToggles();
 }
 
 function saveProfile() {
