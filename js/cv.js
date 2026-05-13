@@ -1,35 +1,37 @@
 // ── PROFILE HIGHLIGHT BUILDER ──────────────────────────────
-// Génère le bloc accroche structuré avec mise en avant des infos clés
+// Génère le bloc accroche structuré — seuls les éléments activés dans highlightConfig apparaissent
 function buildProfileHighlight() {
+  const cfg = P.highlightConfig || {};
   const segments = [];
 
-  // ── Ligne 1 : Formation / expérience ──
-  const edu = P.education && P.education[0];
-  if (edu && edu.degree) {
-    let s = '';
-    s += `<span class="cv-phi-plain">En cursus </span>`;
-    s += `<strong class="cv-phi-formation">${esc(edu.degree)}</strong>`;
-    if (edu.school) s += `<span class="cv-phi-plain"> à </span><strong class="cv-phi-school">${esc(edu.school)}</strong>`;
-    if (edu.year)   s += `<span class="cv-phi-year">, diplômé(e) ${esc(edu.year)}</span>`;
-    segments.push(s);
-  } else if (P.yearsExp) {
-    segments.push(`<span class="cv-phi-plain">Fort(e) de </span><strong class="cv-phi-formation">${esc(P.yearsExp)} d'expérience</strong>`);
+  // ── Ligne 1 : Formation ──
+  if (cfg.formation) {
+    const edu = P.education && P.education[0];
+    if (edu && edu.degree) {
+      let s = `<span class="cv-phi-plain">En cursus </span>`;
+      s += `<strong class="cv-phi-formation">${esc(edu.degree)}</strong>`;
+      if (edu.school) s += `<span class="cv-phi-plain"> à </span><strong class="cv-phi-school">${esc(edu.school)}</strong>`;
+      if (edu.year)   s += `<span class="cv-phi-year">, diplômé(e) ${esc(edu.year)}</span>`;
+      segments.push(s);
+    } else if (P.yearsExp) {
+      segments.push(`<span class="cv-phi-plain">Fort(e) de </span><strong class="cv-phi-formation">${esc(P.yearsExp)} d'expérience</strong>`);
+    }
   }
 
-  // ── Ligne 2 : Ce que je cherche ──
-  const target = _cvTarget || P.title;
-  if (target) {
-    segments.push(
-      `<span class="cv-phi-plain">Je recherche </span><em class="cv-phi-target">${esc(target)}</em>`
-    );
+  // ── Ligne 2 : Poste ciblé ──
+  if (cfg.target) {
+    const target = _cvTarget || P.title;
+    if (target) {
+      segments.push(`<span class="cv-phi-plain">Je recherche </span><em class="cv-phi-target">${esc(target)}</em>`);
+    }
   }
 
-  // ── Ligne 3 : Disponibilité + mobilité ──
+  // ── Ligne 3 : Pills (dispo / mobilité / permis) ──
   const pills = [];
-  if (P.disponibilite) pills.push(`<span class="cv-phi-pill cv-phi-pill--green">${esc(P.disponibilite)}</span>`);
-  if (P.mobility)      pills.push(`<span class="cv-phi-pill cv-phi-pill--blue">${esc(P.mobility)}</span>`);
-  if (P.permis)        pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
-  if (pills.length)    segments.push(pills.join(''));
+  if (cfg.dispo    && P.disponibilite) pills.push(`<span class="cv-phi-pill cv-phi-pill--green">${esc(P.disponibilite)}</span>`);
+  if (cfg.mobility && P.mobility)      pills.push(`<span class="cv-phi-pill cv-phi-pill--blue">${esc(P.mobility)}</span>`);
+  if (cfg.permis   && P.permis)        pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
+  if (pills.length) segments.push(pills.join(''));
 
   if (!segments.length) return '';
   return `<div class="cv-profile-highlight">${
@@ -85,12 +87,40 @@ function setCVTarget(val) {
   renderCV();
 }
 
+// ── HIGHLIGHT TOGGLES ──────────────────────────────────────
+const HIGHLIGHT_CHIPS = [
+  { key:'formation', label:'Formation'     },
+  { key:'target',    label:'Poste ciblé'   },
+  { key:'dispo',     label:'Disponibilité' },
+  { key:'mobility',  label:'Mobilité'      },
+  { key:'permis',    label:'Permis'        },
+];
+
+function toggleHighlight(key) {
+  P.highlightConfig[key] = !P.highlightConfig[key];
+  ss('sc_profile', P);
+  renderHighlightToggles();
+  renderCV();
+}
+
+function renderHighlightToggles() {
+  const el = document.getElementById('cv-highlight-chips');
+  if (!el) return;
+  el.innerHTML = HIGHLIGHT_CHIPS.map(c => {
+    const on = P.highlightConfig[c.key];
+    return `<button onclick="toggleHighlight('${c.key}')" class="cv-hi-chip${on ? ' on' : ''}">${c.label}</button>`;
+  }).join('');
+}
+
 // ── CV RENDER ──────────────────────────────────────────────
 function renderCV() {
   const empty = !P.firstName;
   document.getElementById('cv-empty').classList.toggle('hidden', !empty);
   document.getElementById('cv-content').classList.toggle('hidden', empty);
   if (empty) return;
+
+  // Render highlight toggle chips
+  renderHighlightToggles();
 
   // Restore target input if set
   const targetInput = document.getElementById('cv-target-input');
