@@ -1,3 +1,42 @@
+// ── PROFILE HIGHLIGHT BUILDER ──────────────────────────────
+// Génère le bloc accroche structuré avec mise en avant des infos clés
+function buildProfileHighlight() {
+  const segments = [];
+
+  // ── Ligne 1 : Formation / expérience ──
+  const edu = P.education && P.education[0];
+  if (edu && edu.degree) {
+    let s = '';
+    s += `<span class="cv-phi-plain">En cursus </span>`;
+    s += `<strong class="cv-phi-formation">${esc(edu.degree)}</strong>`;
+    if (edu.school) s += `<span class="cv-phi-plain"> à </span><strong class="cv-phi-school">${esc(edu.school)}</strong>`;
+    if (edu.year)   s += `<span class="cv-phi-year">, diplômé(e) ${esc(edu.year)}</span>`;
+    segments.push(s);
+  } else if (P.yearsExp) {
+    segments.push(`<span class="cv-phi-plain">Fort(e) de </span><strong class="cv-phi-formation">${esc(P.yearsExp)} d'expérience</strong>`);
+  }
+
+  // ── Ligne 2 : Ce que je cherche ──
+  const target = _cvTarget || P.title;
+  if (target) {
+    segments.push(
+      `<span class="cv-phi-plain">Je recherche </span><em class="cv-phi-target">${esc(target)}</em>`
+    );
+  }
+
+  // ── Ligne 3 : Disponibilité + mobilité ──
+  const pills = [];
+  if (P.disponibilite) pills.push(`<span class="cv-phi-pill cv-phi-pill--green">${esc(P.disponibilite)}</span>`);
+  if (P.mobility)      pills.push(`<span class="cv-phi-pill cv-phi-pill--blue">${esc(P.mobility)}</span>`);
+  if (P.permis)        pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
+  if (pills.length)    segments.push(pills.join(''));
+
+  if (!segments.length) return '';
+  return `<div class="cv-profile-highlight">${
+    segments.map(s => `<div class="cv-phi-line">${s}</div>`).join('')
+  }</div>`;
+}
+
 // ── SKILL MATCH HELPER ─────────────────────────────────────
 // Retourne true si la compétence correspond à un mot-clé de la dernière offre analysée
 // Matching flou : "Excel avancé" matche si l'offre mentionne "Excel" (et inversement)
@@ -60,10 +99,9 @@ function renderCV() {
   // ── Header ──
   const displayTitle = _cvTarget || P.title;
 
-  // LinkedIn: clickable link + QR code
+  // LinkedIn: clickable link
   const liUrl = P.linkedin ? (P.linkedin.startsWith('http') ? P.linkedin : 'https://' + P.linkedin) : '';
   const liShort = P.linkedin ? P.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\//, 'linkedin.com/') : '';
-  const qrSrc = liUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(liUrl)}&color=1D1D1F&bgcolor=FFFFFF&margin=3` : '';
 
   const contacts = [
     P.email ? `<span>${esc(P.email)}</span>` : '',
@@ -75,14 +113,10 @@ function renderCV() {
   const extras = [P.disponibilite, P.mobility, P.permis].filter(Boolean);
   const extraLine = extras.map(e => `<span>${esc(e)}</span>`).join('');
 
-  // Right-side: photo + QR code
-  const rightCol = (P.photo || qrSrc) ? `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
-      ${P.photo ? `<img src="${P.photo}" class="cv-photo"/>` : ''}
-      ${qrSrc ? `<div style="text-align:center">
-        <img src="${qrSrc}" style="width:60px;height:60px;border:1px solid #D2D2D7;border-radius:3px;display:block"/>
-        <div style="font-size:6.5px;color:#86868B;margin-top:2px;letter-spacing:.3px">LinkedIn</div>
-      </div>` : ''}
+  // Right-side: photo only
+  const rightCol = P.photo ? `
+    <div style="flex-shrink:0">
+      <img src="${P.photo}" class="cv-photo"/>
     </div>` : '';
 
   let html = `
@@ -97,12 +131,14 @@ function renderCV() {
   </div>
   <div class="cv-div"></div>`;
 
-  // ── Profil (Mon profil + Pour ce poste combinés) ──
-  const fullSummary = [P.summary, P.summaryTarget].filter(Boolean).join(' ');
-  if (fullSummary) {
+  // ── Profil : bloc highlight auto + textes manuels ──
+  const highlightBlock = buildProfileHighlight();
+  const fullSummary    = [P.summary, P.summaryTarget].filter(Boolean).join(' ');
+  if (highlightBlock || fullSummary) {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>
-      <div class="cv-summary-text">${esc(fullSummary)}</div>
+      ${highlightBlock}
+      ${fullSummary ? `<div class="cv-summary-text"${highlightBlock ? ' style="margin-top:9px"' : ''}>${esc(fullSummary)}</div>` : ''}
     </div>`;
   }
 
