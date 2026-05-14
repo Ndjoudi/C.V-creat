@@ -74,7 +74,6 @@ function addCand() {
   document.getElementById('f-poste').value = '';
   document.getElementById('f-notes').value = '';
   if (indeedUrlEl) indeedUrlEl.value = '';
-  const pasteEl = document.getElementById('f-paste-text');
   if (pasteEl) { pasteEl.value = ''; delete pasteEl.dataset.desc; }
   document.getElementById('f-paste-status').textContent = '';
   document.getElementById('add-form').classList.add('hidden');
