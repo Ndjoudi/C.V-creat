@@ -202,27 +202,113 @@ function refreshDash() {
   updateSBProfile();
   const hp = P.firstName && P.lastName;
   document.getElementById('onboard-block').classList.toggle('hidden', !!hp);
-  document.getElementById('dash-stats').classList.toggle('hidden', !hp);
-  if (hp) {
-    document.getElementById('dash-title').textContent = 'Bonjour, ' + P.firstName;
-    const fields = [P.firstName, P.lastName, P.email, P.title, P.yearsExp,
-      P.subdomains.length > 0, P.tools.length > 0, P.experiences.length > 0, P.education.length > 0];
-    const pct = Math.round(fields.filter(Boolean).length / 9 * 100);
-    document.getElementById('pct-label').textContent = pct + '%';
-    document.getElementById('pct-bar').style.width = pct + '%';
-    document.getElementById('pct-hint').innerHTML = pct < 100
-      ? `<span style="color:var(--teal);cursor:pointer;font-weight:600" onclick="goTo('profile')">Compléter → </span>pour de meilleurs résultats IA`
-      : '✓ Profil complet — l\'IA est prête';
-    const cands = ls('sc_cands', []);
-    document.getElementById('dash-counts').innerHTML = [
-      { n: P.tools.length, l: 'Outils' },
-      { n: P.certifs.length, l: 'Certifications' },
-      { n: P.experiences.length, l: 'Expériences' },
-      { n: cands.length, l: 'Candidatures' }
-    ].map(({ n, l }) => `<div class="stat"><div class="stat-n">${n}</div><div class="stat-l">${l}</div></div>`).join('');
+  document.getElementById('dash-title').textContent = hp ? 'Bonjour, ' + P.firstName : 'Bonjour';
+
+  const dashEl = document.getElementById('dash-stats');
+  if (!hp) { dashEl.innerHTML = ''; return; }
+
+  const cands   = ls('sc_cands', []);
+  const fields  = [P.firstName, P.lastName, P.email, P.title, P.yearsExp,
+    P.subdomains.length > 0, P.tools.length > 0, P.experiences.length > 0, P.education.length > 0];
+  const pct     = Math.round(fields.filter(Boolean).length / 9 * 100);
+
+  // ── Stats candidatures (même style que le tracker) ──
+  const statCards = STATS.map(s => {
+    const [col,, border] = STAT_COLORS[s] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
+    const n = cands.filter(c => c.status === s).length;
+    return `<div class="stat" style="border-color:${border}"><div class="stat-n" style="color:${col}">${n}</div><div class="stat-l">${s}</div></div>`;
+  }).join('');
+
+  // ── Tableau des candidatures récentes (5 dernières) ──
+  const recent = [...cands].reverse().slice(0, 5);
+  let recentHtml;
+  if (recent.length) {
+    recentHtml = `<table class="tbl">
+      <thead><tr>
+        <th>Poste · Entreprise</th><th>Score</th><th>Date</th><th>Statut</th><th></th>
+      </tr></thead>
+      <tbody>${recent.map(c => {
+        const [col, bg, border] = STAT_COLORS[c.status] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
+        const sc = c.score;
+        let scoreBadge = '<span style="opacity:.35;font-size:12px">—</span>';
+        if (sc !== null && sc !== undefined) {
+          const sc_col = sc >= 70 ? 'var(--teal)'    : sc >= 50 ? '#D97706'        : 'var(--red)';
+          const sc_bg  = sc >= 70 ? 'var(--teal-bg)' : sc >= 50 ? '#FFFBEB'        : 'var(--red-bg)';
+          const sc_bd  = sc >= 70 ? 'var(--teal-border)' : sc >= 50 ? '#FDE68A'   : 'var(--red-border)';
+          const hasA   = !!c.analysis;
+          scoreBadge = `<span style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:700;color:${sc_col};background:${sc_bg};border:1.5px solid ${sc_bd};${hasA ? 'cursor:pointer' : ''}" ${hasA ? `onclick="openAnalysisModal('${c.id}')" title="Voir l'analyse"` : ''}>${sc}%${hasA ? ' ↗' : ''}</span>`;
+        }
+        return `<tr>
+          <td>
+            <div style="font-weight:700;color:var(--ink);font-size:13px">${esc(c.poste)}</div>
+            <div style="color:var(--ink3);font-size:12px;margin-top:1px">${esc(c.company)}</div>
+          </td>
+          <td>${scoreBadge}</td>
+          <td style="color:var(--ink3);font-size:12.5px">${c.date || ''}</td>
+          <td><span style="background:${bg};border:1.5px solid ${border};border-radius:100px;color:${col};font-size:12px;font-weight:700;padding:3px 9px">${c.status}</span></td>
+          <td style="white-space:nowrap">
+            ${c.analysis ? `<button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="CV adapté">CV</button><button onclick="loadCVForCand('${c.id}',true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="PDF">⬇ PDF</button>` : ''}
+            <button onclick="goTo('tracker')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:13px;padding:2px 5px;border-radius:4px" title="Voir dans Candidatures">→</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
   } else {
-    document.getElementById('dash-title').textContent = 'Bonjour';
+    recentHtml = `<div class="empty" style="padding:30px"><div class="empty-ic">◫</div><div class="empty-t">Aucune candidature</div><div class="empty-s">Ajoute ta première depuis l'onglet Candidatures</div></div>`;
   }
+
+  dashEl.innerHTML = `
+    <!-- Profil + actions -->
+    <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">Complétion du profil</div>
+          <div style="font-size:13px;font-weight:800;color:var(--teal)">${pct}%</div>
+        </div>
+        <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
+        <div style="margin-top:8px;font-size:12px;color:var(--ink3)">${pct < 100
+          ? `<span style="color:var(--teal);cursor:pointer;font-weight:600" onclick="goTo('profile')">Compléter → </span>pour de meilleurs résultats IA`
+          : '✓ Profil complet — l\'IA est prête'}</div>
+      </div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn btn-p" onclick="goTo('tracker')" style="font-size:13px"><i data-lucide="plus" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"></i>Nouvelle candidature</button>
+        <button class="btn btn-g" onclick="goTo('cv')" style="font-size:13px"><i data-lucide="file-text" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"></i>Mon CV</button>
+      </div>
+    </div>
+
+    <!-- Stat cards candidatures -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">${statCards}</div>
+
+    <!-- Titre section + lien tout voir -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:14px;font-weight:700;color:var(--ink)">Candidatures récentes</div>
+      ${cands.length > 5 ? `<span style="font-size:12.5px;color:var(--teal-d);cursor:pointer;font-weight:600" onclick="goTo('tracker')">Voir tout (${cands.length}) →</span>` : ''}
+    </div>
+    <div style="margin-bottom:20px">${recentHtml}</div>
+
+    <!-- Actions rapides -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="card ac" onclick="goTo('interview')" style="flex:1;min-width:150px;padding:14px 16px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;display:flex;align-items:center;gap:7px">
+          <i data-lucide="mic" style="width:14px;height:14px;color:var(--teal);flex-shrink:0"></i>Simulation entretien
+        </div>
+        <div style="font-size:12px;color:var(--ink3);line-height:1.5">Questions sur mesure par IA</div>
+      </div>
+      <div class="card ac" onclick="goTo('history')" style="flex:1;min-width:150px;padding:14px 16px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;display:flex;align-items:center;gap:7px">
+          <i data-lucide="history" style="width:14px;height:14px;color:var(--teal);flex-shrink:0"></i>Mes analyses
+        </div>
+        <div style="font-size:12px;color:var(--ink3);line-height:1.5">Historique des offres analysées</div>
+      </div>
+      <div class="card ac" onclick="goTo('profile')" style="flex:1;min-width:150px;padding:14px 16px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;display:flex;align-items:center;gap:7px">
+          <i data-lucide="user-round" style="width:14px;height:14px;color:var(--teal);flex-shrink:0"></i>Mon profil
+        </div>
+        <div style="font-size:12px;color:var(--ink3);line-height:1.5">${P.tools.length} outils · ${P.experiences.length} expériences</div>
+      </div>
+    </div>`;
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // ── EXPORT ALL DATA ─────────────────────────────────────────

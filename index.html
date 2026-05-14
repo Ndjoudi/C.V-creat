@@ -92,7 +92,7 @@
         <div style="font-size:13.5px;color:var(--ink3);margin-bottom:18px;line-height:1.65">Renseigne tes compétences supply chain — outils, certifications, expériences. L'IA s'en sert pour tout personnaliser automatiquement.</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-p" onclick="goTo('profile')">Créer mon profil <i data-lucide="arrow-right" style="width:14px;height:14px"></i></button>
-          <button class="btn btn-g" onclick="goTo('analyze')"><i data-lucide="sparkles" class="btn-icon-sm"></i>Analyser une offre sans profil</button>
+          <button class="btn btn-g" onclick="goTo('tracker')"><i data-lucide="briefcase" class="btn-icon-sm"></i>Ajouter une candidature</button>
         </div>
       </div>
       <div class="page-header">
@@ -101,40 +101,7 @@
           <div class="psub">Ton copilote de carrière supply chain propulsé par l'IA</div>
         </div>
       </div>
-      <div id="dash-stats" class="hidden">
-        <div class="card" style="margin-bottom:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div style="font-size:13.5px;font-weight:700;color:var(--ink)">Complétion du profil</div>
-            <div style="font-size:13.5px;font-weight:800;color:var(--teal)" id="pct-label">0%</div>
-          </div>
-          <div class="prog"><div class="prog-f" id="pct-bar" style="width:0%"></div></div>
-          <div style="margin-top:9px;font-size:12.5px;color:var(--ink3)" id="pct-hint"></div>
-        </div>
-        <div class="g4" style="margin-bottom:20px" id="dash-counts"></div>
-      </div>
-      <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:13px">Actions rapides</div>
-      <div class="g2" style="max-width:700px">
-        <div class="card card-hi ac" onclick="goTo('analyze')">
-          <div class="dash-card-icon" style="color:var(--teal)"><i data-lucide="sparkles"></i></div>
-          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Analyser une offre</div>
-          <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">CV adapté + lettre de motivation générée par l'IA</div>
-        </div>
-        <div class="card ac" onclick="goTo('interview')">
-          <div class="dash-card-icon" style="color:var(--teal)"><i data-lucide="mic"></i></div>
-          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Simulation entretien</div>
-          <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">Questions sur mesure + conseils de réponse</div>
-        </div>
-        <div class="card ac" onclick="goTo('cv')">
-          <div class="dash-card-icon" style="color:var(--teal)"><i data-lucide="file-text"></i></div>
-          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Mon CV</div>
-          <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">Prévisualise et télécharge ton CV PDF ATS</div>
-        </div>
-        <div class="card ac" onclick="goTo('tracker')">
-          <div class="dash-card-icon" style="color:var(--teal)"><i data-lucide="briefcase"></i></div>
-          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:5px">Candidatures</div>
-          <div style="font-size:12.5px;color:var(--ink3);line-height:1.55">Suis tous tes dossiers en cours</div>
-        </div>
-      </div>
+      <div id="dash-stats"></div>
     </div>
 
     <!-- PROFILE -->
@@ -611,7 +578,7 @@
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
 <script src="js/api.js?v=35"></script>
-<script src="js/app.js?v=35"></script>
+<script src="js/app.js?v=36"></script>
 <script src="js/profile.js?v=35"></script>
 <script src="js/import-cv.js?v=35"></script>
 <script src="js/cv.js?v=35"></script>
