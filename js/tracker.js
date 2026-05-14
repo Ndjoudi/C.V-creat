@@ -97,20 +97,37 @@ async function _timedFetch(url, opts = {}, ms = 12000) {
   finally { clearTimeout(tid); }
 }
 
+// ── Détection page de blocage (Cloudflare, bot detection) ────
+function _isBlocked(text) {
+  const t = (text || '').toLowerCase();
+  return t.includes('just a moment') || t.includes('checking your browser')
+      || t.includes('cloudflare') || t.includes('enable javascript')
+      || t.includes('access denied') || t.includes('robot') || t.length < 200;
+}
+
+// ── Validation titre extrait ──────────────────────────────────
+const BAD_TITLES = ['just a moment', 'access denied', 'robot', 'cloudflare', 'verify', 'checking'];
+function _isBadTitle(t) { const l = (t||'').toLowerCase(); return BAD_TITLES.some(b => l.includes(b)); }
+
 // ── Stratégie 1 : Jina AI Reader (rendu navigateur headless) ─
-// r.jina.ai rend la page JS complète et retourne le texte propre
 async function _fetchViaJina(indeedUrl) {
-  const r = await _timedFetch(
-    `https://r.jina.ai/${indeedUrl}`,
-    { headers: { 'Accept': 'application/json', 'X-Timeout': '10' } },
-    20000
-  );
-  if (!r.ok) throw new Error('jina_fail');
-  const data = await r.json();
-  // Jina renvoie { code, data: { title, url, content } }
-  const content = data?.data?.content || data?.content || '';
-  if (content.length < 100) throw new Error('jina_empty');
-  return { text: content, title: data?.data?.title || '' };
+  // Essaie d'abord avec l'URL viewjob, puis avec l'URL /jobs?vjk= si bloqué
+  const urlsToTry = [
+    indeedUrl,
+    indeedUrl.replace('/viewjob?jk=', '/?vjk='),
+  ];
+  for (const url of urlsToTry) {
+    const r = await _timedFetch(
+      `https://r.jina.ai/${url}`,
+      { headers: { 'Accept': 'application/json', 'X-Timeout': '15', 'X-No-Cache': 'true' } },
+      22000
+    );
+    if (!r.ok) continue;
+    const data = await r.json();
+    const content = data?.data?.content || data?.content || '';
+    if (!_isBlocked(content)) return { text: content, title: data?.data?.title || '' };
+  }
+  throw new Error('jina_blocked');
 }
 
 // ── Stratégie 2 : proxies CORS classiques (HTML brut) ────────
@@ -123,7 +140,10 @@ async function _fetchViaProxy(indeedUrl) {
     async () => { const r = await _timedFetch(`https://api.codetabs.com/v1/proxy?quest=${enc}`); return r.ok ? r.text() : Promise.reject(); },
   ];
   for (const fn of tries) {
-    try { const html = await fn(); if (html?.length > 400) return html; } catch { /* suivant */ }
+    try {
+      const html = await fn();
+      if (html?.length > 400 && !_isBlocked(html)) return html;
+    } catch { /* suivant */ }
   }
   throw new Error('proxy_fail');
 }
@@ -186,7 +206,7 @@ async function importFromIndeed() {
     location    = p.location     || '';
     contract    = p.contractType || '';
     description = p.description  || '';
-    if (title || company) gotData = true;
+    if ((title || company) && !_isBadTitle(title)) gotData = true;
   } catch { /* passe à la stratégie suivante */ }
 
   // ── Tentative 2 : proxies CORS + parsing JSON-LD + IA ──
@@ -214,7 +234,7 @@ async function importFromIndeed() {
         const p = safeParseJSON(raw);
         title = p.title||''; company = p.company||''; location = p.location||'';
         contract = p.contractType||''; description = p.description||'';
-        if (title || company) gotData = true;
+        if ((title || company) && !_isBadTitle(title)) gotData = true;
       }
     } catch { /* passe au fallback */ }
   }
