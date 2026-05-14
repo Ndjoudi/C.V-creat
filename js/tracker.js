@@ -89,74 +89,62 @@ function onIndeedUrlInput(val) {
   else        { s.textContent=''; }
 }
 
-// Fetch via un proxy avec timeout manuel
-async function _proxyFetch(proxyUrl, timeoutMs = 9000) {
+// ── Fetch avec timeout manuel ──────────────────────────────
+async function _timedFetch(url, opts = {}, ms = 12000) {
   const ctrl = new AbortController();
-  const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const r = await fetch(proxyUrl, { signal: ctrl.signal });
-    if (!r.ok) throw new Error('!ok');
-    return r;
-  } finally { clearTimeout(tid); }
+  const tid  = setTimeout(() => ctrl.abort(), ms);
+  try   { return await fetch(url, { ...opts, signal: ctrl.signal }); }
+  finally { clearTimeout(tid); }
 }
 
-// Tente plusieurs proxies en cascade, renvoie le texte HTML ou lève une erreur
-async function _fetchIndeedPage(indeedUrl) {
+// ── Stratégie 1 : Jina AI Reader (rendu navigateur headless) ─
+// r.jina.ai rend la page JS complète et retourne le texte propre
+async function _fetchViaJina(indeedUrl) {
+  const r = await _timedFetch(
+    `https://r.jina.ai/${indeedUrl}`,
+    { headers: { 'Accept': 'application/json', 'X-Timeout': '10' } },
+    20000
+  );
+  if (!r.ok) throw new Error('jina_fail');
+  const data = await r.json();
+  // Jina renvoie { code, data: { title, url, content } }
+  const content = data?.data?.content || data?.content || '';
+  if (content.length < 100) throw new Error('jina_empty');
+  return { text: content, title: data?.data?.title || '' };
+}
+
+// ── Stratégie 2 : proxies CORS classiques (HTML brut) ────────
+async function _fetchViaProxy(indeedUrl) {
   const enc = encodeURIComponent(indeedUrl);
-  const proxies = [
-    async () => { const r = await _proxyFetch(`https://corsproxy.io/?${enc}`);           return r.text(); },
-    async () => { const r = await _proxyFetch(`https://api.allorigins.win/raw?url=${enc}`); return r.text(); },
-    async () => { const r = await _proxyFetch(`https://api.allorigins.win/get?url=${enc}`); const d = await r.json(); return d.contents || ''; },
-    async () => { const r = await _proxyFetch(`https://api.codetabs.com/v1/proxy?quest=${enc}`); return r.text(); },
+  const tries = [
+    async () => { const r = await _timedFetch(`https://corsproxy.io/?${enc}`);             return r.ok ? r.text() : Promise.reject(); },
+    async () => { const r = await _timedFetch(`https://api.allorigins.win/raw?url=${enc}`); return r.ok ? r.text() : Promise.reject(); },
+    async () => { const r = await _timedFetch(`https://api.allorigins.win/get?url=${enc}`); if (!r.ok) throw 0; const d = await r.json(); return d.contents || ''; },
+    async () => { const r = await _timedFetch(`https://api.codetabs.com/v1/proxy?quest=${enc}`); return r.ok ? r.text() : Promise.reject(); },
   ];
-  for (const attempt of proxies) {
-    try {
-      const html = await attempt();
-      if (html && html.length > 400) return html;
-    } catch { /* essaie le suivant */ }
+  for (const fn of tries) {
+    try { const html = await fn(); if (html?.length > 400) return html; } catch { /* suivant */ }
   }
-  throw new Error('all_proxies_failed');
+  throw new Error('proxy_fail');
 }
 
-// Extrait les infos emploi depuis le HTML Indeed
-function _parseIndeedHTML(html) {
-  let title = '', company = '', location = '', contract = '', description = '';
-
-  // ── Méthode 1 : JSON-LD <script type="application/ld+json"> ──
-  const blocks = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
-  for (const [, inner] of blocks) {
+// ── Extraction structurée depuis texte/HTML ───────────────────
+function _parseFromText(text) {
+  // Tente JSON-LD dans le HTML
+  for (const [, inner] of [...text.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]) {
     try {
-      const parsed = JSON.parse(inner.trim());
-      const jp = Array.isArray(parsed)
-        ? parsed.find(x => x['@type'] === 'JobPosting')
-        : (parsed['@type'] === 'JobPosting' ? parsed : null);
-      if (jp) {
-        title       = jp.title || '';
-        company     = jp.hiringOrganization?.name || '';
-        location    = jp.jobLocation?.address?.addressLocality
-                   || jp.jobLocation?.[0]?.address?.addressLocality || '';
-        contract    = (jp.employmentType || '').replace(/_/g,' ');
-        description = jp.description
-          ? jp.description.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim().substring(0,2000)
-          : '';
-        if (title) return { title, company, location, contract, description };
-      }
+      const p = JSON.parse(inner.trim());
+      const jp = Array.isArray(p) ? p.find(x => x['@type']==='JobPosting') : (p['@type']==='JobPosting' ? p : null);
+      if (jp?.title) return {
+        title:       jp.title,
+        company:     jp.hiringOrganization?.name || '',
+        location:    jp.jobLocation?.address?.addressLocality || jp.jobLocation?.[0]?.address?.addressLocality || '',
+        contract:    (jp.employmentType||'').replace(/_/g,' '),
+        description: (jp.description||'').replace(/<[^>]+>/g,' ').replace(/\s{2,}/g,' ').trim().substring(0,2000)
+      };
     } catch { /* continue */ }
   }
-
-  // ── Méthode 2 : balises meta og: ──
-  const metaTitle   = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
-  const metaDesc    = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
-  if (metaTitle) {
-    // og:title Indeed = "Titre - Entreprise - Lieu"
-    const parts = metaTitle.split(/\s*[-–]\s*/);
-    title   = parts[0]?.trim() || '';
-    company = parts[1]?.trim() || '';
-    location= parts[2]?.trim() || '';
-    description = metaDesc;
-  }
-
-  return { title, company, location, contract, description };
+  return null;
 }
 
 async function importFromIndeed() {
@@ -166,45 +154,73 @@ async function importFromIndeed() {
 
   const keyMatch = rawUrl.match(/[?&](?:vjk|jk)=([a-f0-9]+)/i);
   const jk = keyMatch?.[1] || '';
-  if (!jk) { toast('Lien Indeed invalide — cherche le paramètre vjk= dans l\'URL'); return; }
+  if (!jk) { toast('Lien Indeed invalide — paramètre vjk= introuvable'); return; }
 
   const btn      = document.getElementById('f-indeed-btn');
   const status   = document.getElementById('f-indeed-status');
   const origHtml = btn.innerHTML;
   _indeedFetching = true;
   btn.disabled = true; btn.textContent = '⏳ Récupération...';
-  status.style.color = 'var(--ink3)'; status.textContent = 'Tentative de connexion à Indeed...';
+  status.style.color = 'var(--ink3)';
 
   const host      = rawUrl.includes('fr.indeed') ? 'fr.indeed.com' : 'indeed.com';
   const indeedUrl = `https://${host}/viewjob?jk=${jk}`;
 
+  let title = '', company = '', location = '', contract = '', description = '';
+  let gotData = false;
+
+  // ── Tentative 1 : Jina AI Reader ──
   try {
-    status.textContent = 'Chargement via proxy...';
-    const html = await _fetchIndeedPage(indeedUrl);
+    status.textContent = '🔍 Lecture de la page Indeed (Jina AI)...';
+    const { text, title: jinaTitle } = await _fetchViaJina(indeedUrl);
 
-    let { title, company, location, contract, description } = _parseIndeedHTML(html);
+    // Groq extrait les infos depuis le texte propre renvoyé par Jina
+    status.textContent = '✨ Extraction des infos avec l\'IA...';
+    const raw = await callGroq(
+      `Voici le contenu d'une offre d'emploi. Extrais les informations.\n\nCONTENU:\n${text.substring(0,4000)}\n\nRéponds UNIQUEMENT en JSON valide:\n{"title":"","company":"","location":"","contractType":"","description":""}`,
+      { maxTokens: 350, temperature: 0 }
+    );
+    const p = safeParseJSON(raw);
+    title       = p.title        || jinaTitle || '';
+    company     = p.company      || '';
+    location    = p.location     || '';
+    contract    = p.contractType || '';
+    description = p.description  || '';
+    if (title || company) gotData = true;
+  } catch { /* passe à la stratégie suivante */ }
 
-    // ── Fallback IA si parsing HTML insuffisant ──
-    if (!title) {
-      status.textContent = 'Analyse IA en cours...';
-      const text = html
-        .replace(/<script[\s\S]*?<\/script>/gi,'')
-        .replace(/<style[\s\S]*?<\/style>/gi,'')
-        .replace(/<[^>]+>/g,' ')
-        .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
-        .replace(/\s{2,}/g,' ').trim().substring(0, 3500);
-      const raw = await callGroq(
-        `Texte brut d'une annonce emploi. Extrais les infos.\n\nTEXTE:\n${text}\n\nRéponds UNIQUEMENT en JSON:\n{"title":"","company":"","location":"","contractType":"","description":""}`,
-        { maxTokens:300, temperature:0 }
-      );
-      const p = safeParseJSON(raw);
-      title = p.title||''; company = p.company||''; location = p.location||'';
-      contract = p.contractType||''; description = p.description||'';
-    }
+  // ── Tentative 2 : proxies CORS + parsing JSON-LD + IA ──
+  if (!gotData) {
+    try {
+      status.textContent = '🔄 Essai via proxy CORS...';
+      const html = await _fetchViaProxy(indeedUrl);
 
-    if (!title && !company) throw new Error('no_data');
+      // JSON-LD d'abord
+      const parsed = _parseFromText(html);
+      if (parsed?.title) {
+        ({ title, company, location, contract, description } = parsed);
+        gotData = true;
+      } else {
+        // IA sur le texte brut
+        status.textContent = '✨ Analyse IA du contenu...';
+        const text = html
+          .replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'')
+          .replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&')
+          .replace(/\s{2,}/g,' ').trim().substring(0,3500);
+        const raw = await callGroq(
+          `Texte d'une annonce emploi. Extrais les infos.\n\nTEXTE:\n${text}\n\nRéponds UNIQUEMENT en JSON:\n{"title":"","company":"","location":"","contractType":"","description":""}`,
+          { maxTokens:300, temperature:0 }
+        );
+        const p = safeParseJSON(raw);
+        title = p.title||''; company = p.company||''; location = p.location||'';
+        contract = p.contractType||''; description = p.description||'';
+        if (title || company) gotData = true;
+      }
+    } catch { /* passe au fallback */ }
+  }
 
-    // ── Auto-remplissage ──
+  // ── Résultat ──
+  if (gotData && (title || company)) {
     if (title)   document.getElementById('f-poste').value = title;
     if (company) document.getElementById('f-co').value    = company;
     document.getElementById('f-indeed-url').dataset.desc  = description;
@@ -213,18 +229,17 @@ async function importFromIndeed() {
     status.style.color = 'var(--teal-d)';
     status.innerHTML = `<strong style="color:var(--teal-d)">✓ Importé :</strong> ${esc(parts.join(' · '))}`;
     toast('Annonce Indeed importée ✓');
-
-  } catch {
-    // ── Indeed bloque tous les proxies → afficher la zone de texte ──
-    status.style.color = 'var(--red)';
-    status.innerHTML = `⚠ Indeed bloque l'accès automatique.<br>
-      <span style="color:var(--ink2)">Copie le texte de l'annonce (Ctrl+A sur la page Indeed) et colle-le ci-dessous :</span>`;
+  } else {
+    // ── Fallback manuel : zone de texte ──
+    status.style.color = '#D97706';
+    status.innerHTML = `⚠ Indeed bloque le rendu automatique.<br>
+      <span style="color:var(--ink2)">Copie le texte de l'annonce (Ctrl+A + Ctrl+C sur la page Indeed) et colle ci-dessous — l'IA se charge du reste :</span>`;
     document.getElementById('indeed-paste-zone').classList.remove('hidden');
-  } finally {
-    _indeedFetching = false;
-    btn.disabled = false; btn.innerHTML = origHtml;
-    if (typeof lucide !== 'undefined') lucide.createIcons();
   }
+
+  _indeedFetching = false;
+  btn.disabled = false; btn.innerHTML = origHtml;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // ── Analyse du texte collé manuellement ────────────────────
