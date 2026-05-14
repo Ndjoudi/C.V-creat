@@ -1,6 +1,6 @@
 // ── TRACKER ────────────────────────────────────────────────
-let _trackerFilter  = 'Tous';
-let _indeedFetching = false;
+let _trackerFilter = 'Tous';
+let _pasteTimer    = null;
 
 function renderTracker() {
   const cands = ls('sc_cands', []);
@@ -59,230 +59,80 @@ function addCand() {
   if (!co || !poste) { toast('Remplis l\'entreprise et le poste'); return; }
   const cands = ls('sc_cands', []);
   const indeedUrlEl = document.getElementById('f-indeed-url');
+  const pasteEl     = document.getElementById('f-paste-text');
   cands.push({
     id: Date.now().toString(),
     company: co, poste,
-    date:          document.getElementById('f-date').value,
-    status:        document.getElementById('f-status').value,
-    notes:         document.getElementById('f-notes').value.trim(),
-    indeedUrl:     indeedUrlEl?.value.trim() || '',
-    jobDescription: indeedUrlEl?.dataset.desc || ''
+    date:           document.getElementById('f-date').value,
+    status:         document.getElementById('f-status').value,
+    notes:          document.getElementById('f-notes').value.trim(),
+    indeedUrl:      indeedUrlEl?.value.trim() || '',
+    jobDescription: pasteEl?.dataset.desc || ''
   });
   ss('sc_cands', cands);
-  document.getElementById('f-co').value       = '';
-  document.getElementById('f-poste').value    = '';
-  document.getElementById('f-notes').value    = '';
-  if (indeedUrlEl) { indeedUrlEl.value = ''; delete indeedUrlEl.dataset.desc; }
-  document.getElementById('f-indeed-status').textContent = '';
+  document.getElementById('f-co').value    = '';
+  document.getElementById('f-poste').value = '';
+  document.getElementById('f-notes').value = '';
+  if (indeedUrlEl) indeedUrlEl.value = '';
+  const pasteEl = document.getElementById('f-paste-text');
+  if (pasteEl) { pasteEl.value = ''; delete pasteEl.dataset.desc; }
+  document.getElementById('f-paste-status').textContent = '';
   document.getElementById('add-form').classList.add('hidden');
   renderTracker();
   refreshBadges();
   toast('Candidature ajoutée');
 }
 
-// ── INDEED IMPORT ──────────────────────────────────────────
+// ── PASTE ANALYSIS ─────────────────────────────────────────
 
-function onIndeedUrlInput(val) {
-  const hasKey = /[?&](?:vjk|jk)=[a-f0-9]{8,}/i.test(val);
-  const s = document.getElementById('f-indeed-status');
-  if (hasKey) { s.style.color='var(--ink3)'; s.textContent='→ Clique sur Récupérer pour importer l\'annonce'; }
-  else        { s.textContent=''; }
+// Appelé sur l'événement paste — attend 600ms que le texte soit collé
+function schedulePasteAnalysis() {
+  clearTimeout(_pasteTimer);
+  _pasteTimer = setTimeout(runPasteAnalysis, 600);
 }
 
-// ── Fetch avec timeout manuel ──────────────────────────────
-async function _timedFetch(url, opts = {}, ms = 12000) {
-  const ctrl = new AbortController();
-  const tid  = setTimeout(() => ctrl.abort(), ms);
-  try   { return await fetch(url, { ...opts, signal: ctrl.signal }); }
-  finally { clearTimeout(tid); }
-}
+async function runPasteAnalysis() {
+  const ta     = document.getElementById('f-paste-text');
+  const status = document.getElementById('f-paste-status');
+  const text   = ta.value.trim();
+  if (text.length < 30) return;
 
-// ── Détection page de blocage (Cloudflare, bot detection) ────
-function _isBlocked(text) {
-  const t = (text || '').toLowerCase();
-  return t.includes('just a moment') || t.includes('checking your browser')
-      || t.includes('cloudflare') || t.includes('enable javascript')
-      || t.includes('access denied') || t.includes('robot') || t.length < 200;
-}
-
-// ── Validation titre extrait ──────────────────────────────────
-const BAD_TITLES = ['just a moment', 'access denied', 'robot', 'cloudflare', 'verify', 'checking'];
-function _isBadTitle(t) { const l = (t||'').toLowerCase(); return BAD_TITLES.some(b => l.includes(b)); }
-
-// ── Fetch Jina (rendu headless) ────────────────────────────
-async function _jinaFetch(url) {
-  const r = await _timedFetch(
-    `https://r.jina.ai/${url}`,
-    { headers: { 'Accept': 'application/json', 'X-Timeout': '15', 'X-No-Cache': 'true' } },
-    22000
-  );
-  if (!r.ok) throw new Error('jina_http');
-  const data = await r.json();
-  const content = data?.data?.content || data?.content || '';
-  if (_isBlocked(content)) throw new Error('jina_blocked');
-  return { text: content, title: data?.data?.title || '' };
-}
-
-// ── Fetch proxy CORS (liste) ────────────────────────────────
-async function _proxyFetchText(url) {
-  const enc = encodeURIComponent(url);
-  const tries = [
-    async () => { const r = await _timedFetch(`https://corsproxy.io/?${enc}`);              return r.ok ? r.text() : Promise.reject(); },
-    async () => { const r = await _timedFetch(`https://api.allorigins.win/raw?url=${enc}`); return r.ok ? r.text() : Promise.reject(); },
-    async () => { const r = await _timedFetch(`https://api.allorigins.win/get?url=${enc}`); if (!r.ok) throw 0; const d = await r.json(); return d.contents||''; },
-    async () => { const r = await _timedFetch(`https://api.codetabs.com/v1/proxy?quest=${enc}`); return r.ok ? r.text() : Promise.reject(); },
-  ];
-  for (const fn of tries) {
-    try { const t = await fn(); if (t?.length > 400 && !_isBlocked(t)) return t; } catch {/**/}
-  }
-  throw new Error('proxy_fail');
-}
-
-// ── Extraction texte → Groq → infos structurées ─────────────
-async function _groqExtract(text) {
-  const raw = await callGroq(
-    `Voici le contenu d'une offre d'emploi. Extrais les informations clés.\n\nCONTENU:\n${text.substring(0,4000)}\n\nRéponds UNIQUEMENT en JSON valide:\n{"title":"","company":"","location":"","contractType":"","description":""}`,
-    { maxTokens: 350, temperature: 0 }
-  );
-  return safeParseJSON(raw);
-}
-
-// ── Extraction structurée depuis texte/HTML ───────────────────
-function _parseFromText(text) {
-  // Tente JSON-LD dans le HTML
-  for (const [, inner] of [...text.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]) {
-    try {
-      const p = JSON.parse(inner.trim());
-      const jp = Array.isArray(p) ? p.find(x => x['@type']==='JobPosting') : (p['@type']==='JobPosting' ? p : null);
-      if (jp?.title) return {
-        title:       jp.title,
-        company:     jp.hiringOrganization?.name || '',
-        location:    jp.jobLocation?.address?.addressLocality || jp.jobLocation?.[0]?.address?.addressLocality || '',
-        contract:    (jp.employmentType||'').replace(/_/g,' '),
-        description: (jp.description||'').replace(/<[^>]+>/g,' ').replace(/\s{2,}/g,' ').trim().substring(0,2000)
-      };
-    } catch { /* continue */ }
-  }
-  return null;
-}
-
-async function importFromIndeed() {
-  if (_indeedFetching) return;
-  const rawUrl = document.getElementById('f-indeed-url').value.trim();
-  if (!rawUrl) { toast('Colle un lien Indeed d\'abord'); return; }
-
-  const keyMatch = rawUrl.match(/[?&](?:vjk|jk)=([a-f0-9]+)/i);
-  const jk = keyMatch?.[1] || '';
-  if (!jk) { toast('Lien Indeed invalide — paramètre vjk= introuvable'); return; }
-
-  const btn      = document.getElementById('f-indeed-btn');
-  const status   = document.getElementById('f-indeed-status');
-  const origHtml = btn.innerHTML;
-  _indeedFetching = true;
-  btn.disabled = true; btn.textContent = '⏳ Récupération...';
   status.style.color = 'var(--ink3)';
-
-  const host = rawUrl.includes('fr.indeed') ? 'fr.indeed.com' : 'indeed.com';
-
-  // URLs à tenter, du moins protégé au plus protégé
-  const urlCandidates = [
-    `https://m.${host}/viewjob?jk=${jk}`,           // site mobile — moins de Cloudflare
-    `https://${host}/rpc/jobdescs?jks=${jk}`,        // API JSON interne
-    `https://${host}/viewjob?jk=${jk}`,              // page desktop standard
-    `https://${host}/?vjk=${jk}`,                    // page d'accueil avec job
-  ];
-
-  let title = '', company = '', location = '', contract = '', description = '';
-  let gotData = false;
-
-  for (let i = 0; i < urlCandidates.length && !gotData; i++) {
-    const url = urlCandidates[i];
-    const label = ['📱 Mobile', '⚙️ API JSON', '🖥 Desktop', '🏠 Accueil'][i];
-    status.textContent = `${label} — tentative ${i+1}/${urlCandidates.length}...`;
-
-    // Essai A : Jina (navigateur headless)
-    try {
-      const { text, title: jinaTitle } = await _jinaFetch(url);
-      // JSON-LD dans le contenu Jina ?
-      const parsed = _parseFromText(text);
-      if (parsed?.title && !_isBadTitle(parsed.title)) {
-        ({ title, company, location, contract, description } = parsed);
-        gotData = true; break;
-      }
-      // Groq sur le texte propre
-      status.textContent = `${label} — analyse IA...`;
-      const p = await _groqExtract(text);
-      title = p.title||jinaTitle||''; company = p.company||''; location = p.location||'';
-      contract = p.contractType||''; description = p.description||'';
-      if ((title||company) && !_isBadTitle(title)) { gotData = true; break; }
-    } catch {/**/}
-
-    // Essai B : proxy CORS sur la même URL
-    try {
-      const html = await _proxyFetchText(url);
-      const parsed = _parseFromText(html);
-      if (parsed?.title && !_isBadTitle(parsed.title)) {
-        ({ title, company, location, contract, description } = parsed);
-        gotData = true; break;
-      }
-      const text = html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'')
-        .replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim();
-      const p = await _groqExtract(text);
-      title = p.title||''; company = p.company||''; location = p.location||'';
-      contract = p.contractType||''; description = p.description||'';
-      if ((title||company) && !_isBadTitle(title)) { gotData = true; break; }
-    } catch {/**/}
-  }
-
-  if (gotData && (title || company)) {
-    if (title)   document.getElementById('f-poste').value = title;
-    if (company) document.getElementById('f-co').value    = company;
-    document.getElementById('f-indeed-url').dataset.desc  = description;
-    const parts = [title, company, location, contract].filter(Boolean);
-    status.style.color = 'var(--teal-d)';
-    status.innerHTML = `<strong style="color:var(--teal-d)">✓ Importé :</strong> ${esc(parts.join(' · '))}`;
-    toast('Annonce Indeed importée ✓');
-  } else {
-    status.style.color = '#D97706';
-    status.innerHTML = `⚠ Cloudflare bloque l'accès automatique à Indeed.<br>
-      <span style="color:var(--ink2)">Copie le texte de l'annonce (Ctrl+A + Ctrl+C sur la page Indeed) et colle ci-dessous :</span>`;
-    document.getElementById('indeed-paste-zone').classList.remove('hidden');
-  }
-
-  _indeedFetching = false;
-  btn.disabled = false; btn.innerHTML = origHtml;
-  if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-
-// ── Analyse du texte collé manuellement ────────────────────
-async function analyzeIndeedPaste() {
-  const text = document.getElementById('f-indeed-paste').value.trim();
-  if (text.length < 50) { toast('Colle d\'abord le texte de l\'annonce'); return; }
-
-  const btn   = document.getElementById('f-paste-btn');
-  const status = document.getElementById('f-indeed-status');
-  btn.disabled = true; btn.textContent = 'Analyse...';
+  status.innerHTML   = '<span class="sp" style="width:12px;height:12px;display:inline-block;margin-right:6px"></span>Analyse en cours...';
 
   try {
     const raw = await callGroq(
-      `Tu es un assistant RH. Extrais les informations de cette annonce d'emploi.\n\nANNONCE:\n${text.substring(0,4000)}\n\nRéponds UNIQUEMENT en JSON valide:\n{"title":"","company":"","location":"","contractType":"","description":""}`,
+      `Tu es un assistant RH expert. Extrais les informations structurées de cette annonce d'emploi.
+
+ANNONCE:
+${text.substring(0, 5000)}
+
+Réponds UNIQUEMENT en JSON valide (pas de markdown):
+{"title":"","company":"","location":"","salary":"","contractType":"","description":""}
+
+- title    : intitulé exact du poste
+- company  : nom de l'entreprise
+- location : ville / département
+- salary   : fourchette salariale si mentionnée, sinon ""
+- contractType : CDI / CDD / Stage / Alternance / Freelance
+- description  : résumé du poste en 2-3 phrases max`,
       { maxTokens: 400, temperature: 0 }
     );
     const p = safeParseJSON(raw);
+
     if (p.title)   document.getElementById('f-poste').value = p.title;
     if (p.company) document.getElementById('f-co').value    = p.company;
-    document.getElementById('f-indeed-url').dataset.desc = p.description || '';
 
-    const parts = [p.title, p.company, p.location, p.contractType].filter(Boolean);
+    // Stocke le texte complet pour usage IA ultérieur
+    ta.dataset.desc = text.substring(0, 2000);
+
+    const parts = [p.title, p.company, p.location, p.contractType, p.salary].filter(Boolean);
     status.style.color = 'var(--teal-d)';
-    status.innerHTML = `<strong style="color:var(--teal-d)">✓ Analysé :</strong> ${esc(parts.join(' · '))}`;
-    document.getElementById('indeed-paste-zone').classList.add('hidden');
-    document.getElementById('f-indeed-paste').value = '';
-    toast('Annonce analysée ✓');
+    status.innerHTML   = `<strong>✓</strong> ${esc(parts.join(' · '))}`;
+
   } catch {
-    toast('Erreur lors de l\'analyse — vérifie ta clé API');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Analyser';
+    status.style.color = 'var(--red)';
+    status.textContent = '⚠ Erreur d\'analyse — vérifie ta clé API';
   }
 }
 

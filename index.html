@@ -7,9 +7,9 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=32"/>
-<link rel="stylesheet" href="css/components.css?v=32"/>
-<link rel="stylesheet" href="css/cv.css?v=32"/>
+<link rel="stylesheet" href="css/base.css?v=33"/>
+<link rel="stylesheet" href="css/components.css?v=33"/>
+<link rel="stylesheet" href="css/cv.css?v=33"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -469,38 +469,37 @@
       <div class="tracker-filters" id="tracker-filters"></div>
       <div class="card">
         <div id="add-form" class="hidden" style="background:var(--teal-bg);border-radius:12px;padding:18px;margin-bottom:18px;border:1.5px solid var(--teal-border)">
-          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:14px">Nouvelle candidature</div>
-          <!-- Indeed URL -->
-          <div class="fg" style="margin-bottom:14px">
-            <label class="lb">Lien Indeed <span style="font-size:9.5px;color:var(--ink3);text-transform:none;letter-spacing:0;font-weight:400">— colle l'URL pour auto-remplir</span></label>
-            <div style="display:flex;gap:8px">
-              <input class="inp" id="f-indeed-url" placeholder="https://fr.indeed.com/?vjk=..." style="flex:1" oninput="onIndeedUrlInput(this.value)"/>
-              <button class="btn-ai" id="f-indeed-btn" onclick="importFromIndeed()" type="button" style="white-space:nowrap;padding:8px 14px">
-                <i data-lucide="download" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Récupérer
-              </button>
+          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px">Nouvelle candidature</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">Colle le texte de l'annonce — l'IA remplit tout automatiquement.</div>
+
+          <!-- Zone de collage principale -->
+          <div class="fg" style="margin-bottom:12px">
+            <div style="display:flex;gap:8px;align-items:flex-start">
+              <textarea class="inp" id="f-paste-text" rows="4"
+                placeholder="Colle ici le texte de l'annonce (titre, entreprise, lieu, description...)"
+                style="flex:1;resize:vertical;font-size:12.5px"
+                onpaste="schedulePasteAnalysis()"></textarea>
             </div>
-            <div id="f-indeed-status" style="font-size:11.5px;margin-top:5px;line-height:1.6"></div>
+            <div id="f-paste-status" style="font-size:11.5px;margin-top:6px;line-height:1.6;min-height:18px"></div>
           </div>
-          <!-- Zone texte fallback (révélée si les proxies échouent) -->
-          <div id="indeed-paste-zone" class="hidden" style="margin-bottom:14px">
-            <label class="lb">Texte de l'annonce <span style="font-size:9.5px;color:var(--ink3);text-transform:none;letter-spacing:0;font-weight:400">— colle tout le texte de la page Indeed</span></label>
-            <textarea class="inp" id="f-indeed-paste" rows="5" placeholder="Sélectionne tout le texte sur la page Indeed (Ctrl+A → Ctrl+C) puis colle ici..."></textarea>
-            <div style="margin-top:8px;display:flex;gap:8px">
-              <button class="btn btn-p" id="f-paste-btn" onclick="analyzeIndeedPaste()" style="font-size:12.5px">Analyser avec l'IA</button>
-              <button class="btn btn-g" onclick="document.getElementById('indeed-paste-zone').classList.add('hidden')" style="font-size:12.5px">Annuler</button>
-            </div>
-          </div>
+
           <!-- Séparateur -->
-          <div style="border-top:1px solid var(--teal-border);margin-bottom:14px"></div>
+          <div style="border-top:1px solid var(--teal-border);margin:12px 0"></div>
+
+          <!-- Champs auto-remplis (éditables) -->
           <div class="g2">
-            <div class="fg"><label class="lb">Entreprise</label><input class="inp" id="f-co"    placeholder="Carrefour"/></div>
-            <div class="fg"><label class="lb">Poste</label>     <input class="inp" id="f-poste" placeholder="Responsable Logistique"/></div>
-            <div class="fg"><label class="lb">Date</label>      <input class="inp" id="f-date"  type="date"/></div>
+            <div class="fg"><label class="lb">Poste</label>    <input class="inp" id="f-poste" placeholder="Responsable Logistique"/></div>
+            <div class="fg"><label class="lb">Entreprise</label><input class="inp" id="f-co"   placeholder="Carrefour"/></div>
+            <div class="fg"><label class="lb">Date</label>     <input class="inp" id="f-date"  type="date"/></div>
             <div class="fg"><label class="lb">Statut</label>
               <select class="inp" id="f-status">
                 <option>Envoyée</option><option>En cours</option><option>Entretien</option><option>Offre reçue</option><option>Refusée</option>
               </select>
             </div>
+          </div>
+          <div class="fg" style="margin-bottom:14px">
+            <label class="lb">Lien de l'annonce <span style="font-size:9.5px;color:var(--ink3);text-transform:none;letter-spacing:0;font-weight:400">— optionnel</span></label>
+            <input class="inp" id="f-indeed-url" placeholder="https://fr.indeed.com/?vjk=..."/>
           </div>
           <div class="fg"><label class="lb">Notes</label><input class="inp" id="f-notes" placeholder="Contacts, détails, relance..."/></div>
           <div style="display:flex;gap:9px">
@@ -597,16 +596,16 @@
 </div>
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=32"></script>
-<script src="js/app.js?v=32"></script>
-<script src="js/profile.js?v=32"></script>
-<script src="js/import-cv.js?v=32"></script>
-<script src="js/cv.js?v=32"></script>
-<script src="js/analyze.js?v=32"></script>
-<script src="js/interview.js?v=32"></script>
-<script src="js/history.js?v=32"></script>
-<script src="js/tracker.js?v=32"></script>
-<script src="js/modal.js?v=32"></script>
+<script src="js/api.js?v=33"></script>
+<script src="js/app.js?v=33"></script>
+<script src="js/profile.js?v=33"></script>
+<script src="js/import-cv.js?v=33"></script>
+<script src="js/cv.js?v=33"></script>
+<script src="js/analyze.js?v=33"></script>
+<script src="js/interview.js?v=33"></script>
+<script src="js/history.js?v=33"></script>
+<script src="js/tracker.js?v=33"></script>
+<script src="js/modal.js?v=33"></script>
 
 </body>
 </html>
