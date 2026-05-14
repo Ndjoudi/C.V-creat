@@ -1,5 +1,6 @@
 // ── TRACKER ────────────────────────────────────────────────
-let _trackerFilter = 'Tous';
+let _trackerFilter  = 'Tous';
+let _indeedFetching = false;
 
 function renderTracker() {
   const cands = ls('sc_cands', []);
@@ -30,8 +31,12 @@ function renderTracker() {
       </tr></thead>
       <tbody>${visible.map(c => {
         const [col, bg, border] = STAT_COLORS[c.status] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
+        const indeedLink = c.indeedUrl
+          ? `<a href="${esc(c.indeedUrl)}" target="_blank" rel="noopener" title="Voir l'annonce Indeed" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#2164f3;text-decoration:none;font-weight:600;white-space:nowrap">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="#2164f3"><path d="M8.5 5.5A2.5 2.5 0 0 1 11 3h2a2.5 2.5 0 0 1 0 5h-1v8.5A1.5 1.5 0 0 1 10.5 18H10a1.5 1.5 0 0 1-1.5-1.5V5.5zM12 6h-1a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1z"/></svg>
+              Indeed</a>` : '';
         return `<tr>
-          <td style="font-weight:700;color:var(--ink)">${esc(c.company)}</td>
+          <td style="font-weight:700;color:var(--ink)">${esc(c.company)}${indeedLink ? '<br><span style="font-weight:400">' + indeedLink + '</span>' : ''}</td>
           <td style="color:var(--ink2)">${esc(c.poste)}</td>
           <td style="color:var(--ink3);font-size:12.5px">${c.date || ''}</td>
           <td><select style="background:${bg};border:1.5px solid ${border};border-radius:100px;color:${col};font-size:12px;font-weight:700;padding:3px 9px;cursor:pointer;outline:none" onchange="updCand('${c.id}','status',this.value)">${
@@ -53,21 +58,152 @@ function addCand() {
   const poste = document.getElementById('f-poste').value.trim();
   if (!co || !poste) { toast('Remplis l\'entreprise et le poste'); return; }
   const cands = ls('sc_cands', []);
+  const indeedUrlEl = document.getElementById('f-indeed-url');
   cands.push({
     id: Date.now().toString(),
     company: co, poste,
-    date:   document.getElementById('f-date').value,
-    status: document.getElementById('f-status').value,
-    notes:  document.getElementById('f-notes').value.trim()
+    date:          document.getElementById('f-date').value,
+    status:        document.getElementById('f-status').value,
+    notes:         document.getElementById('f-notes').value.trim(),
+    indeedUrl:     indeedUrlEl?.value.trim() || '',
+    jobDescription: indeedUrlEl?.dataset.desc || ''
   });
   ss('sc_cands', cands);
-  document.getElementById('f-co').value    = '';
-  document.getElementById('f-poste').value = '';
-  document.getElementById('f-notes').value = '';
+  document.getElementById('f-co').value       = '';
+  document.getElementById('f-poste').value    = '';
+  document.getElementById('f-notes').value    = '';
+  if (indeedUrlEl) { indeedUrlEl.value = ''; delete indeedUrlEl.dataset.desc; }
+  document.getElementById('f-indeed-status').textContent = '';
   document.getElementById('add-form').classList.add('hidden');
   renderTracker();
   refreshBadges();
   toast('Candidature ajoutée');
+}
+
+// ── INDEED IMPORT ──────────────────────────────────────────
+
+function onIndeedUrlInput(val) {
+  // Auto-trigger fetch when URL looks complete (contains vjk= or jk=)
+  const hasKey = /[?&](?:vjk|jk)=[a-f0-9]{8,}/i.test(val);
+  document.getElementById('f-indeed-status').textContent = hasKey ? '→ Clique sur Récupérer pour importer l\'annonce' : '';
+}
+
+async function importFromIndeed() {
+  if (_indeedFetching) return;
+  const rawUrl = document.getElementById('f-indeed-url').value.trim();
+  if (!rawUrl) { toast('Colle un lien Indeed d\'abord'); return; }
+
+  // Extract job key (supports vjk= and jk= params)
+  const keyMatch = rawUrl.match(/[?&](?:vjk|jk)=([a-f0-9]+)/i);
+  const jk = keyMatch?.[1] || '';
+  if (!jk) { toast('Lien Indeed invalide — cherche le paramètre vjk= dans l\'URL'); return; }
+
+  const btn     = document.getElementById('f-indeed-btn');
+  const status  = document.getElementById('f-indeed-status');
+  const origHtml = btn.innerHTML;
+  _indeedFetching = true;
+  btn.disabled = true;
+  btn.textContent = '⏳ Récupération...';
+  status.textContent = 'Connexion à Indeed...';
+  status.style.color = 'var(--ink3)';
+
+  // Canonical job URL
+  const host      = rawUrl.includes('fr.indeed') ? 'fr.indeed.com' : 'indeed.com';
+  const indeedUrl = `https://${host}/viewjob?jk=${jk}`;
+
+  let title = '', company = '', location = '', contract = '', description = '';
+
+  try {
+    // ── Tentative 1 : allorigins.win ──
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(indeedUrl)}`;
+    status.textContent = 'Chargement de la page Indeed...';
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error('proxy_fail');
+    const data = await res.json();
+    const html = data.contents || '';
+    if (html.length < 300) throw new Error('empty');
+
+    // ── Extraction JSON-LD (méthode fiable si Indeed le fournit) ──
+    const blocks = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+    for (const [, inner] of blocks) {
+      try {
+        const parsed = JSON.parse(inner.trim());
+        const jp = Array.isArray(parsed)
+          ? parsed.find(x => x['@type'] === 'JobPosting')
+          : (parsed['@type'] === 'JobPosting' ? parsed : null);
+        if (jp) {
+          title       = jp.title || '';
+          company     = jp.hiringOrganization?.name || '';
+          location    = jp.jobLocation?.address?.addressLocality || jp.jobLocation?.[0]?.address?.addressLocality || '';
+          contract    = (jp.employmentType || '').replace(/_/g,' ');
+          description = jp.description
+            ? jp.description.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim().substring(0, 2000)
+            : '';
+          break;
+        }
+      } catch { /* continue */ }
+    }
+
+    // ── Fallback texte + Groq si JSON-LD absent ──
+    if (!title) {
+      status.textContent = 'Analyse IA en cours...';
+      const text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+        .replace(/\s{2,}/g,' ')
+        .trim()
+        .substring(0, 3500);
+
+      const prompt = `Voici le texte brut d'une page d'annonce d'emploi (Indeed). Extrais les informations structurées.
+
+TEXTE:
+${text}
+
+Réponds UNIQUEMENT en JSON valide (pas de markdown):
+{"title":"","company":"","location":"","contractType":"","description":""}
+
+description = résumé du poste en 2-3 phrases max.`;
+
+      const raw    = await callGroq(prompt, { maxTokens: 350, temperature: 0 });
+      const parsed = safeParseJSON(raw);
+      title       = parsed.title        || '';
+      company     = parsed.company      || '';
+      location    = parsed.location     || '';
+      contract    = parsed.contractType || '';
+      description = parsed.description  || '';
+    }
+
+    if (!title && !company) throw new Error('no_data');
+
+    // ── Auto-remplissage du formulaire ──
+    if (title)   document.getElementById('f-poste').value = title;
+    if (company) document.getElementById('f-co').value    = company;
+
+    // Stocke la description dans le dataset pour la sauvegarder avec la candidature
+    document.getElementById('f-indeed-url').dataset.desc = description;
+
+    // Feedback visuel
+    const parts = [title, company, location, contract].filter(Boolean);
+    status.style.color = 'var(--teal-d)';
+    status.innerHTML = `<strong>✓ Importé :</strong> ${esc(parts.join(' · '))}`;
+    toast('Annonce Indeed importée 🎉');
+
+  } catch (e) {
+    status.style.color = 'var(--red)';
+    if (e.message === 'no_data') {
+      status.textContent = '⚠ Page récupérée mais aucune info détectée — remplis manuellement.';
+    } else {
+      status.textContent = '⚠ Impossible de récupérer — remplis manuellement.';
+    }
+    toast('Indeed inaccessible — remplis manuellement');
+  } finally {
+    _indeedFetching = false;
+    btn.disabled = false;
+    btn.innerHTML = origHtml;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
 }
 
 function delCand(id) {
