@@ -1,6 +1,7 @@
 // ── TRACKER ────────────────────────────────────────────────
-let _trackerFilter = 'Tous';
-let _pasteTimer    = null;
+let _trackerFilter    = 'Tous';
+let _pasteTimer       = null;
+let _lastAnalysisResult = null;   // gardé pour addCand()
 
 function renderTracker() {
   const cands = ls('sc_cands', []);
@@ -27,23 +28,41 @@ function renderTracker() {
   document.getElementById('tracker-table').innerHTML = `
     <table class="tbl">
       <thead><tr>
-        <th>Entreprise</th><th>Poste</th><th>Date</th><th>Statut</th><th>Notes</th><th></th>
+        <th>Poste · Entreprise</th><th>Score</th><th>Date</th><th>Statut</th><th>Notes</th><th></th>
       </tr></thead>
       <tbody>${visible.map(c => {
         const [col, bg, border] = STAT_COLORS[c.status] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
+
+        // Score badge
+        const sc = c.score;
+        let scoreBadge = '<span style="opacity:.35;font-size:12px">—</span>';
+        if (sc !== null && sc !== undefined) {
+          const sc_col = sc >= 70 ? 'var(--teal)' : sc >= 50 ? '#D97706' : 'var(--red)';
+          const sc_bg  = sc >= 70 ? 'var(--teal-bg)' : sc >= 50 ? '#FFFBEB' : 'var(--red-bg)';
+          const sc_bd  = sc >= 70 ? 'var(--teal-border)' : sc >= 50 ? '#FDE68A' : 'var(--red-border)';
+          const hasAnalysis = !!c.analysis;
+          scoreBadge = `<span
+            style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:700;color:${sc_col};background:${sc_bg};border:1.5px solid ${sc_bd};${hasAnalysis ? 'cursor:pointer' : ''}"
+            ${hasAnalysis ? `onclick="openAnalysisModal('${c.id}')" title="Voir l'analyse complète"` : ''}
+          >${sc}%${hasAnalysis ? ' ↗' : ''}</span>`;
+        }
+
         const indeedLink = c.indeedUrl
-          ? `<a href="${esc(c.indeedUrl)}" target="_blank" rel="noopener" title="Voir l'annonce Indeed" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#2164f3;text-decoration:none;font-weight:600;white-space:nowrap">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="#2164f3"><path d="M8.5 5.5A2.5 2.5 0 0 1 11 3h2a2.5 2.5 0 0 1 0 5h-1v8.5A1.5 1.5 0 0 1 10.5 18H10a1.5 1.5 0 0 1-1.5-1.5V5.5zM12 6h-1a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1z"/></svg>
-              Indeed</a>` : '';
+          ? `<a href="${esc(c.indeedUrl)}" target="_blank" rel="noopener" style="font-size:10.5px;color:#2164f3;text-decoration:none;font-weight:600">↗ Annonce</a>`
+          : '';
+
         return `<tr>
-          <td style="font-weight:700;color:var(--ink)">${esc(c.company)}${indeedLink ? '<br><span style="font-weight:400">' + indeedLink + '</span>' : ''}</td>
-          <td style="color:var(--ink2)">${esc(c.poste)}</td>
+          <td>
+            <div style="font-weight:700;color:var(--ink);font-size:13px">${esc(c.poste)}</div>
+            <div style="color:var(--ink3);font-size:12px;margin-top:1px">${esc(c.company)}${indeedLink ? ' · ' + indeedLink : ''}</div>
+          </td>
+          <td>${scoreBadge}</td>
           <td style="color:var(--ink3);font-size:12.5px">${c.date || ''}</td>
           <td><select style="background:${bg};border:1.5px solid ${border};border-radius:100px;color:${col};font-size:12px;font-weight:700;padding:3px 9px;cursor:pointer;outline:none" onchange="updCand('${c.id}','status',this.value)">${
             STATS.map(s => `<option${s === c.status ? ' selected' : ''}>${s}</option>`).join('')
           }</select></td>
-          <td class="notes-cell" onclick="openNoteModal('${esc(c.company)}','${esc(c.poste)}',\`${(c.notes||'').replace(/`/g,"'")}\`)" title="Cliquer pour voir la note complète">${esc(c.notes) || '<span style="opacity:.4">—</span>'}</td>
-          <td><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;transition:var(--t)" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
+          <td class="notes-cell" onclick="openNoteModal('${esc(c.company)}','${esc(c.poste)}',\`${(c.notes||'').replace(/`/g,"'")}\`)" title="Cliquer pour voir">${esc(c.notes) || '<span style="opacity:.4">—</span>'}</td>
+          <td><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
@@ -60,6 +79,7 @@ function addCand() {
   const cands = ls('sc_cands', []);
   const indeedUrlEl = document.getElementById('f-indeed-url');
   const pasteEl     = document.getElementById('f-paste-text');
+  const score       = _lastAnalysisResult?.score_global ?? _lastAnalysisResult?.score ?? null;
   cands.push({
     id: Date.now().toString(),
     company: co, poste,
@@ -67,7 +87,9 @@ function addCand() {
     status:         document.getElementById('f-status').value,
     notes:          document.getElementById('f-notes').value.trim(),
     indeedUrl:      indeedUrlEl?.value.trim() || '',
-    jobDescription: pasteEl?.dataset.desc || ''
+    jobDescription: pasteEl?.dataset.desc || '',
+    score,
+    analysis:       _lastAnalysisResult || null
   });
   ss('sc_cands', cands);
   document.getElementById('f-co').value    = '';
@@ -76,6 +98,9 @@ function addCand() {
   if (indeedUrlEl) indeedUrlEl.value = '';
   if (pasteEl) { pasteEl.value = ''; delete pasteEl.dataset.desc; }
   document.getElementById('f-paste-status').textContent = '';
+  const analysisEl = document.getElementById('tracker-analysis-result');
+  if (analysisEl) { analysisEl.innerHTML = ''; analysisEl.classList.add('hidden'); }
+  _lastAnalysisResult = null;
   document.getElementById('add-form').classList.add('hidden');
   renderTracker();
   refreshBadges();
@@ -96,43 +121,74 @@ async function runPasteAnalysis() {
   const text   = ta.value.trim();
   if (text.length < 30) return;
 
+  _lastAnalysisResult = null;
   status.style.color = 'var(--ink3)';
-  status.innerHTML   = '<span class="sp" style="width:12px;height:12px;display:inline-block;margin-right:6px"></span>Analyse en cours...';
+  status.innerHTML   = '<span class="sp" style="width:12px;height:12px;display:inline-block;margin-right:6px;vertical-align:-2px"></span>Extraction des infos...';
 
+  // ── Étape 1 : extraction rapide titre / entreprise ──
   try {
     const raw = await callGroq(
-      `Tu es un assistant RH expert. Extrais les informations structurées de cette annonce d'emploi.
-
-ANNONCE:
-${text.substring(0, 5000)}
-
-Réponds UNIQUEMENT en JSON valide (pas de markdown):
-{"title":"","company":"","location":"","salary":"","contractType":"","description":""}
-
-- title    : intitulé exact du poste
-- company  : nom de l'entreprise
-- location : ville / département
-- salary   : fourchette salariale si mentionnée, sinon ""
-- contractType : CDI / CDD / Stage / Alternance / Freelance
-- description  : résumé du poste en 2-3 phrases max`,
-      { maxTokens: 400, temperature: 0 }
+      `Extrais les infos de cette annonce.\n\nANNONCE:\n${text.substring(0,4000)}\n\nRéponds UNIQUEMENT en JSON:\n{"title":"","company":"","location":"","salary":"","contractType":""}`,
+      { maxTokens: 200, temperature: 0 }
     );
     const p = safeParseJSON(raw);
-
     if (p.title)   document.getElementById('f-poste').value = p.title;
     if (p.company) document.getElementById('f-co').value    = p.company;
-
-    // Stocke le texte complet pour usage IA ultérieur
-    ta.dataset.desc = text.substring(0, 2000);
 
     const parts = [p.title, p.company, p.location, p.contractType, p.salary].filter(Boolean);
     status.style.color = 'var(--teal-d)';
     status.innerHTML   = `<strong>✓</strong> ${esc(parts.join(' · '))}`;
-
   } catch {
     status.style.color = 'var(--red)';
-    status.textContent = '⚠ Erreur d\'analyse — vérifie ta clé API';
+    status.textContent = '⚠ Erreur d\'extraction — vérifie ta clé API';
+    return;
   }
+
+  ta.dataset.desc = text.substring(0, 2000);
+
+  // ── Étape 2 : analyse IA complète (score, mots-clés, bullets, lettre) ──
+  if (!P.firstName) return;   // profil vide → pas d'analyse
+
+  const analysisEl = document.getElementById('tracker-analysis-result');
+  analysisEl.classList.remove('hidden');
+  analysisEl.innerHTML = `
+    <div style="border-top:1px solid var(--teal-border);margin:14px 0 12px"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px;display:flex;align-items:center;gap:7px">
+      <span class="sp" style="width:13px;height:13px;flex-shrink:0"></span>
+      Analyse IA en cours...
+    </div>`;
+
+  try {
+    _lastAnalysisResult = await doAnalyzeCore(text, analysisEl);
+    // Remplacer le titre du bloc analyse
+    const hdr = analysisEl.querySelector('.tracker-analysis-hdr');
+    if (hdr) hdr.remove();
+  } catch(e) {
+    analysisEl.innerHTML += `<div style="color:var(--red);font-size:13px;padding:4px 0">⚠ Analyse échouée — l'annonce reste enregistrée sans score.</div>`;
+  }
+}
+
+// ── MODAL ANALYSE ──────────────────────────────────────────
+function openAnalysisModal(candId) {
+  const cands = ls('sc_cands', []);
+  const c = cands.find(x => x.id === candId);
+  if (!c?.analysis) return;
+
+  const overlay = document.getElementById('analysis-modal-overlay');
+  const body    = document.getElementById('analysis-modal-body');
+  const title   = document.getElementById('analysis-modal-title');
+
+  title.textContent = c.poste + ' — ' + c.company;
+  body.innerHTML = '<div class="ldg"><div class="sp"></div></div>';
+  overlay.classList.remove('hidden');
+
+  // Rendre le résultat sauvegardé
+  renderAnalyzeResult(c.analysis, { errors: [], warnings: [] }, body);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function closeAnalysisModal() {
+  document.getElementById('analysis-modal-overlay').classList.add('hidden');
 }
 
 function delCand(id) {

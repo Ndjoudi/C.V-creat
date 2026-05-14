@@ -81,7 +81,73 @@ function detectCVErrors() {
   return { errors, warnings };
 }
 
-// ── ANALYZE ────────────────────────────────────────────────
+// ── ANALYSE CORE — appelable depuis tracker ou écran analyse ─
+async function doAnalyzeCore(offerText, containerEl) {
+  const p  = ANON ? anonymize(P) : P;
+  const ps = p.firstName
+    ? `Titre: ${p.title||'—'} | Expérience: ${p.yearsExp||'—'}
+Sous-domaines SC: ${p.subdomains.join(', ')||'—'}
+Outils: ${p.tools.join(', ')||'—'}
+Certifications: ${p.certifs.join(', ')||'—'}
+Secteurs: ${p.sectors.join(', ')||'—'}
+Expériences: ${p.experiences.map(e => e.title+' chez '+e.company+' ('+e.duration+'): '+e.description).join(' | ')||'—'}`
+    : 'Profil non renseigné';
+
+  const prompt = `Tu es un expert RH et consultant en recrutement supply chain, spécialisé dans l'optimisation ATS.
+
+RÈGLES D'ANALYSE STRICTES :
+- score_global : % de mots-clés importants de l'offre présents dans le profil (65-75% = optimal)
+- score_resume : adéquation du résumé/accroche avec le poste visé
+- score_competences : % des compétences demandées présentes dans le profil
+- score_experience : pertinence des expériences pour ce rôle
+- must_have : compétences marquées "requis","obligatoire","impératif","exigé"
+- nice_to_have : compétences marquées "souhaité","idéalement","un plus","apprécié"
+- keywords_present : termes de l'offre présents dans le profil
+- keywords_missing : termes importants de l'offre absents du profil
+- adapted_bullets : 4 bullets PERCUTANTS formule APR (Verbe fort + Action + Résultat chiffré). Jamais "Responsable de" ou "En charge de".
+- cover_letter : lettre professionnelle complète
+- Ne jamais inventer d'informations absentes du profil
+
+OFFRE D'EMPLOI :
+${offerText}
+
+PROFIL DU CANDIDAT :
+${ps}
+
+Réponds UNIQUEMENT en JSON valide, sans markdown :
+{"poste":"","entreprise":"","score_global":72,"score_resume":65,"score_competences":80,"score_experience":70,"must_have":[],"nice_to_have":[],"keywords_present":[],"keywords_missing":[],"adapted_bullets":[],"tips":[],"cover_letter":""}`;
+
+  const raw    = await callGroq(prompt, { maxTokens: 3200, temperature: 0.5 });
+  const result = safeParseJSON(raw);
+  if (result.score !== undefined && result.score_global === undefined) result.score_global = result.score;
+
+  renderAnalyzeResult(result, detectCVErrors(), containerEl);
+
+  // Mise à jour poste ciblé CV
+  if (result.poste) {
+    _cvTarget = result.poste;
+    localStorage.setItem('sc_cv_target', _cvTarget);
+    const ti = document.getElementById('cv-target-input');
+    if (ti) ti.value = _cvTarget;
+  }
+
+  // Highlighting compétences
+  const skillKw = [...(result.keywords_present||[]),...(result.must_have||[]),...(result.nice_to_have||[])].filter(Boolean);
+  _matchedSkills = skillKw;
+  localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
+
+  // Historique
+  const score = result.score_global ?? result.score ?? 0;
+  const hist  = ls('sc_history', []);
+  hist.unshift({ id: Date.now().toString(), date: new Date().toLocaleDateString('fr-FR'), poste: result.poste, entreprise: result.entreprise, score, result });
+  if (hist.length > 20) hist.pop();
+  ss('sc_history', hist);
+  refreshBadges();
+  proposeBulletMatches(result);
+  return result;
+}
+
+// ── ANALYZE (écran dédié — conservé pour compatibilité) ─────
 async function doAnalyze() {
   const offer = document.getElementById('offer-txt').value.trim();
   if (!offer) { toast('Colle d\'abord une offre d\'emploi'); return; }
@@ -94,79 +160,9 @@ async function doAnalyze() {
   btn.disabled = true; btn.textContent = 'Analyse en cours...';
   ldg.classList.remove('hidden'); errEl.classList.add('hidden'); res.innerHTML = '';
 
-  const p  = ANON ? anonymize(P) : P;
-  const ps = p.firstName
-    ? `Titre: ${p.title||'—'} | Expérience: ${p.yearsExp||'—'}
-Sous-domaines SC: ${p.subdomains.join(', ')||'—'}
-Outils: ${p.tools.join(', ')||'—'}
-Certifications: ${p.certifs.join(', ')||'—'}
-Secteurs: ${p.sectors.join(', ')||'—'}
-Résumé actuel: ${p.summary||'—'}
-Expériences: ${p.experiences.map(e => e.title + ' chez ' + e.company + ' (' + e.duration + '): ' + e.description).join(' | ')||'—'}`
-    : 'Profil non renseigné';
-
-  const prompt = `Tu es un expert RH et consultant en recrutement supply chain, spécialisé dans l'optimisation ATS (Applicant Tracking System).
-
-RÈGLES D'ANALYSE STRICTES :
-- Calcule les scores en comptant réellement les correspondances, pas au hasard
-- score_global : % de mots-clés importants de l'offre présents dans le profil (65-75% = optimal)
-- score_resume : adéquation du résumé/accroche avec le poste visé
-- score_competences : % des compétences demandées présentes dans le profil
-- score_experience : pertinence des expériences pour ce rôle
-- must_have : compétences/exigences marquées "requis", "obligatoire", "impératif", "exigé" dans l'offre
-- nice_to_have : compétences marquées "souhaité", "idéalement", "un plus", "apprécié"
-- keywords_present : termes de l'offre effectivement présents dans le profil
-- keywords_missing : termes importants de l'offre absents du profil
-- adapted_bullets : 4 bullet points PERCUTANTS suivant la formule APR (Verbe d'action fort + Action concrète + Résultat chiffré quand possible). Verbes recommandés: Optimisé, Piloté, Déployé, Réduit, Augmenté, Négocié, Automatisé, Structuré, Coordonné. Ne jamais commencer par "Responsable de" ou "En charge de".
-- cover_letter : lettre professionnelle avec accroche percutante, paragraphe valeur ajoutée, paragraphe motivation entreprise, formule de politesse
-- Ne jamais inventer d'informations absentes du profil
-
-OFFRE D'EMPLOI :
-${offer}
-
-PROFIL DU CANDIDAT :
-${ps}
-
-Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, sans commentaires :
-{"poste":"...","entreprise":"...","score_global":72,"score_resume":65,"score_competences":80,"score_experience":70,"must_have":["exigence 1","exigence 2"],"nice_to_have":["souhait 1"],"keywords_present":["mot-clé présent 1","mot-clé présent 2"],"keywords_missing":["mot-clé manquant 1","mot-clé manquant 2"],"adapted_bullets":["Verbe fort + action + résultat","Verbe fort + action + résultat","Verbe fort + action + résultat","Verbe fort + action + résultat"],"tips":["Conseil concret et actionnable 1","Conseil concret et actionnable 2"],"cover_letter":"Lettre complète..."}`;
-
   try {
-    const raw    = await callGroq(prompt, { maxTokens: 3200, temperature: 0.5 });
-    const result = safeParseJSON(raw);
-
-    // Compatibilité : si l'IA renvoie score au lieu de score_global
-    if (result.score !== undefined && result.score_global === undefined) result.score_global = result.score;
-
-    const cvErrors = detectCVErrors();
-    renderAnalyzeResult(result, cvErrors, document.getElementById('analyze-result'));
-
-    // Auto-fill "Poste ciblé" dans l'écran CV
-    if (result.poste) {
-      _cvTarget = result.poste;
-      localStorage.setItem('sc_cv_target', _cvTarget);
-      const targetInput = document.getElementById('cv-target-input');
-      if (targetInput) targetInput.value = _cvTarget;
-      toast('Poste ciblé mis à jour : ' + result.poste);
-    } else {
-      toast('Analyse sauvegardée');
-    }
-
-    // Sauvegarder les mots-clés de l'offre pour le highlighting des compétences
-    const skillKeywords = [
-      ...(result.keywords_present || []),
-      ...(result.must_have || []),
-      ...(result.nice_to_have || [])
-    ].filter(Boolean);
-    _matchedSkills = skillKeywords;
-    localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
-
-    const score = result.score_global ?? result.score ?? 0;
-    const hist  = ls('sc_history', []);
-    hist.unshift({ id: Date.now().toString(), date: new Date().toLocaleDateString('fr-FR'), poste: result.poste, entreprise: result.entreprise, score, result });
-    if (hist.length > 20) hist.pop();
-    ss('sc_history', hist);
-    refreshBadges();
-    proposeBulletMatches(result);
+    const result = await doAnalyzeCore(offer, res);
+    toast(result.poste ? 'Poste ciblé mis à jour : ' + result.poste : 'Analyse sauvegardée');
   } catch (e) {
     errEl.textContent = groqErrorMessage(e);
     errEl.classList.remove('hidden');

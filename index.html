@@ -7,9 +7,9 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=34"/>
-<link rel="stylesheet" href="css/components.css?v=34"/>
-<link rel="stylesheet" href="css/cv.css?v=34"/>
+<link rel="stylesheet" href="css/base.css?v=35"/>
+<link rel="stylesheet" href="css/components.css?v=35"/>
+<link rel="stylesheet" href="css/cv.css?v=35"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -64,11 +64,9 @@
       <div class="ni"     data-sc="profile">  <i data-lucide="circle-user"      class="ni-icon"></i>Mon Profil</div>
       <div class="ni"     data-sc="cv">       <i data-lucide="file-text"        class="ni-icon"></i>Mon CV</div>
       <div class="nav-section" style="margin-top:8px">IA</div>
-      <div class="ni"     data-sc="analyze">  <i data-lucide="sparkles"         class="ni-icon"></i>Analyser une offre</div>
+      <div class="ni"     data-sc="tracker">  <i data-lucide="briefcase"        class="ni-icon"></i>Candidatures <span class="ni-badge" id="badge-cands" style="display:none"></span></div>
       <div class="ni"     data-sc="interview"><i data-lucide="mic"              class="ni-icon"></i>Simulation entretien <span class="ni-badge" id="badge-new">Nouveau</span></div>
       <div class="ni"     data-sc="history">  <i data-lucide="history"          class="ni-icon"></i>Mes analyses <span class="ni-badge" id="badge-hist" style="display:none"></span></div>
-      <div class="nav-section" style="margin-top:8px">Suivi</div>
-      <div class="ni"     data-sc="tracker">  <i data-lucide="briefcase"        class="ni-icon"></i>Candidatures <span class="ni-badge" id="badge-cands" style="display:none"></span></div>
     </nav>
     <div class="sb-ft">
       <div id="sb-profile-info" class="hidden" style="margin-bottom:10px">
@@ -506,6 +504,8 @@
             <button class="btn btn-p" onclick="addCand()">Enregistrer</button>
             <button class="btn btn-g" onclick="toggleAddForm()">Annuler</button>
           </div>
+          <!-- Résultats d'analyse inline -->
+          <div id="tracker-analysis-result" class="hidden"></div>
         </div>
         <div id="tracker-table"></div>
       </div>
@@ -529,6 +529,20 @@
       <button class="btn btn-p" onclick="applyGenerated()" style="flex:1;justify-content:center"><i data-lucide="check" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"></i>Utiliser ce texte</button>
       <button class="btn btn-g" onclick="closeModal()">Annuler</button>
     </div>
+  </div>
+</div>
+
+<!-- ── ANALYSIS MODAL (candidature) ────────────────────── -->
+<div id="analysis-modal-overlay" class="overlay hidden" onclick="if(event.target===this)closeAnalysisModal()">
+  <div class="modal modal-wide">
+    <div class="mhd">
+      <div>
+        <div class="mtitle" id="analysis-modal-title"></div>
+        <div class="msub">Résultats de l'analyse IA</div>
+      </div>
+      <button class="mclose" onclick="closeAnalysisModal()">×</button>
+    </div>
+    <div class="mbody" id="analysis-modal-body"></div>
   </div>
 </div>
 
@@ -596,16 +610,16 @@
 </div>
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=34"></script>
-<script src="js/app.js?v=34"></script>
-<script src="js/profile.js?v=34"></script>
-<script src="js/import-cv.js?v=34"></script>
-<script src="js/cv.js?v=34"></script>
-<script src="js/analyze.js?v=34"></script>
-<script src="js/interview.js?v=34"></script>
-<script src="js/history.js?v=34"></script>
-<script src="js/tracker.js?v=34"></script>
-<script src="js/modal.js?v=34"></script>
+<script src="js/api.js?v=35"></script>
+<script src="js/app.js?v=35"></script>
+<script src="js/profile.js?v=35"></script>
+<script src="js/import-cv.js?v=35"></script>
+<script src="js/cv.js?v=35"></script>
+<script src="js/analyze.js?v=35"></script>
+<script src="js/interview.js?v=35"></script>
+<script src="js/history.js?v=35"></script>
+<script src="js/tracker.js?v=35"></script>
+<script src="js/modal.js?v=35"></script>
 
 </body>
 </html>

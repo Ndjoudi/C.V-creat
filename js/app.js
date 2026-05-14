@@ -103,6 +103,7 @@ window.onload = () => {
       closeModal();
       closeHistModal();
       closeNoteModal();
+      if (typeof closeAnalysisModal === 'function') closeAnalysisModal();
     }
   });
   // Close modals on overlay click
