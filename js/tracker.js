@@ -62,7 +62,8 @@ function renderTracker() {
             STATS.map(s => `<option${s === c.status ? ' selected' : ''}>${s}</option>`).join('')
           }</select></td>
           <td class="notes-cell" onclick="openNoteModal('${esc(c.company)}','${esc(c.poste)}',\`${(c.notes||'').replace(/`/g,"'")}\`)" title="Cliquer pour voir">${esc(c.notes) || '<span style="opacity:.4">—</span>'}</td>
-          <td><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
+          <td style="white-space:nowrap">${c.analysis ? `
+            <button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Voir le CV adapté à cette offre">CV</button><button onclick="loadCVForCand('${c.id}', true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="Télécharger PDF">⬇ PDF</button>` : ''}<button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
@@ -168,6 +169,37 @@ async function runPasteAnalysis() {
   }
 }
 
+// ── CHARGER LE CV POUR UNE CANDIDATURE ─────────────────────
+function loadCVForCand(candId, andPrint = false) {
+  const c = ls('sc_cands', []).find(x => x.id === candId);
+  if (!c) return;
+
+  // Injecter le poste ciblé
+  const target = c.analysis?.poste || c.poste;
+  _cvTarget = target;
+  localStorage.setItem('sc_cv_target', _cvTarget);
+
+  // Injecter les compétences matchées
+  if (c.analysis) {
+    _matchedSkills = [
+      ...(c.analysis.keywords_present || []),
+      ...(c.analysis.must_have        || []),
+      ...(c.analysis.nice_to_have     || [])
+    ].filter(Boolean);
+    localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
+  }
+
+  closeAnalysisModal();
+
+  if (andPrint) {
+    // Rendre le CV en arrière-plan puis imprimer
+    renderCV();
+    setTimeout(() => printCV(), 250);
+  } else {
+    goTo('cv');
+  }
+}
+
 // ── MODAL ANALYSE ──────────────────────────────────────────
 function openAnalysisModal(candId) {
   const cands = ls('sc_cands', []);
@@ -176,14 +208,22 @@ function openAnalysisModal(candId) {
 
   const overlay = document.getElementById('analysis-modal-overlay');
   const body    = document.getElementById('analysis-modal-body');
-  const title   = document.getElementById('analysis-modal-title');
+  document.getElementById('analysis-modal-title').textContent = c.poste + ' — ' + c.company;
 
-  title.textContent = c.poste + ' — ' + c.company;
-  body.innerHTML = '<div class="ldg"><div class="sp"></div></div>';
+  // Boutons d'action en haut du modal
+  body.innerHTML = `
+    <div style="display:flex;gap:9px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-p" onclick="loadCVForCand('${candId}')" style="font-size:13px">
+        <i data-lucide="file-text" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"></i>Voir le CV adapté
+      </button>
+      <button class="btn btn-g" onclick="loadCVForCand('${candId}', true)" style="font-size:13px">
+        <i data-lucide="download" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"></i>Télécharger PDF
+      </button>
+    </div>
+    <div id="analysis-modal-result"></div>`;
+
   overlay.classList.remove('hidden');
-
-  // Rendre le résultat sauvegardé
-  renderAnalyzeResult(c.analysis, { errors: [], warnings: [] }, body);
+  renderAnalyzeResult(c.analysis, { errors: [], warnings: [] }, document.getElementById('analysis-modal-result'));
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
