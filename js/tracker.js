@@ -83,9 +83,80 @@ function addCand() {
 // ── INDEED IMPORT ──────────────────────────────────────────
 
 function onIndeedUrlInput(val) {
-  // Auto-trigger fetch when URL looks complete (contains vjk= or jk=)
   const hasKey = /[?&](?:vjk|jk)=[a-f0-9]{8,}/i.test(val);
-  document.getElementById('f-indeed-status').textContent = hasKey ? '→ Clique sur Récupérer pour importer l\'annonce' : '';
+  const s = document.getElementById('f-indeed-status');
+  if (hasKey) { s.style.color='var(--ink3)'; s.textContent='→ Clique sur Récupérer pour importer l\'annonce'; }
+  else        { s.textContent=''; }
+}
+
+// Fetch via un proxy avec timeout manuel
+async function _proxyFetch(proxyUrl, timeoutMs = 9000) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(proxyUrl, { signal: ctrl.signal });
+    if (!r.ok) throw new Error('!ok');
+    return r;
+  } finally { clearTimeout(tid); }
+}
+
+// Tente plusieurs proxies en cascade, renvoie le texte HTML ou lève une erreur
+async function _fetchIndeedPage(indeedUrl) {
+  const enc = encodeURIComponent(indeedUrl);
+  const proxies = [
+    async () => { const r = await _proxyFetch(`https://corsproxy.io/?${enc}`);           return r.text(); },
+    async () => { const r = await _proxyFetch(`https://api.allorigins.win/raw?url=${enc}`); return r.text(); },
+    async () => { const r = await _proxyFetch(`https://api.allorigins.win/get?url=${enc}`); const d = await r.json(); return d.contents || ''; },
+    async () => { const r = await _proxyFetch(`https://api.codetabs.com/v1/proxy?quest=${enc}`); return r.text(); },
+  ];
+  for (const attempt of proxies) {
+    try {
+      const html = await attempt();
+      if (html && html.length > 400) return html;
+    } catch { /* essaie le suivant */ }
+  }
+  throw new Error('all_proxies_failed');
+}
+
+// Extrait les infos emploi depuis le HTML Indeed
+function _parseIndeedHTML(html) {
+  let title = '', company = '', location = '', contract = '', description = '';
+
+  // ── Méthode 1 : JSON-LD <script type="application/ld+json"> ──
+  const blocks = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const [, inner] of blocks) {
+    try {
+      const parsed = JSON.parse(inner.trim());
+      const jp = Array.isArray(parsed)
+        ? parsed.find(x => x['@type'] === 'JobPosting')
+        : (parsed['@type'] === 'JobPosting' ? parsed : null);
+      if (jp) {
+        title       = jp.title || '';
+        company     = jp.hiringOrganization?.name || '';
+        location    = jp.jobLocation?.address?.addressLocality
+                   || jp.jobLocation?.[0]?.address?.addressLocality || '';
+        contract    = (jp.employmentType || '').replace(/_/g,' ');
+        description = jp.description
+          ? jp.description.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim().substring(0,2000)
+          : '';
+        if (title) return { title, company, location, contract, description };
+      }
+    } catch { /* continue */ }
+  }
+
+  // ── Méthode 2 : balises meta og: ──
+  const metaTitle   = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
+  const metaDesc    = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
+  if (metaTitle) {
+    // og:title Indeed = "Titre - Entreprise - Lieu"
+    const parts = metaTitle.split(/\s*[-–]\s*/);
+    title   = parts[0]?.trim() || '';
+    company = parts[1]?.trim() || '';
+    location= parts[2]?.trim() || '';
+    description = metaDesc;
+  }
+
+  return { title, company, location, contract, description };
 }
 
 async function importFromIndeed() {
@@ -93,116 +164,98 @@ async function importFromIndeed() {
   const rawUrl = document.getElementById('f-indeed-url').value.trim();
   if (!rawUrl) { toast('Colle un lien Indeed d\'abord'); return; }
 
-  // Extract job key (supports vjk= and jk= params)
   const keyMatch = rawUrl.match(/[?&](?:vjk|jk)=([a-f0-9]+)/i);
   const jk = keyMatch?.[1] || '';
   if (!jk) { toast('Lien Indeed invalide — cherche le paramètre vjk= dans l\'URL'); return; }
 
-  const btn     = document.getElementById('f-indeed-btn');
-  const status  = document.getElementById('f-indeed-status');
+  const btn      = document.getElementById('f-indeed-btn');
+  const status   = document.getElementById('f-indeed-status');
   const origHtml = btn.innerHTML;
   _indeedFetching = true;
-  btn.disabled = true;
-  btn.textContent = '⏳ Récupération...';
-  status.textContent = 'Connexion à Indeed...';
-  status.style.color = 'var(--ink3)';
+  btn.disabled = true; btn.textContent = '⏳ Récupération...';
+  status.style.color = 'var(--ink3)'; status.textContent = 'Tentative de connexion à Indeed...';
 
-  // Canonical job URL
   const host      = rawUrl.includes('fr.indeed') ? 'fr.indeed.com' : 'indeed.com';
   const indeedUrl = `https://${host}/viewjob?jk=${jk}`;
 
-  let title = '', company = '', location = '', contract = '', description = '';
-
   try {
-    // ── Tentative 1 : allorigins.win ──
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(indeedUrl)}`;
-    status.textContent = 'Chargement de la page Indeed...';
-    const res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error('proxy_fail');
-    const data = await res.json();
-    const html = data.contents || '';
-    if (html.length < 300) throw new Error('empty');
+    status.textContent = 'Chargement via proxy...';
+    const html = await _fetchIndeedPage(indeedUrl);
 
-    // ── Extraction JSON-LD (méthode fiable si Indeed le fournit) ──
-    const blocks = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
-    for (const [, inner] of blocks) {
-      try {
-        const parsed = JSON.parse(inner.trim());
-        const jp = Array.isArray(parsed)
-          ? parsed.find(x => x['@type'] === 'JobPosting')
-          : (parsed['@type'] === 'JobPosting' ? parsed : null);
-        if (jp) {
-          title       = jp.title || '';
-          company     = jp.hiringOrganization?.name || '';
-          location    = jp.jobLocation?.address?.addressLocality || jp.jobLocation?.[0]?.address?.addressLocality || '';
-          contract    = (jp.employmentType || '').replace(/_/g,' ');
-          description = jp.description
-            ? jp.description.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim().substring(0, 2000)
-            : '';
-          break;
-        }
-      } catch { /* continue */ }
-    }
+    let { title, company, location, contract, description } = _parseIndeedHTML(html);
 
-    // ── Fallback texte + Groq si JSON-LD absent ──
+    // ── Fallback IA si parsing HTML insuffisant ──
     if (!title) {
       status.textContent = 'Analyse IA en cours...';
       const text = html
-        .replace(/<script[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[\s\S]*?<\/style>/gi, '')
-        .replace(/<[^>]+>/g, ' ')
+        .replace(/<script[\s\S]*?<\/script>/gi,'')
+        .replace(/<style[\s\S]*?<\/style>/gi,'')
+        .replace(/<[^>]+>/g,' ')
         .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
-        .replace(/\s{2,}/g,' ')
-        .trim()
-        .substring(0, 3500);
-
-      const prompt = `Voici le texte brut d'une page d'annonce d'emploi (Indeed). Extrais les informations structurées.
-
-TEXTE:
-${text}
-
-Réponds UNIQUEMENT en JSON valide (pas de markdown):
-{"title":"","company":"","location":"","contractType":"","description":""}
-
-description = résumé du poste en 2-3 phrases max.`;
-
-      const raw    = await callGroq(prompt, { maxTokens: 350, temperature: 0 });
-      const parsed = safeParseJSON(raw);
-      title       = parsed.title        || '';
-      company     = parsed.company      || '';
-      location    = parsed.location     || '';
-      contract    = parsed.contractType || '';
-      description = parsed.description  || '';
+        .replace(/\s{2,}/g,' ').trim().substring(0, 3500);
+      const raw = await callGroq(
+        `Texte brut d'une annonce emploi. Extrais les infos.\n\nTEXTE:\n${text}\n\nRéponds UNIQUEMENT en JSON:\n{"title":"","company":"","location":"","contractType":"","description":""}`,
+        { maxTokens:300, temperature:0 }
+      );
+      const p = safeParseJSON(raw);
+      title = p.title||''; company = p.company||''; location = p.location||'';
+      contract = p.contractType||''; description = p.description||'';
     }
 
     if (!title && !company) throw new Error('no_data');
 
-    // ── Auto-remplissage du formulaire ──
+    // ── Auto-remplissage ──
     if (title)   document.getElementById('f-poste').value = title;
     if (company) document.getElementById('f-co').value    = company;
+    document.getElementById('f-indeed-url').dataset.desc  = description;
 
-    // Stocke la description dans le dataset pour la sauvegarder avec la candidature
-    document.getElementById('f-indeed-url').dataset.desc = description;
-
-    // Feedback visuel
     const parts = [title, company, location, contract].filter(Boolean);
     status.style.color = 'var(--teal-d)';
-    status.innerHTML = `<strong>✓ Importé :</strong> ${esc(parts.join(' · '))}`;
-    toast('Annonce Indeed importée 🎉');
+    status.innerHTML = `<strong style="color:var(--teal-d)">✓ Importé :</strong> ${esc(parts.join(' · '))}`;
+    toast('Annonce Indeed importée ✓');
 
-  } catch (e) {
+  } catch {
+    // ── Indeed bloque tous les proxies → afficher la zone de texte ──
     status.style.color = 'var(--red)';
-    if (e.message === 'no_data') {
-      status.textContent = '⚠ Page récupérée mais aucune info détectée — remplis manuellement.';
-    } else {
-      status.textContent = '⚠ Impossible de récupérer — remplis manuellement.';
-    }
-    toast('Indeed inaccessible — remplis manuellement');
+    status.innerHTML = `⚠ Indeed bloque l'accès automatique.<br>
+      <span style="color:var(--ink2)">Copie le texte de l'annonce (Ctrl+A sur la page Indeed) et colle-le ci-dessous :</span>`;
+    document.getElementById('indeed-paste-zone').classList.remove('hidden');
   } finally {
     _indeedFetching = false;
-    btn.disabled = false;
-    btn.innerHTML = origHtml;
+    btn.disabled = false; btn.innerHTML = origHtml;
     if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+}
+
+// ── Analyse du texte collé manuellement ────────────────────
+async function analyzeIndeedPaste() {
+  const text = document.getElementById('f-indeed-paste').value.trim();
+  if (text.length < 50) { toast('Colle d\'abord le texte de l\'annonce'); return; }
+
+  const btn   = document.getElementById('f-paste-btn');
+  const status = document.getElementById('f-indeed-status');
+  btn.disabled = true; btn.textContent = 'Analyse...';
+
+  try {
+    const raw = await callGroq(
+      `Tu es un assistant RH. Extrais les informations de cette annonce d'emploi.\n\nANNONCE:\n${text.substring(0,4000)}\n\nRéponds UNIQUEMENT en JSON valide:\n{"title":"","company":"","location":"","contractType":"","description":""}`,
+      { maxTokens: 400, temperature: 0 }
+    );
+    const p = safeParseJSON(raw);
+    if (p.title)   document.getElementById('f-poste').value = p.title;
+    if (p.company) document.getElementById('f-co').value    = p.company;
+    document.getElementById('f-indeed-url').dataset.desc = p.description || '';
+
+    const parts = [p.title, p.company, p.location, p.contractType].filter(Boolean);
+    status.style.color = 'var(--teal-d)';
+    status.innerHTML = `<strong style="color:var(--teal-d)">✓ Analysé :</strong> ${esc(parts.join(' · '))}`;
+    document.getElementById('indeed-paste-zone').classList.add('hidden');
+    document.getElementById('f-indeed-paste').value = '';
+    toast('Annonce analysée ✓');
+  } catch {
+    toast('Erreur lors de l\'analyse — vérifie ta clé API');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Analyser';
   }
 }
 

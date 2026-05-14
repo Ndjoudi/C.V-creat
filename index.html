@@ -7,9 +7,9 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=28"/>
-<link rel="stylesheet" href="css/components.css?v=28"/>
-<link rel="stylesheet" href="css/cv.css?v=28"/>
+<link rel="stylesheet" href="css/base.css?v=29"/>
+<link rel="stylesheet" href="css/components.css?v=29"/>
+<link rel="stylesheet" href="css/cv.css?v=29"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -479,7 +479,16 @@
                 <i data-lucide="download" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Récupérer
               </button>
             </div>
-            <div id="f-indeed-status" style="font-size:11.5px;margin-top:5px;color:var(--ink3)"></div>
+            <div id="f-indeed-status" style="font-size:11.5px;margin-top:5px;line-height:1.6"></div>
+          </div>
+          <!-- Zone texte fallback (révélée si les proxies échouent) -->
+          <div id="indeed-paste-zone" class="hidden" style="margin-bottom:14px">
+            <label class="lb">Texte de l'annonce <span style="font-size:9.5px;color:var(--ink3);text-transform:none;letter-spacing:0;font-weight:400">— colle tout le texte de la page Indeed</span></label>
+            <textarea class="inp" id="f-indeed-paste" rows="5" placeholder="Sélectionne tout le texte sur la page Indeed (Ctrl+A → Ctrl+C) puis colle ici..."></textarea>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <button class="btn btn-p" id="f-paste-btn" onclick="analyzeIndeedPaste()" style="font-size:12.5px">Analyser avec l'IA</button>
+              <button class="btn btn-g" onclick="document.getElementById('indeed-paste-zone').classList.add('hidden')" style="font-size:12.5px">Annuler</button>
+            </div>
           </div>
           <!-- Séparateur -->
           <div style="border-top:1px solid var(--teal-border);margin-bottom:14px"></div>
@@ -588,16 +597,16 @@
 </div>
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=28"></script>
-<script src="js/app.js?v=28"></script>
-<script src="js/profile.js?v=28"></script>
-<script src="js/import-cv.js?v=28"></script>
-<script src="js/cv.js?v=28"></script>
-<script src="js/analyze.js?v=28"></script>
-<script src="js/interview.js?v=28"></script>
-<script src="js/history.js?v=28"></script>
-<script src="js/tracker.js?v=28"></script>
-<script src="js/modal.js?v=28"></script>
+<script src="js/api.js?v=29"></script>
+<script src="js/app.js?v=29"></script>
+<script src="js/profile.js?v=29"></script>
+<script src="js/import-cv.js?v=29"></script>
+<script src="js/cv.js?v=29"></script>
+<script src="js/analyze.js?v=29"></script>
+<script src="js/interview.js?v=29"></script>
+<script src="js/history.js?v=29"></script>
+<script src="js/tracker.js?v=29"></script>
+<script src="js/modal.js?v=29"></script>
 
 </body>
 </html>
