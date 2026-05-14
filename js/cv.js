@@ -170,16 +170,18 @@ function renderCV() {
     html += `</div>`;
   }
 
-  // ── Formation ──
+  // ── Formation (layout compact 1 ligne par diplôme) ──
   if (P.education.length) {
     html += `<div class="cv-sec"><div class="cv-stitle">Formation</div>`;
     P.education.forEach(e => {
-      html += `<div class="cv-exp">
-        <div class="cv-erow">
-          <div class="cv-etitle">${esc(e.degree)}</div>
-          <div class="cv-edates">${esc(e.year)}</div>
+      const endYear = e.year ? e.year.trim().split(/\s*[-–—]\s*/).pop() : '';
+      html += `<div class="cv-edu-row">
+        <div class="cv-edu-left">
+          <span class="cv-edu-degree">${esc(e.degree)}</span>
+          ${e.school ? `<span class="cv-edu-school">— ${esc(e.school)}</span>` : ''}
+          ${e.mention ? `<span class="cv-edu-mention">· ${esc(e.mention)}</span>` : ''}
         </div>
-        ${e.school ? `<div class="cv-eco">${esc(e.school)}${e.mention ? ' · ' + esc(e.mention) : ''}</div>` : ''}
+        ${endYear ? `<span class="cv-edu-year">${esc(endYear)}</span>` : ''}
       </div>`;
     });
     html += `</div>`;
@@ -188,15 +190,8 @@ function renderCV() {
   // ── Compétences en tags ──
   const hasSkills = P.subdomains.length || P.tools.length || P.certifs.length || P.customSkills.length || P.informatique.length;
   if (hasSkills) {
-    const hasMatches = _matchedSkills && _matchedSkills.length > 0;
-    const legendHtml = hasMatches
-      ? `<span class="cv-match-legend"><span class="cv-match-dot"></span>Demandé dans cette offre</span>`
-      : '';
     html += `<div class="cv-sec">
-      <div class="cv-stitle-row">
-        <div class="cv-stitle">Compétences et Outils</div>
-        ${legendHtml}
-      </div>`;
+      <div class="cv-stitle">Compétences et Outils</div>`;
 
     // Helper : retourne la classe CSS correcte selon match
     const tagClass = s => `cv-skill-tag${isMatchedSkill(s) ? ' cv-skill-tag--match' : ''}`;
