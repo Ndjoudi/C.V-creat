@@ -2,25 +2,45 @@
 const FIELD_MAP = {
   fn:'firstName', ln:'lastName', email:'email', phone:'phone',
   loc:'location', linkedin:'linkedin', title:'title',
-  yexp:'yearsExp', mobility:'mobility', summary:'summary', summaryTarget:'summaryTarget',
-  permis:'permis', disponibilite:'disponibilite', contratRecherche:'contratRecherche', hobbies:'hobbies'
+  yexp:'yearsExp', mobility:'mobility', summaryTarget:'summaryTarget',
+  permis:'permis', disponibilite:'disponibilite', contratRecherche:'contratRecherche',
+  domainesProfile:'domainesProfile', hobbies:'hobbies'
 };
 
 // Supprime les balises HTML résiduelles (phase rich-editor)
 function _cleanField(v) {
-  return (v || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  return (v || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 
 function loadProfileToForm() {
   Object.entries(FIELD_MAP).forEach(([k, v]) => {
     const el = document.getElementById('p-' + k);
     if (!el) return;
-    // Pour summary et summaryTarget : nettoyer l'HTML éventuel
-    el.value = (v === 'summary' || v === 'summaryTarget') ? _cleanField(P[v]) : (P[v] || '');
+    // Pour summaryTarget : nettoyer l'HTML éventuel (legacy rich-editor)
+    el.value = (v === 'summaryTarget') ? _cleanField(P[v]) : (P[v] || '');
   });
-  initWordCounter();
+  renderFormationDisplay();
   renderPhotoPreview();
-  renderHighlightToggles();
+}
+
+// ── FORMATION DISPLAY (read-only from education[0]) ────────
+function renderFormationDisplay() {
+  const el = document.getElementById('p-formation-display');
+  if (!el) return;
+  const edu = P.education && P.education[0];
+  if (edu && edu.degree) {
+    let txt = edu.degree;
+    if (edu.school) txt += ' · ' + edu.school;
+    if (edu.year) {
+      const endYear = edu.year.trim().split(/\s*[-–—]\s*/).pop();
+      txt += ' (' + endYear + ')';
+    }
+    el.textContent = txt;
+    el.style.color = 'var(--ink)';
+  } else {
+    el.textContent = '— ajoute une formation dans l\'onglet Formation';
+    el.style.color = 'var(--ink3)';
+  }
 }
 
 function saveProfile() {
@@ -42,20 +62,6 @@ function updateSBProfile() {
   } else {
     info.classList.add('hidden');
   }
-}
-
-// ── WORD COUNTER (summary) ─────────────────────────────────
-function initWordCounter() {
-  const ta = document.getElementById('p-summary');
-  const counter = document.getElementById('summary-counter');
-  if (!ta || !counter) return;
-  function update() {
-    const words = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
-    counter.textContent = words + ' / 80 mots';
-    counter.className = 'word-counter' + (words > 80 ? ' over' : words > 65 ? ' warn' : '');
-  }
-  ta.addEventListener('input', update);
-  update();
 }
 
 // ── CHIPS ──────────────────────────────────────────────────
@@ -385,9 +391,9 @@ function renderEduList() {
     </div>`).join('');
 }
 
-function addEdu() { P.education.push({ id: Date.now().toString(), degree: '', school: '', year: '', mention: '' }); ss('sc_profile', P); renderEduList(); }
-function delEdu(id) { P.education = P.education.filter(e => e.id !== id); ss('sc_profile', P); renderEduList(); }
-function updEdu(id, key, val) { const e = P.education.find(x => x.id === id); if (e) { e[key] = val; ss('sc_profile', P); } }
+function addEdu() { P.education.push({ id: Date.now().toString(), degree: '', school: '', year: '', mention: '' }); ss('sc_profile', P); renderEduList(); renderFormationDisplay(); }
+function delEdu(id) { P.education = P.education.filter(e => e.id !== id); ss('sc_profile', P); renderEduList(); renderFormationDisplay(); }
+function updEdu(id, key, val) { const e = P.education.find(x => x.id === id); if (e) { e[key] = val; ss('sc_profile', P); renderFormationDisplay(); } }
 
 // ── LANGUAGES ──────────────────────────────────────────────
 const LANG_LEVELS = ['Notions','Intermédiaire','Courant','Bilingue','Langue maternelle'];

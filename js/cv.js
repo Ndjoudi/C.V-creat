@@ -1,64 +1,46 @@
 // ── PROFILE HIGHLIGHT BUILDER ──────────────────────────────
 function buildProfileHighlight() {
-  const cfg = P.highlightConfig || {};
   const segments = [];
 
-  if (cfg.formation) {
-    const edu = P.education && P.education[0];
-    if (edu && edu.degree) {
-      let s = `<span class="cv-phi-plain">En cursus </span>`;
-      s += `<strong class="cv-phi-formation">${esc(edu.degree)}</strong>`;
-      if (edu.school) s += `<span class="cv-phi-plain"> à </span><strong class="cv-phi-school">${esc(edu.school)}</strong>`;
-      if (edu.year) {
-        // Garde uniquement la date de fin (ex: "2021 - 2026" → "2026")
-        const endYear = edu.year.trim().split(/\s*[-–—]\s*/).pop();
-        s += `<span class="cv-phi-year">, ${esc(endYear)}</span>`;
-      }
-      segments.push(s);
-    } else if (P.yearsExp) {
-      segments.push(`<span class="cv-phi-plain">Fort(e) de </span><strong class="cv-phi-formation">${esc(P.yearsExp)} d'expérience</strong>`);
+  // Ligne 1 : Formation (depuis education[0])
+  const edu = P.education && P.education[0];
+  if (edu && edu.degree) {
+    let s = `<span class="cv-phi-plain">En cursus </span>`;
+    s += `<strong class="cv-phi-formation">${esc(edu.degree)}</strong>`;
+    if (edu.school) s += `<span class="cv-phi-plain"> à </span><strong class="cv-phi-school">${esc(edu.school)}</strong>`;
+    if (edu.year) {
+      const endYear = edu.year.trim().split(/\s*[-–—]\s*/).pop();
+      s += `<span class="cv-phi-year">, ${esc(endYear)}</span>`;
     }
+    segments.push(s);
+  } else if (P.yearsExp) {
+    segments.push(`<span class="cv-phi-plain">Fort(e) de </span><strong class="cv-phi-formation">${esc(P.yearsExp)} d'expérience</strong>`);
   }
 
+  // Ligne 2 : Domaines (champ libre)
+  if (P.domainesProfile) {
+    segments.push(`<span class="cv-phi-plain">${esc(P.domainesProfile)}</span>`);
+  }
+
+  // Ligne 3 : Pills (contrat, disponibilité, mobilité, permis)
   const pills = [];
-  if (cfg.contrat  && P.contratRecherche) pills.push(`<span class="cv-phi-pill cv-phi-pill--dark">${esc(P.contratRecherche)}</span>`);
-  if (cfg.dispo    && P.disponibilite)    pills.push(`<span class="cv-phi-plain" style="font-size:11px">Disponible </span><span class="cv-phi-pill cv-phi-pill--green">${esc(P.disponibilite)}</span>`);
-  if (cfg.mobility && P.mobility)         pills.push(`<span class="cv-phi-pill cv-phi-pill--blue">${esc(P.mobility)}</span>`);
-  if (cfg.permis   && P.permis)           pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
+  if (P.contratRecherche) pills.push(`<span class="cv-phi-pill cv-phi-pill--dark">${esc(P.contratRecherche)}</span>`);
+  if (P.disponibilite)    pills.push(`<span class="cv-phi-plain" style="font-size:11px">Disponible </span><span class="cv-phi-pill cv-phi-pill--green">${esc(P.disponibilite)}</span>`);
+  if (P.mobility)         pills.push(`<span class="cv-phi-pill cv-phi-pill--blue">${esc(P.mobility)}</span>`);
+  if (P.permis)           pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
   if (pills.length) segments.push(pills.join(''));
 
   if (!segments.length) return '';
   return `<div class="cv-profile-highlight">${segments.map(s => `<div class="cv-phi-line">${s}</div>`).join('')}</div>`;
 }
 
-// ── HIGHLIGHT TOGGLES ──────────────────────────────────────
-const HIGHLIGHT_CHIPS = [
-  { key:'formation', label:'Formation'     },
-  { key:'contrat',   label:'Contrat'       },
-  { key:'dispo',     label:'Disponibilité' },
-  { key:'mobility',  label:'Mobilité'      },
-  { key:'permis',    label:'Permis'        },
-];
-
-function toggleHighlight(key) {
-  P.highlightConfig[key] = !P.highlightConfig[key];
-  ss('sc_profile', P);
-  renderHighlightToggles();
-  renderCV();
-}
-
-function renderHighlightToggles() {
-  const el = document.getElementById('profile-highlight-chips');
-  if (!el) return;
-  el.innerHTML = HIGHLIGHT_CHIPS.map(c => {
-    const on = P.highlightConfig[c.key];
-    return `<button onclick="toggleHighlight('${c.key}')" class="cv-hi-chip${on ? ' on' : ''}">${c.label}</button>`;
-  }).join('');
-}
-
 // ── STRIP HTML (nettoyage données legacy rich-editor) ───────
 function stripHTML(html) {
-  return (html || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  return (html || '')
+    .replace(/<[^>]+>/g, ' ')   // remplace chaque balise par un espace (évite les mots collés)
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 // ── SKILL MATCH HELPER ─────────────────────────────────────
@@ -156,14 +138,14 @@ function renderCV() {
   </div>
   <div class="cv-div"></div>`;
 
-  // ── Profil : bloc highlight auto + texte complémentaire ──
+  // ── Profil : bloc highlight auto + texte "Pour ce poste" ──
   const highlightBlock = buildProfileHighlight();
-  const fullSummary    = [stripHTML(P.summary), stripHTML(P.summaryTarget)].filter(Boolean).join(' ');
-  if (highlightBlock || fullSummary) {
+  const targetText     = stripHTML(P.summaryTarget);
+  if (highlightBlock || targetText) {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>
       ${highlightBlock}
-      ${fullSummary ? `<div class="cv-summary-text"${highlightBlock ? ' style="margin-top:9px"' : ''}>${esc(fullSummary)}</div>` : ''}
+      ${targetText ? `<div class="cv-summary-text"${highlightBlock ? ' style="margin-top:9px"' : ''}>${esc(targetText)}</div>` : ''}
     </div>`;
   }
 

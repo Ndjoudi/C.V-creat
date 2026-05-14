@@ -15,8 +15,8 @@ const STAT_COLORS = {
 
 const DEF_PROFILE = {
   firstName:'',lastName:'',email:'',phone:'',location:'',linkedin:'',
-  title:'',yearsExp:'',mobility:'',summary:'',summaryTarget:'',
-  permis:'',disponibilite:'',contratRecherche:'',hobbies:'',photo:'',
+  title:'',yearsExp:'',mobility:'',summaryTarget:'',
+  permis:'',disponibilite:'',contratRecherche:'',domainesProfile:'',hobbies:'',photo:'',
   subdomains:[],tools:[],certifs:[],sectors:[],customSkills:[],informatique:[],
   experiences:[],education:[],languages:[],
   highlightConfig:{ formation:true, contrat:true, dispo:true, mobility:true, permis:false }
@@ -54,7 +54,7 @@ function esc(s) {
 let P = ls('sc_profile', DEF_PROFILE);
 // Migrate old profiles missing newer fields
 ['customSkills','education','languages','informatique'].forEach(k => { if (!P[k]) P[k] = []; });
-['linkedin','mobility','permis','disponibilite','contratRecherche','hobbies','photo','summaryTarget'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
+['linkedin','mobility','permis','disponibilite','contratRecherche','domainesProfile','hobbies','photo','summaryTarget'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
 if (!P.highlightConfig) P.highlightConfig = { formation:true, contrat:true, dispo:true, mobility:true, permis:false };
 if (P.highlightConfig.contrat === undefined) P.highlightConfig.contrat = true;
 // Migrate experience objects to include new fields
