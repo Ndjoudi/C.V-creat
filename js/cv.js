@@ -5,7 +5,7 @@ function buildProfileHighlight() {
   // Ligne 1 : Formation (depuis education[0])
   const edu = P.education && P.education[0];
   if (edu && edu.degree) {
-    let s = `<span class="cv-phi-plain">En cursus </span>`;
+    let s = `<span class="cv-phi-plain">Fin de cursus </span>`;
     s += `<strong class="cv-phi-formation">${esc(edu.degree)}</strong>`;
     if (edu.school) s += `<span class="cv-phi-plain"> à </span><strong class="cv-phi-school">${esc(edu.school)}</strong>`;
     if (edu.year) {
@@ -17,18 +17,18 @@ function buildProfileHighlight() {
     segments.push(`<span class="cv-phi-plain">Fort(e) de </span><strong class="cv-phi-formation">${esc(P.yearsExp)} d'expérience</strong>`);
   }
 
-  // Ligne 2 : Domaines (champ libre)
-  if (P.domainesProfile) {
-    segments.push(`<span class="cv-phi-plain">${esc(P.domainesProfile)}</span>`);
-  }
-
-  // Ligne 3 : Pills (contrat, disponibilité, mobilité, permis)
+  // Ligne 2 : Pills (contrat, disponibilité, mobilité, permis)
   const pills = [];
   if (P.contratRecherche) pills.push(`<span class="cv-phi-pill cv-phi-pill--dark">${esc(P.contratRecherche)}</span>`);
   if (P.disponibilite)    pills.push(`<span class="cv-phi-plain" style="font-size:11px">Disponible </span><span class="cv-phi-pill cv-phi-pill--green">${esc(P.disponibilite)}</span>`);
   if (P.mobility)         pills.push(`<span class="cv-phi-pill cv-phi-pill--blue">${esc(P.mobility)}</span>`);
   if (P.permis)           pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
   if (pills.length) segments.push(pills.join(''));
+
+  // Ligne 3 : Phrase d'accroche (champ libre domainesProfile)
+  if (P.domainesProfile) {
+    segments.push(`<span class="cv-phi-plain">${esc(P.domainesProfile)}</span>`);
+  }
 
   if (!segments.length) return '';
   return `<div class="cv-profile-highlight">${segments.map(s => `<div class="cv-phi-line">${s}</div>`).join('')}</div>`;
@@ -46,14 +46,94 @@ function stripHTML(html) {
 // ── SKILL MATCH HELPER ─────────────────────────────────────
 // Retourne true si la compétence correspond à un mot-clé de la dernière offre analysée
 // Matching flou : "Excel avancé" matche si l'offre mentionne "Excel" (et inversement)
+// Skills manuellement désélectionnés (blacklist, overrides l'auto-match)
+let _deselectedSkills = JSON.parse(localStorage.getItem('sc_deselected_skills') || '[]');
+
 function isMatchedSkill(skill) {
   if (!_matchedSkills || !_matchedSkills.length) return false;
   const s = skill.toLowerCase().trim();
+  // Blacklist : désélectionné manuellement → jamais vert
+  if (_deselectedSkills.some(d => d.toLowerCase() === s)) return false;
   return _matchedSkills.some(kw => {
     const k = (kw || '').toLowerCase().trim();
     if (!k || k.length < 2) return false;
     return s.includes(k) || k.includes(s);
   });
+}
+
+// ── TOGGLE COMPÉTENCE (sélection manuelle) ─────────────────
+function toggleSkillMatch(skill) {
+  const sl = skill.toLowerCase().trim();
+  if (isMatchedSkill(skill)) {
+    // Actuellement vert → désélectionner : ajouter à la blacklist
+    if (!_deselectedSkills.map(d=>d.toLowerCase()).includes(sl)) {
+      _deselectedSkills.push(sl);
+    }
+    localStorage.setItem('sc_deselected_skills', JSON.stringify(_deselectedSkills));
+  } else {
+    // Actuellement gris → sélectionner : retirer de la blacklist + ajouter aux matchés
+    _deselectedSkills = _deselectedSkills.filter(d => d.toLowerCase() !== sl);
+    localStorage.setItem('sc_deselected_skills', JSON.stringify(_deselectedSkills));
+    if (!_matchedSkills.map(k=>(k||'').toLowerCase()).includes(sl)) {
+      _matchedSkills.push(skill);
+      localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
+    }
+  }
+  renderCV();
+  if (typeof _refreshSplitCV === 'function' &&
+      !document.getElementById('split-modal-overlay')?.classList.contains('hidden')) {
+    _refreshSplitCV();
+  }
+}
+
+// ── HIGHLIGHT MOTS-CLÉS DANS LES EXPÉRIENCES ──────────────
+// Style subtil : soulignement vert + clic pour désélectionner
+// (sans fond coloré pour garder le CV lisible)
+function highlightMatchedInText(text) {
+  if (!text) return esc(text);
+  if (!_matchedSkills || !_matchedSkills.length) return esc(text);
+
+  // Filtre les désélectionnés, trie par longueur desc (phrases avant mots)
+  const kws = [..._matchedSkills]
+    .filter(k => {
+      if (!k || k.trim().length < 2) return false;
+      return !_deselectedSkills.some(d => d.toLowerCase() === k.toLowerCase().trim());
+    })
+    .sort((a, b) => b.length - a.length);
+
+  if (!kws.length) return esc(text);
+
+  const hits = [];
+  for (const kw of kws) {
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let re;
+    try { re = new RegExp(`(?<![\\wÀ-öø-ÿ])${escaped}(?![\\wÀ-öø-ÿ])`, 'gi'); }
+    catch { re = new RegExp(escaped, 'gi'); }
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      hits.push({ start: m.index, end: m.index + m[0].length, word: m[0], kw });
+    }
+  }
+
+  hits.sort((a, b) => a.start - b.start || b.end - a.end);
+  const kept = [];
+  let cursor = 0;
+  for (const h of hits) {
+    if (h.start >= cursor) { kept.push(h); cursor = h.end; }
+  }
+  if (!kept.length) return esc(text);
+
+  let html = '';
+  let pos = 0;
+  for (const h of kept) {
+    html += esc(text.slice(pos, h.start));
+    const sk = h.kw.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    // Soulignement vert subtil, cliquable pour désélectionner
+    html += `<span onclick="toggleSkillMatch('${sk}')" title="✕ Cliquer pour masquer" style="border-bottom:2px solid #059669;font-weight:600;cursor:pointer;color:inherit">${esc(h.word)}</span>`;
+    pos = h.end;
+  }
+  html += esc(text.slice(pos));
+  return html;
 }
 
 // ── HELPERS ────────────────────────────────────────────────
@@ -130,7 +210,7 @@ function renderCV() {
   <div class="cv-hd">
     <div style="flex:1">
       <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
-      ${displayTitle ? `<div class="cv-ti">${esc(displayTitle)}${P.yearsExp ? `<span class="cv-yexp"> · ${esc(P.yearsExp)} d'expérience</span>` : ''}</div>` : ''}
+      ${displayTitle ? `<div class="cv-ti"><span class="cv-title-text">${esc(displayTitle)}</span>${P.yearsExp ? `<span class="cv-yexp"> · ${esc(P.yearsExp)} d'expérience</span>` : ''}</div>` : ''}
       ${contacts ? `<div class="cv-contact-line">${contacts}</div>` : ''}
       ${extraLine ? `<div class="cv-contact-line" style="margin-top:3px">${extraLine}</div>` : ''}
     </div>
@@ -152,13 +232,14 @@ function renderCV() {
   // ── Expériences ──
   if (P.experiences.length) {
     html += `<div class="cv-sec"><div class="cv-stitle">Expériences professionnelles</div>`;
-    P.experiences.forEach(e => {
+    P.experiences.forEach((e, i) => {
       // Show bullets if any exist (required or selected), otherwise fall back to description
       const activeBullets = (e.bullets || []).filter(b => b.required || b.selected);
       const bodyHtml = activeBullets.length
         ? `<ul class="cv-bullets">${activeBullets.map(b => `<li class="cv-bullet-item"><span class="cv-bullet-dot">▸</span><span>${esc(b.text)}</span></li>`).join('')}</ul>`
         : renderDescription(e.description);
-      html += `<div class="cv-exp">
+      const expIdx = (typeof e._origIdx === 'number') ? e._origIdx : i;
+      html += `<div class="cv-exp" data-exp-idx="${expIdx}">
         <div class="cv-erow">
           <div class="cv-etitle">${esc(e.title)}${e.contractType ? ' <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px;background:#F2F2F2;color:#6E6E73;border:1px solid #D2D2D7;vertical-align:middle;margin-left:5px">' + esc(e.contractType) + '</span>' : ''}</div>
           <div class="cv-edates">${esc(e.duration)}</div>
@@ -193,37 +274,52 @@ function renderCV() {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Compétences et Outils</div>`;
 
-    // Helper : retourne la classe CSS correcte selon match
-    const tagClass = s => `cv-skill-tag${isMatchedSkill(s) ? ' cv-skill-tag--match' : ''}`;
+    // Helper : tag cliquable — clic pour sélectionner / désélectionner
+    const tagEl = s => {
+      const matched = isMatchedSkill(s);
+      const sk = s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<span class="cv-skill-tag${matched ? ' cv-skill-tag--match' : ''} cv-skill-tag--toggle"
+        onclick="toggleSkillMatch('${sk}')"
+        title="${matched ? 'Désélectionner' : 'Sélectionner pour cette offre'}"
+        style="cursor:pointer">${esc(s)}${matched ? ' <span style="font-size:9px;opacity:.7">✓</span>' : ''}</span>`;
+    };
 
-    if (P.subdomains.length) {
+    // Helper : label de catégorie avec bouton +
+    const catLabel = (label, key) =>
+      `<div class="cv-skill-key" style="display:flex;align-items:center;gap:5px;white-space:nowrap">
+        ${label}
+        <button onclick="event.stopPropagation();window._openSkillPicker('${key}',this)"
+          style="flex-shrink:0;width:16px;height:16px;background:#e0e7ff;color:#4f46e5;border:none;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700">+</button>
+      </div>`;
+
+    if (P.subdomains.length || true) {
       html += `<div class="cv-skill-row">
-        <div class="cv-skill-key">Domaines</div>
-        <div class="cv-skill-tags">${P.subdomains.map(s => `<span class="${tagClass(s)}">${esc(s)}</span>`).join('')}</div>
+        ${catLabel('Domaines','subdomains')}
+        <div class="cv-skill-tags">${P.subdomains.map(tagEl).join('')}</div>
       </div>`;
     }
-    if (P.tools.length) {
+    if (P.tools.length || true) {
       html += `<div class="cv-skill-row">
-        <div class="cv-skill-key">Outils SC</div>
-        <div class="cv-skill-tags">${P.tools.map(s => `<span class="${tagClass(s)}">${esc(s)}</span>`).join('')}</div>
+        ${catLabel('Outils SC','tools')}
+        <div class="cv-skill-tags">${P.tools.map(tagEl).join('')}</div>
       </div>`;
     }
-    if (P.informatique.length) {
+    if (P.informatique.length || true) {
       html += `<div class="cv-skill-row">
-        <div class="cv-skill-key">Bureautique</div>
-        <div class="cv-skill-tags">${P.informatique.map(s => `<span class="${tagClass(s)}">${esc(s)}</span>`).join('')}</div>
+        ${catLabel('Bureautique','informatique')}
+        <div class="cv-skill-tags">${P.informatique.map(tagEl).join('')}</div>
       </div>`;
     }
     if (P.certifs.length) {
       html += `<div class="cv-skill-row">
         <div class="cv-skill-key">Certifications</div>
-        <div class="cv-skill-tags">${P.certifs.map(s => `<span class="${tagClass(s)}">${esc(s)}</span>`).join('')}</div>
+        <div class="cv-skill-tags">${P.certifs.map(tagEl).join('')}</div>
       </div>`;
     }
-    if (P.customSkills.length) {
+    if (P.customSkills.length || true) {
       html += `<div class="cv-skill-row">
-        <div class="cv-skill-key">Autres</div>
-        <div class="cv-skill-tags">${P.customSkills.map(s => `<span class="${tagClass(s)}">${esc(s)}</span>`).join('')}</div>
+        ${catLabel('Autres','customSkills')}
+        <div class="cv-skill-tags">${P.customSkills.map(tagEl).join('')}</div>
       </div>`;
     }
     html += `</div>`;
@@ -394,15 +490,150 @@ function renderCVAnalysis(ai, errors, warnings, container) {
   container.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// ── SKILL PICKER — panel flottant universel ───────────────
+const _SKILL_DB = {
+  subdomains:  () => SUBS,
+  tools:       () => TOOLS,
+  informatique:() => INFORMATIQUE,
+  certifs:     () => (typeof CERTS !== 'undefined' ? CERTS : []),
+  customSkills:() => []
+};
+
+window._openSkillPicker = function(key, btnEl) {
+  // Ferme si déjà ouvert pour ce bouton
+  const existing = document.getElementById('cv-skill-picker');
+  if (existing) {
+    if (existing.dataset.key === key) { existing.remove(); return; }
+    existing.remove();
+  }
+
+  const db      = (_SKILL_DB[key] || (() => []))();
+  const current = (P[key] || []).map(s => s.toLowerCase());
+  const avail   = db.filter(s => !current.includes(s.toLowerCase()));
+
+  const panel = document.createElement('div');
+  panel.id = 'cv-skill-picker';
+  panel.dataset.key = key;
+  panel.style.cssText = `position:fixed;z-index:9999;background:white;border:1px solid #e0e7ff;border-radius:10px;
+    box-shadow:0 8px 28px rgba(0,0,0,.15);padding:12px 14px;width:280px;max-height:320px;overflow-y:auto`;
+
+  // Positionne le panel sous le bouton
+  const rect = btnEl.getBoundingClientRect();
+  panel.style.top  = (rect.bottom + 6) + 'px';
+  panel.style.left = Math.max(8, rect.left - 120) + 'px';
+
+  let inner = `<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#6366f1;margin-bottom:8px">
+    Ajouter une compétence</div>`;
+
+  // Input libre
+  inner += `<div style="display:flex;gap:6px;margin-bottom:10px">
+    <input id="cv-sp-input" type="text" placeholder="Taper et Entrée…"
+      style="flex:1;border:1px solid #e0e7ff;border-radius:6px;padding:5px 8px;font-size:12.5px;outline:none;color:#1e293b"
+      onkeydown="if(event.key==='Enter'){window._addFromPicker('${key}');event.preventDefault()}" />
+    <button onclick="window._addFromPicker('${key}')"
+      style="background:#6366f1;color:white;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">+</button>
+  </div>`;
+
+  // Chips depuis la base
+  if (avail.length) {
+    inner += `<div style="font-size:10px;color:#94a3b8;margin-bottom:5px">Suggestions</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">`;
+    avail.forEach(s => {
+      const safe = s.replace(/'/g,"&#39;").replace(/"/g,'&quot;');
+      inner += `<span onclick="window._pickSkill('${key}','${s.replace(/'/g,"\\'")}',this)"
+        style="background:#f1f5f9;color:#374151;border:1px solid #e2e8f0;border-radius:100px;
+               padding:3px 10px;font-size:12px;cursor:pointer;transition:background .15s"
+        onmouseover="this.style.background='#e0e7ff';this.style.color='#4f46e5'"
+        onmouseout="this.style.background='#f1f5f9';this.style.color='#374151'">${esc(s)}</span>`;
+    });
+    inner += `</div>`;
+  }
+
+  panel.innerHTML = inner;
+  document.body.appendChild(panel);
+
+  // Focus input
+  setTimeout(() => { const inp = document.getElementById('cv-sp-input'); if (inp) inp.focus(); }, 30);
+
+  // Ferme au clic en dehors
+  const close = e => { if (!panel.contains(e.target) && e.target !== btnEl) { panel.remove(); document.removeEventListener('mousedown', close, true); } };
+  setTimeout(() => document.addEventListener('mousedown', close, true), 50);
+};
+
+window._pickSkill = function(key, val) {
+  if (!P[key]) P[key] = [];
+  const low = P[key].map(s => s.toLowerCase());
+  if (!low.includes(val.toLowerCase())) { P[key].push(val); ss('sc_profile', P); }
+  document.getElementById('cv-skill-picker')?.remove();
+  renderCV();
+  _syncSplitCV();
+};
+
+window._addFromPicker = function(key) {
+  const inp = document.getElementById('cv-sp-input');
+  const val = (inp?.value || '').trim();
+  if (!val) return;
+  if (!P[key]) P[key] = [];
+  const low = P[key].map(s => s.toLowerCase());
+  if (!low.includes(val.toLowerCase())) { P[key].push(val); ss('sc_profile', P); }
+  document.getElementById('cv-skill-picker')?.remove();
+  renderCV();
+  _syncSplitCV();
+};
+
+// Re-synchronise cv-doc-split avec cv-doc après un update
+function _syncSplitCV() {
+  const split = document.getElementById('cv-doc-split');
+  const main  = document.getElementById('cv-doc');
+  if (split && main) split.innerHTML = main.innerHTML;
+}
+
 function printCV() {
   if (!P.firstName) { toast('Renseigne ton prénom dans le profil'); return; }
-  const docHtml = document.getElementById('cv-doc').innerHTML;
+
+  // Utilise cv-doc-split (CV avec modifications de l'offre) si disponible, sinon cv-doc
+  const srcEl = document.getElementById('cv-doc-split') || document.getElementById('cv-doc');
+  if (!srcEl) return;
+
   let wrapper = document.getElementById('cv-print-wrapper');
   if (!wrapper) {
     wrapper = document.createElement('div');
     wrapper.id = 'cv-print-wrapper';
     document.body.appendChild(wrapper);
   }
-  wrapper.innerHTML = `<div class="cv-doc">${docHtml}</div>`;
-  setTimeout(() => window.print(), 80);
+  wrapper.innerHTML = `<div class="cv-doc">${srcEl.innerHTML}</div>`;
+
+  // Supprime les éléments interactifs (boutons +, toolbars) de la version imprimée
+  wrapper.querySelectorAll('button, #emphasis-toolbar, [id$="-picker"]').forEach(el => el.remove());
+
+  // Nom du fichier PDF = "Poste - Entreprise - Date" si une offre est ouverte
+  const originalTitle = document.title;
+  const candId = window._splitCandId;
+  if (candId) {
+    const c = ls('sc_cands', []).find(x => x.id === candId);
+    if (c) {
+      // Formate la date en jj-mm-aaaa
+      let dateStr = '';
+      if (c.date) {
+        const d = new Date(c.date);
+        if (!isNaN(d)) {
+          const jj = String(d.getDate()).padStart(2,'0');
+          const mm = String(d.getMonth()+1).padStart(2,'0');
+          const aaaa = d.getFullYear();
+          dateStr = `${jj}-${mm}-${aaaa}`;
+        } else {
+          dateStr = c.date; // garde la date telle quelle si pas parsable
+        }
+      }
+      const parts = [dateStr, c.poste, c.company].filter(Boolean);
+      if (parts.length) document.title = parts.join(' - ');
+    }
+  }
+
+  setTimeout(() => {
+    window.print();
+    // Restaure le titre original après l'impression
+    setTimeout(() => { document.title = originalTitle; }, 1000);
+  }, 80);
 }
+

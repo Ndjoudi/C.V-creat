@@ -28,12 +28,19 @@
       <div class="setup-step"><div class="sn"><i data-lucide="circle-user"></i></div>Profil SC</div>
       <div class="setup-step"><div class="sn"><i data-lucide="sparkles"></i></div>IA activée</div>
     </div>
+    <!-- Switch provider -->
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button id="setup-groq-btn" onclick="setupSetProvider('groq')" style="flex:1;padding:8px;border-radius:10px;border:2px solid #111;background:#111;color:white;font-size:13px;font-weight:700;cursor:pointer">Groq</button>
+      <button id="setup-gemini-btn" onclick="setupSetProvider('gemini')" style="flex:1;padding:8px;border-radius:10px;border:2px solid var(--border);background:none;color:var(--ink3);font-size:13px;font-weight:700;cursor:pointer">Gemini</button>
+    </div>
+
+    <!-- Champ clé dynamique -->
     <div class="fg">
-      <label class="lb" style="text-align:left;display:block;margin-bottom:6px">Clé API Groq (gratuite)</label>
+      <label class="lb" id="setup-key-label" style="text-align:left;display:block;margin-bottom:6px">Clé API Groq (gratuite)</label>
       <input id="key-input" class="inp" type="password" placeholder="gsk_..."/>
     </div>
     <button class="btn btn-p" id="key-btn" onclick="saveKey()" style="width:100%;justify-content:center;padding:12px 18px;font-size:15px">Démarrer <i data-lucide="arrow-right" style="width:16px;height:16px"></i></button>
-    <div class="note">Gratuit, fonctionne en France. Va sur <a class="alink" href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> → crée un compte → "Create API key" → copie ta clé ici.</div>
+    <div class="note" id="setup-key-note">Gratuit, fonctionne en France. Va sur <a class="alink" href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> → crée un compte → "Create API key" → copie ta clé ici.</div>
   </div>
 </div>
 
@@ -79,6 +86,19 @@
         <button class="btn-icon" onclick="exportAllData()" title="Exporter toutes les données"><i data-lucide="upload"></i></button>
         <button class="btn-icon" onclick="importAllData()" title="Importer une sauvegarde"><i data-lucide="download"></i></button>
       </div>
+      <!-- Provider selector -->
+      <div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:10px;border:1px solid var(--border)">
+        <div style="font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">🤖 Modèle IA</div>
+        <div style="display:flex;gap:5px;margin-bottom:8px">
+          <button id="provider-groq-btn" onclick="setProvider('groq')" style="flex:1;font-size:11px;padding:4px 6px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-weight:600;transition:all .15s">Groq</button>
+          <button id="provider-gemini-btn" onclick="setProvider('gemini')" style="flex:1;font-size:11px;padding:4px 6px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-weight:600;transition:all .15s">Gemini</button>
+        </div>
+        <div id="gemini-key-row" style="display:none;gap:5px">
+          <input id="gemini-key-input" type="password" placeholder="AIza..." class="inp" style="font-size:11px;padding:5px 8px;flex:1"/>
+          <button onclick="saveGeminiKey()" style="font-size:11px;padding:5px 8px;border-radius:6px;border:none;background:#10b981;color:white;cursor:pointer;font-weight:600;white-space:nowrap">Sauver</button>
+        </div>
+        <div id="gemini-key-saved" style="display:none;font-size:11px;color:#10b981;font-weight:600">✓ Clé Gemini enregistrée</div>
+      </div>
     </div>
   </div>
 
@@ -101,6 +121,27 @@
           <div class="psub">Ton copilote de carrière supply chain propulsé par l'IA</div>
         </div>
       </div>
+
+      <!-- Formulaire Nouvelle candidature direct -->
+      <div class="card" style="margin-bottom:14px;padding:14px 16px">
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:700;color:var(--ink)">Nouvelle candidature</span>
+          <span style="font-size:11.5px;color:var(--ink3)">Colle l'annonce — le poste et l'entreprise se remplissent automatiquement</span>
+        </div>
+        <textarea class="inp" id="dash-paste-text" rows="2"
+          placeholder="Colle ici le texte de l'annonce..."
+          style="resize:none;font-size:12px;margin-bottom:4px;padding:8px 10px"
+          onpaste="scheduleDashPasteAnalysis()"></textarea>
+        <div id="dash-paste-status" style="font-size:11px;margin-bottom:8px;min-height:14px;line-height:1.5;color:var(--ink3)"></div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div class="fg" style="flex:2;min-width:120px;margin:0"><label class="lb" style="font-size:10px">POSTE</label><input class="inp" id="dash-poste" placeholder="Responsable Logistique" style="padding:6px 10px;font-size:12px"/></div>
+          <div class="fg" style="flex:2;min-width:120px;margin:0"><label class="lb" style="font-size:10px">ENTREPRISE</label><input class="inp" id="dash-co" placeholder="Carrefour" style="padding:6px 10px;font-size:12px"/></div>
+          <div class="fg" style="flex:1;min-width:110px;margin:0"><label class="lb" style="font-size:10px">DATE</label><input class="inp" id="dash-date" type="date" style="padding:6px 10px;font-size:12px"/></div>
+          <button class="btn btn-p" onclick="addCandFromDash()" style="font-size:12.5px;padding:7px 16px;flex-shrink:0;align-self:flex-end">Enregistrer</button>
+        </div>
+        <div id="dash-analysis-result" class="hidden"></div>
+      </div>
+
       <div id="dash-stats"></div>
     </div>
 
@@ -248,18 +289,57 @@
       </div>
       <!-- TAB SKILLS -->
       <div id="tab-skills" class="hidden">
-        <div class="card"><div class="ctitle">Sous-domaines Supply Chain</div><div class="chips" id="chips-subs"></div></div>
-        <div class="card"><div class="ctitle">Outils et Logiciels</div><div class="chips" id="chips-tools"></div></div>
-        <div class="card"><div class="ctitle">Certifications</div><div class="chips" id="chips-certs"></div></div>
-        <div class="card"><div class="ctitle">Secteurs d'activité</div><div class="chips" id="chips-sects"></div></div>
+
         <div class="card">
-          <div class="ctitle-row"><span class="ctitle">Compétences personnalisées</span><button class="btn-ai" onclick="addCustomSkill()">+ Ajouter</button></div>
-          <div class="chips" id="chips-custom"></div>
-          <div id="custom-skill-form" class="hidden" style="margin-top:12px;display:flex;gap:8px">
-            <input class="inp" id="custom-skill-inp" placeholder="Ex: Gestion de projet Agile, RGPD..." style="flex:1"/>
-            <button class="btn btn-p" onclick="saveCustomSkill()">Ajouter</button>
+          <div class="ctitle-row"><span class="ctitle">Sous-domaines Supply Chain</span><button class="btn-ai" onclick="showAddChip('subs')">+ Ajouter</button></div>
+          <div class="chips" id="chips-subs"></div>
+          <div id="add-chip-subs" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-subs-inp" placeholder="Ex: Reverse Logistics, Trade Finance..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('subdomains','subs')"/>
+            <button class="btn btn-p" onclick="saveAddChip('subdomains','subs')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('subs')">Annuler</button>
           </div>
         </div>
+
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Outils et Logiciels</span><button class="btn-ai" onclick="showAddChip('tools')">+ Ajouter</button></div>
+          <div class="chips" id="chips-tools"></div>
+          <div id="add-chip-tools" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-tools-inp" placeholder="Ex: Coupa, Ariba, Esker, Monday..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('tools','tools')"/>
+            <button class="btn btn-p" onclick="saveAddChip('tools','tools')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('tools')">Annuler</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Certifications</span><button class="btn-ai" onclick="showAddChip('certs')">+ Ajouter</button></div>
+          <div class="chips" id="chips-certs"></div>
+          <div id="add-chip-certs" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-certs-inp" placeholder="Ex: AWS Cloud Practitioner, DELF B2..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('certifs','certs')"/>
+            <button class="btn btn-p" onclick="saveAddChip('certifs','certs')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('certs')">Annuler</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Secteurs d'activité</span><button class="btn-ai" onclick="showAddChip('sects')">+ Ajouter</button></div>
+          <div class="chips" id="chips-sects"></div>
+          <div id="add-chip-sects" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-sects-inp" placeholder="Ex: Défense, Télécommunications, Navale..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('sectors','sects')"/>
+            <button class="btn btn-p" onclick="saveAddChip('sectors','sects')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('sects')">Annuler</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Compétences personnalisées</span><button class="btn-ai" onclick="showAddChip('custom')">+ Ajouter</button></div>
+          <div class="chips" id="chips-custom"></div>
+          <div id="add-chip-custom" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-custom-inp" placeholder="Ex: Gestion de projet Agile, RGPD, Lean..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('customSkills','custom')"/>
+            <button class="btn btn-p" onclick="saveAddChip('customSkills','custom')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('custom')">Annuler</button>
+          </div>
+        </div>
+
       </div>
       <!-- TAB EXP -->
       <div id="tab-exp" class="hidden">
@@ -283,9 +363,17 @@
 
         <!-- Bureautique & Informatique -->
         <div class="card" style="margin-bottom:16px">
-          <div class="section-hdg"><i data-lucide="monitor" style="width:13px;height:13px"></i>Bureautique & Informatique</div>
-          <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">Logiciels bureautiques, outils collaboratifs, IA générative...</div>
+          <div class="ctitle-row">
+            <div class="section-hdg" style="margin:0"><i data-lucide="monitor" style="width:13px;height:13px"></i>Bureautique & Informatique</div>
+            <button class="btn-ai" onclick="showAddChip('info')">+ Ajouter</button>
+          </div>
+          <div style="font-size:12px;color:var(--ink3);margin:6px 0 10px">Logiciels bureautiques, outils collaboratifs, IA générative...</div>
           <div class="chips" id="chips-info"></div>
+          <div id="add-chip-info" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-info-inp" placeholder="Ex: Figma, Jira, Asana, Power Automate..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('informatique','info')"/>
+            <button class="btn btn-p" onclick="saveAddChip('informatique','info')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('info')">Annuler</button>
+          </div>
         </div>
 
         <!-- Centres d'intérêt -->
@@ -458,7 +546,7 @@
             <div class="fg"><label class="lb">Date</label>     <input class="inp" id="f-date"  type="date"/></div>
             <div class="fg"><label class="lb">Statut</label>
               <select class="inp" id="f-status">
-                <option>Envoyée</option><option>En cours</option><option>Entretien</option><option>Offre reçue</option><option>Refusée</option>
+                <option>Analysé</option><option>Envoyé</option><option>Message in</option><option>Entretien</option><option>Refusé</option>
               </select>
             </div>
           </div>
@@ -576,16 +664,44 @@
   </div>
 </div>
 
+<!-- ── SPLIT VIEW MODAL (offre + CV côte à côte) ────────── -->
+<div id="split-modal-overlay" class="hidden" style="position:fixed;inset:0;z-index:1200;display:flex;flex-direction:column;background:var(--bg)">
+  <!-- Top bar -->
+  <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1.5px solid var(--border);background:white;flex-shrink:0">
+    <button onclick="closeSplitView()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:13px;padding:5px 12px;font-weight:600;display:flex;align-items:center;gap:5px">← Retour</button>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:800;color:var(--ink)" id="split-modal-title"></div>
+      <div style="font-size:11.5px;color:var(--ink3)" id="split-modal-sub"></div>
+    </div>
+    <div id="split-modal-score"></div>
+    <button id="split-reanalyze-btn" onclick="reanalyzeSplitView()" style="background:#6366f1;border:none;border-radius:8px;cursor:pointer;color:white;font-size:12.5px;padding:5px 14px;font-weight:600;display:flex;align-items:center;gap:6px"><i data-lucide="refresh-cw" style="width:13px;height:13px"></i> Comparer avec mon profil</button>
+    <button id="cv-edit-btn" onclick="toggleCVEditMode()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">✏️ Modifier le CV</button>
+    <button onclick="loadCVForCand(window._splitCandId, true)" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">⬇ PDF</button>
+  </div>
+  <!-- Two panels -->
+  <div style="display:flex;flex:1;overflow:hidden">
+    <!-- Left: analyse + offre -->
+    <div id="split-left-panel" style="width:50%;height:100%;overflow-y:auto;padding:24px 28px;border-right:1.5px solid var(--border);background:white"></div>
+    <!-- Right: CV adapté -->
+    <div style="width:50%;height:100%;overflow-y:auto;background:#F1F5F9;display:flex;flex-direction:column;align-items:center;padding:24px 20px">
+      <div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;display:flex;align-items:center;gap:10px;width:100%;max-width:680px">
+        <span style="flex:1">CV adapté à cette offre · éléments surlignés = correspondances</span>
+      </div>
+      <div id="split-right-panel" style="width:100%;max-width:680px"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=35"></script>
-<script src="js/app.js?v=36"></script>
-<script src="js/profile.js?v=35"></script>
+<script src="js/api.js?v=36"></script>
+<script src="js/app.js?v=50"></script>
+<script src="js/profile.js?v=49"></script>
 <script src="js/import-cv.js?v=35"></script>
-<script src="js/cv.js?v=35"></script>
+<script src="js/cv.js?v=37"></script>
 <script src="js/analyze.js?v=35"></script>
 <script src="js/interview.js?v=35"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=36"></script>
+<script src="js/tracker.js?v=78"></script>
 <script src="js/modal.js?v=35"></script>
 
 </body>

@@ -3,6 +3,88 @@ let _trackerFilter    = 'Tous';
 let _pasteTimer       = null;
 let _lastAnalysisResult = null;   // gardé pour addCand()
 
+// ── DASHBOARD PASTE ────────────────────────────────────────
+let _dashPasteTimer        = null;
+let _dashLastAnalysisResult = null;
+
+function scheduleDashPasteAnalysis() {
+  clearTimeout(_dashPasteTimer);
+  _dashPasteTimer = setTimeout(runDashPasteAnalysis, 600);
+}
+
+async function runDashPasteAnalysis() {
+  const ta     = document.getElementById('dash-paste-text');
+  const status = document.getElementById('dash-paste-status');
+  const text   = ta.value.trim();
+  if (text.length < 30) return;
+
+  _dashLastAnalysisResult = null;
+  ta.dataset.desc = text;
+
+  // Un seul appel IA — doAnalyzeCore remplit aussi poste/entreprise
+  if (!P.firstName) {
+    status.style.color = 'var(--ink3)';
+    status.textContent = '⚠ Complète ton profil d\'abord pour lancer l\'analyse';
+    return;
+  }
+
+  status.style.color = 'var(--ink3)';
+  status.innerHTML = '<span class="sp" style="width:12px;height:12px;display:inline-block;margin-right:6px;vertical-align:-2px"></span>Analyse en cours...';
+
+  const analysisEl = document.getElementById('dash-analysis-result');
+  analysisEl.classList.remove('hidden');
+  analysisEl.innerHTML = `
+    <div style="border-top:1px solid var(--teal-border);margin:14px 0 12px"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px;display:flex;align-items:center;gap:7px">
+      <span class="sp" style="width:13px;height:13px;flex-shrink:0"></span>Analyse IA en cours...
+    </div>`;
+  try {
+    _dashLastAnalysisResult = await doAnalyzeCore(text, analysisEl);
+    const r = _dashLastAnalysisResult;
+    // Affiche le résumé dans la status bar
+    const parts = [r.poste, r.entreprise, r.location, r.contractType, r.salary].filter(Boolean);
+    status.style.color = 'var(--teal-d)';
+    status.innerHTML = `<strong>✓</strong> ${esc(parts.join(' · '))}`;
+    const hdr = analysisEl.querySelector('.tracker-analysis-hdr');
+    if (hdr) hdr.remove();
+  } catch(e) {
+    status.style.color = 'var(--red)';
+    status.textContent = '⚠ ' + (e.message || 'Analyse échouée');
+    analysisEl.innerHTML += `<div style="color:var(--red);font-size:13px;padding:4px 0">⚠ ${e.message || 'Analyse échouée — l\'annonce reste enregistrée sans score.'}</div>`;
+  }
+}
+
+function addCandFromDash() {
+  const co    = document.getElementById('dash-co').value.trim();
+  const poste = document.getElementById('dash-poste').value.trim();
+  if (!co || !poste) { toast('Remplis le poste et l\'entreprise'); return; }
+  const cands  = ls('sc_cands', []);
+  const pasteEl = document.getElementById('dash-paste-text');
+  cands.push({
+    id: Date.now().toString(),
+    company: co, poste,
+    date:           document.getElementById('dash-date').value,
+    status:         'À traiter',
+    notes:          '',
+    indeedUrl:      '',
+    jobDescription: pasteEl?.dataset.desc || '',
+    score:          null,   // Score affiché uniquement après comparaison manuelle
+    analysis:       null    // Idem — pas d'analyse auto à l'ajout
+  });
+  ss('sc_cands', cands);
+  pasteEl.value = '';
+  delete pasteEl.dataset.desc;
+  document.getElementById('dash-poste').value  = '';
+  document.getElementById('dash-co').value     = '';
+  document.getElementById('dash-paste-status').textContent = '';
+  const analysisEl = document.getElementById('dash-analysis-result');
+  if (analysisEl) { analysisEl.innerHTML = ''; analysisEl.classList.add('hidden'); }
+  _dashLastAnalysisResult = null;
+  refreshDash();
+  refreshBadges();
+  toast('Candidature ajoutée ✓');
+}
+
 function renderTracker() {
   const cands = ls('sc_cands', []);
 
@@ -33,8 +115,8 @@ function renderTracker() {
       <tbody>${visible.map(c => {
         const [col, bg, border] = STAT_COLORS[c.status] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
 
-        // Score badge
-        const sc = c.score;
+        // Score badge — priorité à l'analyse la plus récente
+        const sc = c.analysis?.score_global ?? c.score;
         let scoreBadge = '<span style="opacity:.35;font-size:12px">—</span>';
         if (sc !== null && sc !== undefined) {
           const sc_col = sc >= 70 ? 'var(--teal)' : sc >= 50 ? '#D97706' : 'var(--red)';
@@ -80,7 +162,6 @@ function addCand() {
   const cands = ls('sc_cands', []);
   const indeedUrlEl = document.getElementById('f-indeed-url');
   const pasteEl     = document.getElementById('f-paste-text');
-  const score       = _lastAnalysisResult?.score_global ?? _lastAnalysisResult?.score ?? null;
   cands.push({
     id: Date.now().toString(),
     company: co, poste,
@@ -89,8 +170,8 @@ function addCand() {
     notes:          document.getElementById('f-notes').value.trim(),
     indeedUrl:      indeedUrlEl?.value.trim() || '',
     jobDescription: pasteEl?.dataset.desc || '',
-    score,
-    analysis:       _lastAnalysisResult || null
+    score:          null,   // Score uniquement après comparaison manuelle
+    analysis:       null    // Analyse uniquement après comparaison manuelle
   });
   ss('sc_cands', cands);
   document.getElementById('f-co').value    = '';
@@ -145,7 +226,7 @@ async function runPasteAnalysis() {
     return;
   }
 
-  ta.dataset.desc = text.substring(0, 2000);
+  ta.dataset.desc = text;
 
   // ── Étape 2 : analyse IA complète (score, mots-clés, bullets, lettre) ──
   if (!P.firstName) return;   // profil vide → pas d'analyse
@@ -165,7 +246,7 @@ async function runPasteAnalysis() {
     const hdr = analysisEl.querySelector('.tracker-analysis-hdr');
     if (hdr) hdr.remove();
   } catch(e) {
-    analysisEl.innerHTML += `<div style="color:var(--red);font-size:13px;padding:4px 0">⚠ Analyse échouée — l'annonce reste enregistrée sans score.</div>`;
+    analysisEl.innerHTML += `<div style="color:var(--red);font-size:13px;padding:4px 0">⚠ ${e.message || 'Analyse échouée — l\'annonce reste enregistrée sans score.'}</div>`;
   }
 }
 
@@ -236,6 +317,7 @@ function delCand(id) {
   ss('sc_cands', ls('sc_cands', []).filter(x => x.id !== id));
   renderTracker();
   refreshBadges();
+  if (typeof refreshDash === 'function') refreshDash();
   toast('Candidature supprimée');
 }
 
@@ -262,6 +344,1483 @@ function openNoteModal(company, poste, notes) {
 function closeNoteModal() {
   const el = document.getElementById('note-modal-overlay');
   if (el) el.classList.add('hidden');
+}
+
+// ── SPLIT VIEW ─────────────────────────────────────────────
+
+// Extraction structurée de l'annonce via Groq
+async function _fetchJobInfo(jobText) {
+  try {
+    const raw = await callGroq(
+      `Extrais les informations structurées de cette annonce d'emploi.\nPour "descriptionText" : retourne UNIQUEMENT le texte des missions/responsabilités/profil recherché, sans répéter le titre, la société, le salaire, le lieu, le contrat ou les avantages déjà extraits. Max 1500 caractères.\n\nANNONCE:\n${jobText.substring(0,4000)}\n\nRéponds UNIQUEMENT en JSON valide:\n{"title":"","company":"","location":"","salary":"","contractType":"","remote":"","benefits":[],"rating":"","descriptionText":""}`,
+      { maxTokens: 800, temperature: 0 }
+    );
+    return safeParseJSON(raw);
+  } catch { return {}; }
+}
+
+// Trajet depuis Créteil via Nominatim + OSRM
+async function _getCommuteFromCreteil(location) {
+  if (!location) return null;
+  try {
+    const geoRes  = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location + ', France')}&format=json&limit=1`, { headers:{'User-Agent':'SupplyCopilot/1.0','Accept-Language':'fr'} });
+    const geoData = await geoRes.json();
+    if (!geoData.length) return null;
+    const toLat = parseFloat(geoData[0].lat), toLng = parseFloat(geoData[0].lon);
+    const fromLat = 48.7773, fromLng = 2.4558; // Créteil centre
+    const osrmRes  = await fetch(`https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`);
+    const osrmData = await osrmRes.json();
+    if (osrmData.code !== 'Ok') return null;
+    const min = Math.round(osrmData.routes[0].duration / 60);
+    const km  = Math.round(osrmData.routes[0].distance / 100) / 10;
+    const mapsBase = `https://www.google.com/maps/dir/Créteil,94000,France/${encodeURIComponent(location + ', France')}`;
+    return { min, km, mapsBase };
+  } catch { return null; }
+}
+
+// ── STRIP HEADER INDEED/LINKEDIN POUR L'AFFICHAGE ──────────
+// Retire les métadonnées du début (titre, salaire, lieu, CDI...) et le footer
+// Utilisé uniquement pour l'affichage — PAS pour l'IA
+function _stripJobHeader(rawText) {
+  const lines = rawText.split('\n');
+
+  const boilerplate = [
+    /^\s*détails de l.emploi\s*$/i,
+    /^\s*trajet estimé\s*$/i,
+    /^\s*job address\s*$/i,
+    /^\s*type de poste\s*$/i,
+    /^\s*correspondance entre ce poste et votre profil\.?\s*$/i,
+    /^\s*extraits de la description (complète|complete) du poste\s*$/i,
+    /^\s*(salaire|lieu|horaires|formation|langues|permis|avantages?)\s*$/i,
+    /^\s*(postuler|enregistrer|signaler|partager)\s*$/i,
+    /^\s*\d[\d\s,\.]*\s*€.*$/i,
+    /^\s*(cdi|cdd|intérim|interim|stage|alternance|temps plein|temps partiel|freelance)\s*$/i,
+    /^\s*(présentiel|télétravail|teletravail|hybride)\s*$/i,
+    /^\s*\+\s*\d+\s*avantages?\s*$/i,
+    /^\s*(il y a \d+|aujourd.hui|today)\s*/i,
+    /^\s*\d+\s*(avis|offres?|emplois?)\s*$/i,
+    /^\s*[⭐★•·\-–—]+\s*$/,
+    /^\s*\d+\s*minutes?\s+depuis\s+/i,
+  ];
+
+  const startMarkers = [
+    /^(description du poste|description de poste|à propos du poste|le poste\b)/i,
+    /^(vos missions?|missions? principales?|nous recherchons|votre mission|votre rôle)/i,
+    /^(contexte\b|présentation du poste|rattaché|au sein de|dans le cadre de)/i,
+    /^(qui sommes.nous|about the role|job description)/i,
+  ];
+
+  let startIdx = 0;
+  for (let i = 0; i < Math.min(lines.length, 40); i++) {
+    const t = lines[i].trim();
+    if (!t) { startIdx = i + 1; continue; }
+    if (startMarkers.some(p => p.test(t))) { startIdx = i + 1; break; }
+    if (boilerplate.some(p => p.test(t))) { startIdx = i + 1; continue; }
+    // Ligne courte dans les 25 premières → probable boilerplate Indeed
+    if (i < 25 && t.length <= 60) { startIdx = i + 1; continue; }
+    startIdx = i; break;
+  }
+
+  // Coupe le footer
+  const footer = /^\s*(avantages?|postuler|postulez|enregistrer|signaler|partager|extraits de la description|correspondance entre ce poste|pourquoi nous rejoindre)\s*$/i;
+  const body = lines.slice(startIdx);
+  let endIdx = body.length;
+  for (let i = 0; i < body.length; i++) {
+    if (footer.test(body[i].trim())) { endIdx = i; break; }
+  }
+  return body.slice(0, endIdx).join('\n').trim();
+}
+
+// ── NETTOYAGE TEXTE POUR L'IA ──────────────────────────────
+// Pipeline v=68 :
+//   1. _stripJobHeader()  → retire le header Indeed (titre, salaire, lieu…)
+//   2. Coupe avant "avantages / postuler / nous offrons"
+//   3. slice(0, 4000)     → tronque si trop long
+// → envoie uniquement : Description + Vos missions + Profil
+function _cleanOfferForAI(rawText) {
+  // Étape 1 : retire le header Indeed
+  const stripped = _stripJobHeader(rawText);
+
+  // Étape 2 : coupe le footer (avantages, postuler, etc.)
+  const footers = /^\s*(avantages?|postuler|postulez|pour postuler|comment postuler|envoyer (votre|ma) candidature|nous offrons|pourquoi nous rejoindre|partager|enregistrer|signaler|extraits de la description|correspondance entre ce poste)\s*$/i;
+  const lines = stripped.split('\n');
+  const kept = [];
+  for (const line of lines) {
+    if (footers.test(line.trim())) break;
+    kept.push(line);
+  }
+
+  return kept.join('\n').trim().slice(0, 4000);
+}
+
+
+
+// ── RE-RENDER CV PANNEAU DROIT (après update mots-clés) ────
+// Applique les overrides per-offre avant le rendu si disponibles
+let _pSnapshot = null;
+
+function _getCVOverrides(candId) {
+  const c = ls('sc_cands', []).find(x => x.id === candId);
+  return c?.cv_overrides ? JSON.parse(JSON.stringify(c.cv_overrides)) : {};
+}
+
+function _saveCVOverrides(candId, overrides) {
+  const cands = ls('sc_cands', []);
+  const idx = cands.findIndex(x => x.id === candId);
+  if (idx === -1) return;
+  cands[idx].cv_overrides = overrides;
+  ss('sc_cands', cands);
+}
+
+function _applyOverridesToP(overrides) {
+  if (!overrides || !Object.keys(overrides).length) return false;
+  // Snapshot profond de l'état courant
+  _pSnapshot = {
+    summaryTarget:   P.summaryTarget,
+    experiences:     JSON.parse(JSON.stringify(P.experiences)),
+    _cvTarget:       _cvTarget,
+    domainesProfile: P.domainesProfile
+  };
+  // Titre du poste
+  if (overrides.title) {
+    _cvTarget = overrides.title;
+    localStorage.setItem('sc_cv_target', _cvTarget);
+  }
+  // Résumé personnalisé
+  if (overrides.summaryTarget !== undefined) {
+    P.summaryTarget = overrides.summaryTarget;
+  }
+  // Phrase d'accroche adaptée à l'offre
+  if (overrides.domainesProfile !== undefined) {
+    P.domainesProfile = overrides.domainesProfile;
+  }
+  // Expériences : masquées + overrides de contenu
+  if (overrides.hiddenExpIndices?.length || overrides.expOverrides) {
+    P.experiences = P.experiences
+      .map((e, origIdx) => ({ ...e, _origIdx: origIdx }))
+      .filter(e => !(overrides.hiddenExpIndices || []).includes(e._origIdx))
+      .map(e => {
+        const ov = overrides.expOverrides?.[e._origIdx];
+        if (!ov) return e;
+        const bullets = ov.overrideAllBullets !== undefined
+          ? ov.overrideAllBullets.map(t => ({ text: t, selected: true, required: false }))
+          : (e.bullets || []);
+        return {
+          ...e,
+          description: ov.description !== undefined ? ov.description : e.description,
+          bullets
+        };
+      });
+  }
+  return true;
+}
+
+function _restoreP() {
+  if (!_pSnapshot) return;
+  P.summaryTarget   = _pSnapshot.summaryTarget;
+  P.experiences     = _pSnapshot.experiences;
+  _cvTarget         = _pSnapshot._cvTarget;
+  P.domainesProfile = _pSnapshot.domainesProfile;
+  localStorage.setItem('sc_cv_target', _cvTarget);
+  _pSnapshot = null;
+}
+
+function _refreshSplitCV() {
+  if (typeof renderCV !== 'function') return;
+  // Applique les overrides si une offre est ouverte
+  const candId   = window._splitCandId;
+  const overrides = candId ? _getCVOverrides(candId) : null;
+  const applied   = overrides && Object.keys(overrides).length ? _applyOverridesToP(overrides) : false;
+
+  renderCV();
+  if (applied) _restoreP();
+
+  const cvDoc      = document.getElementById('cv-doc');
+  const rightPanel = document.getElementById('split-right-panel');
+  if (!cvDoc || !rightPanel) return;
+  const cloneHtml = cvDoc.outerHTML.replace(/\bid="cv-doc"[^>]*/, 'id="cv-doc-split"');
+  rightPanel.innerHTML = `<div style="box-shadow:0 6px 32px rgba(0,0,0,.13);border-radius:6px;overflow:hidden">${cloneHtml}</div>`;
+
+  if (applied) renderCV(); // Restaure le cv-doc principal (sans overrides)
+
+  // Ré-applique les emphases visuelles (badges/soulignements) après le re-render
+  if (candId) setTimeout(() => _applyEmphases(candId), 0);
+}
+
+// ── MISE EN AVANT MANUELLE (sélection texte → badge ou souligné) ──────
+// Initialise la détection de sélection sur le panneau CV droit.
+// Utilise la délégation sur #split-right-panel (persiste entre re-renders).
+function _setupEmphasisSelection() {
+  const rightPanel = document.getElementById('split-right-panel');
+  if (!rightPanel || rightPanel._emphasisReady) return;
+  rightPanel._emphasisReady = true;
+
+  rightPanel.addEventListener('mouseup', () => {
+    // Petite pause pour laisser le navigateur finaliser la sélection
+    setTimeout(() => {
+      const sel = window.getSelection();
+      const text = (sel?.toString() || '').trim();
+
+      // Retire le toolbar si sélection vide
+      if (!text || text.length < 2) {
+        document.getElementById('emphasis-toolbar')?.remove();
+        return;
+      }
+
+      // Vérifie que la sélection est bien dans #cv-doc-split
+      const cvSplit = document.getElementById('cv-doc-split');
+      if (!cvSplit) return;
+      const range = sel.getRangeAt(0);
+      if (!cvSplit.contains(range.commonAncestorContainer)) return;
+
+      _showEmphasisToolbar(text, range);
+    }, 30);
+  });
+}
+
+// Affiche la barre flottante de mise en avant
+function _showEmphasisToolbar(text, range) {
+  document.getElementById('emphasis-toolbar')?.remove();
+
+  // Détecte dans quelle expérience la sélection a été faite (pour scope limité)
+  const anchor = range.commonAncestorContainer;
+  const closestExp = (anchor.nodeType === 3 ? anchor.parentElement : anchor)
+    ?.closest?.('.cv-exp[data-exp-idx]');
+  const expIdx = closestExp ? parseInt(closestExp.dataset.expIdx) : null;
+
+  const rect = range.getBoundingClientRect();
+  const toolbar = document.createElement('div');
+  toolbar.id = 'emphasis-toolbar';
+  toolbar.style.cssText = [
+    `position:fixed;z-index:1400`,
+    `top:${Math.max(rect.top - 50, 8)}px`,
+    `left:${rect.left + rect.width / 2}px`,
+    `transform:translateX(-50%)`,
+    `background:white;border:1.5px solid #6366f1;border-radius:10px`,
+    `padding:6px 10px;box-shadow:0 6px 24px rgba(99,102,241,.22)`,
+    `display:flex;align-items:center;gap:7px;white-space:nowrap`
+  ].join(';');
+
+  toolbar.innerHTML = `
+    <span style="font-size:11px;color:#6b7280;font-weight:700">Mettre en avant :</span>
+    <button data-em="pill"
+      style="background:#ede9fe;color:#5b21b6;border:1px solid #ddd6fe;border-radius:100px;padding:3px 11px;font-size:12px;font-weight:700;cursor:pointer">
+      💊 Badge
+    </button>
+    <button data-em="underline"
+      style="background:none;border:none;color:#111;font-size:12.5px;font-weight:800;border-bottom:2.5px solid #6366f1;padding:2px 4px 1px;cursor:pointer;line-height:1.2">
+      <u style="text-decoration:none">A</u>̲ Souligné
+    </button>
+    <span style="color:#d1d5db;font-size:16px;line-height:1">|</span>
+    <button data-em="remove"
+      style="background:none;border:none;color:#9ca3af;font-size:11px;cursor:pointer;padding:2px 4px;font-weight:600"
+      title="Retirer la mise en avant sur ce texte">✕</button>`;
+
+  document.body.appendChild(toolbar);
+
+  // Clic sur une option
+  toolbar.querySelectorAll('button[data-em]').forEach(btn => {
+    btn.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const type = btn.dataset.em;
+      const candId = window._splitCandId;
+      if (!candId) return;
+
+      const overrides = _getCVOverrides(candId);
+      if (!overrides.emphases) overrides.emphases = [];
+
+      if (type === 'remove') {
+        overrides.emphases = overrides.emphases.filter(em =>
+          !(em.text.toLowerCase() === text.toLowerCase() &&
+            (em.expIdx === expIdx || (em.expIdx == null && expIdx == null)))
+        );
+      } else {
+        // Évite les doublons (même texte + même scope)
+        overrides.emphases = overrides.emphases.filter(em =>
+          !(em.text.toLowerCase() === text.toLowerCase() && em.expIdx === expIdx)
+        );
+        // expIdx = null → s'applique à toute la section où on a sélectionné
+        overrides.emphases.push({ text, type, expIdx });
+      }
+
+      _saveCVOverrides(candId, overrides);
+      toolbar.remove();
+      window.getSelection()?.removeAllRanges();
+      _applyEmphases(candId);
+    });
+  });
+
+  // Ferme si clic ailleurs
+  const closeHandler = e => {
+    if (!toolbar.contains(e.target)) {
+      toolbar.remove();
+      document.removeEventListener('mousedown', closeHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener('mousedown', closeHandler), 80);
+}
+
+// Applique les emphases sauvegardées sur #cv-doc-split
+// Chaque emphase est scopée à son expérience d'origine (em.expIdx)
+function _applyEmphases(candId) {
+  const overrides = _getCVOverrides(candId);
+  const emphases  = overrides.emphases || [];
+  const cvSplit   = document.getElementById('cv-doc-split');
+  if (!cvSplit || !emphases.length) return;
+
+  emphases.forEach(em => {
+    // Si l'emphase était dans une expérience précise → scope limité à ce bloc
+    let target = cvSplit;
+    if (em.expIdx !== null && em.expIdx !== undefined) {
+      target = cvSplit.querySelector(`.cv-exp[data-exp-idx="${em.expIdx}"]`) || cvSplit;
+    }
+    _wrapPhrase(target, em.text, em.type, candId);
+  });
+}
+
+// Entoure toutes les occurrences d'une phrase dans un container
+function _wrapPhrase(container, phrase, type, candId) {
+  if (!phrase) return;
+  const phraseLow = phrase.toLowerCase();
+
+  // Styles visuels
+  const pillStyle       = 'background:#ede9fe;color:#5b21b6;border-radius:100px;padding:1px 9px;font-weight:700;font-size:.92em;border:1px solid #ddd6fe;cursor:pointer';
+  const underlineStyle  = 'font-weight:800;border-bottom:2.5px solid #6366f1;padding-bottom:1px;cursor:pointer';
+
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+    acceptNode: n => {
+      // Ignore les textes déjà dans un span d'emphase
+      if (n.parentElement?.dataset?.emphasis) return NodeFilter.FILTER_REJECT;
+      return n.textContent.toLowerCase().includes(phraseLow)
+        ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    }
+  });
+
+  const nodes = [];
+  let node;
+  while ((node = walker.nextNode())) nodes.push(node);
+
+  nodes.forEach(textNode => {
+    const content = textNode.textContent;
+    const idx     = content.toLowerCase().indexOf(phraseLow);
+    if (idx === -1) return;
+
+    const before = content.slice(0, idx);
+    const match  = content.slice(idx, idx + phrase.length);
+    const after  = content.slice(idx + phrase.length);
+
+    const span = document.createElement('span');
+    span.dataset.emphasis = type;
+    span.textContent      = match;
+    span.title            = '✕ Clic pour retirer';
+    span.style.cssText    = type === 'pill' ? pillStyle : underlineStyle;
+    span.onclick = e => {
+      e.stopPropagation();
+      // 1. Suppression immédiate du span dans le DOM (feedback visuel instantané)
+      const frag = document.createTextNode(span.textContent);
+      span.parentNode?.replaceChild(frag, span);
+      // 2. Met à jour les overrides sauvegardés
+      const ov = _getCVOverrides(candId);
+      ov.emphases = (ov.emphases || []).filter(em => em.text.toLowerCase() !== phrase.toLowerCase());
+      _saveCVOverrides(candId, ov);
+      // 3. Re-render complet pour synchroniser proprement
+      setTimeout(() => _refreshSplitCV(), 0);
+    };
+
+    const parent = textNode.parentNode;
+    if (before) parent.insertBefore(document.createTextNode(before), textNode);
+    parent.insertBefore(span, textNode);
+    if (after)  parent.insertBefore(document.createTextNode(after), textNode);
+    parent.removeChild(textNode);
+  });
+}
+
+// ── ÉDITION DU CV PER-OFFRE ─────────────────────────────────
+function toggleCVEditMode() {
+  const cvSplit = document.getElementById('cv-doc-split');
+  if (!cvSplit) return;
+  if (cvSplit.dataset.editing === 'true') {
+    _saveCVEditsFromDOM(window._splitCandId);
+  } else {
+    _enterCVEditMode();
+  }
+}
+
+function _enterCVEditMode() {
+  const cvSplit = document.getElementById('cv-doc-split');
+  if (!cvSplit) return;
+  cvSplit.dataset.editing = 'true';
+
+  // Bouton → "Enregistrer"
+  const btn = document.getElementById('cv-edit-btn');
+  if (btn) {
+    btn.textContent = '✓ Enregistrer';
+    btn.style.background = '#16a34a';
+    btn.style.color = 'white';
+    btn.style.borderColor = '#16a34a';
+  }
+
+  // Bannière d'info
+  const banner = document.createElement('div');
+  banner.id = 'cv-edit-banner';
+  banner.style.cssText = 'background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:8px 14px;font-size:12px;color:#1d4ed8;margin-bottom:10px;font-weight:600;width:100%;max-width:680px;box-sizing:border-box';
+  banner.textContent = '✏️ Mode édition — cliquez sur les textes pour les modifier, masquez ou ajoutez des missions';
+  cvSplit.parentElement.insertBefore(banner, cvSplit.parentElement.querySelector('#split-right-panel'));
+
+  // ── Titre ──
+  const titleEl = cvSplit.querySelector('.cv-title-text');
+  if (titleEl) {
+    titleEl.contentEditable = 'true';
+    titleEl.style.cssText += ';outline:2px solid #6366f1;border-radius:3px;padding:1px 4px;min-width:40px';
+  }
+
+  // ── Résumé ──
+  const summaryEl = cvSplit.querySelector('.cv-summary-text');
+  if (summaryEl) {
+    summaryEl.contentEditable = 'true';
+    summaryEl.style.cssText += ';outline:2px solid #6366f1;border-radius:4px;padding:4px;min-height:32px';
+  }
+
+  // ── Expériences ──
+  cvSplit.querySelectorAll('.cv-exp[data-exp-idx]').forEach(exp => {
+    exp.style.position = 'relative';
+
+    // Bouton "Masquer ce poste"
+    const hideBtn = document.createElement('button');
+    hideBtn.innerHTML = '× Masquer';
+    hideBtn.style.cssText = 'position:absolute;top:6px;right:6px;background:#fee2e2;border:none;border-radius:6px;color:#dc2626;font-size:11px;padding:3px 9px;cursor:pointer;font-weight:700;z-index:5';
+    hideBtn.onclick = () => { exp.style.display = 'none'; exp.dataset.hidden = 'true'; };
+    exp.appendChild(hideBtn);
+
+    // Description modifiable
+    const descEl = exp.querySelector('.cv-edesc');
+    if (descEl) {
+      descEl.contentEditable = 'true';
+      descEl.style.cssText += ';outline:2px dashed #6366f1;border-radius:4px;padding:3px;min-height:24px';
+    }
+
+    // Bullets éditables + bouton supprimer
+    exp.querySelectorAll('.cv-bullet-item').forEach(item => {
+      const textSpan = item.querySelector('span:not(.cv-bullet-dot)');
+      if (textSpan) {
+        textSpan.contentEditable = 'true';
+        textSpan.style.cssText += ';outline:1px dashed #6366f1;border-radius:3px;padding:0 2px';
+      }
+      const rm = document.createElement('button');
+      rm.textContent = '×';
+      rm.style.cssText = 'background:none;border:none;color:#dc2626;cursor:pointer;font-weight:700;font-size:14px;padding:0 0 0 5px;line-height:1;vertical-align:middle;flex-shrink:0';
+      rm.onclick = e => { e.stopPropagation(); item.remove(); };
+      item.style.display = 'flex';
+      item.style.alignItems = 'baseline';
+      item.appendChild(rm);
+    });
+
+    // Bouton "＋ Ajouter une mission"
+    const addBtn = document.createElement('button');
+    addBtn.innerHTML = '＋ Ajouter une mission';
+    addBtn.dataset.addMission = 'true';
+    addBtn.style.cssText = 'margin-top:8px;background:none;border:1.5px dashed #6366f1;border-radius:6px;color:#6366f1;font-size:11.5px;padding:4px 12px;cursor:pointer;font-weight:600;display:block;width:100%';
+    addBtn.onclick = e => { e.stopPropagation(); _showBulletPicker(exp, addBtn); };
+    exp.appendChild(addBtn);
+  });
+
+  // ── Compétences et Outils — suppression en mode édition ──
+  const labelToKey = { 'Domaines':'subdomains', 'Outils SC':'tools', 'Bureautique':'informatique', 'Certifications':'certifs', 'Autres':'customSkills' };
+  cvSplit.querySelectorAll('.cv-skill-row').forEach(row => {
+    const labelEl = row.querySelector('.cv-skill-key');
+    // Lit uniquement le premier nœud texte (ignore le bouton "+" enfant)
+    const label   = labelEl ? [...labelEl.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim() : '';
+    const key     = labelToKey[label];
+    if (!key) return;
+
+    row.querySelectorAll('.cv-skill-tag').forEach(tag => {
+      const val = tag.textContent.replace('✓','').trim();
+      tag.style.paddingRight = '4px';
+      const x = document.createElement('span');
+      x.textContent = '×';
+      x.style.cssText = 'margin-left:4px;color:#dc2626;cursor:pointer;font-weight:700;font-size:11px;opacity:.7;vertical-align:1px';
+      x.title = 'Supprimer';
+      x.onclick = e => {
+        e.stopPropagation();
+        P[key] = (P[key] || []).filter(s => s !== val);
+        ss('sc_profile', P);
+        tag.remove();
+      };
+      tag.appendChild(x);
+    });
+  });
+
+  // Bouton "Réinitialiser"
+  const resetBtn = document.createElement('button');
+  resetBtn.id = 'cv-edit-reset-btn';
+  resetBtn.textContent = '↺ Réinitialiser toutes les modifications';
+  resetBtn.style.cssText = 'margin-top:14px;background:none;border:1.5px solid var(--border);border-radius:7px;color:var(--ink3);font-size:11.5px;padding:5px 14px;cursor:pointer;font-weight:600;width:100%;max-width:680px';
+  resetBtn.onclick = () => _resetCVOverrides(window._splitCandId);
+  const rightPanelParent = document.getElementById('split-right-panel').parentElement;
+  rightPanelParent.appendChild(resetBtn);
+}
+
+// ── PICKER "AJOUTER UNE MISSION" ────────────────────────────
+// Groupé par poste · missions déjà ajoutées marquées · toggle add/remove
+function _showBulletPicker(expEl, triggerBtn) {
+  document.getElementById('cv-bullet-picker')?.remove();
+
+  // Textes déjà présents dans ce bloc expérience (pour cocher)
+  const currentTexts = new Set();
+  expEl.querySelectorAll('.cv-bullet-item').forEach(item => {
+    const s = item.querySelector('span:not(.cv-bullet-dot)');
+    if (s) currentTexts.add(s.textContent.trim().toLowerCase());
+  });
+
+  // Construit les groupes par poste
+  const groups = [];
+  (P.experiences || []).forEach(e => {
+    const bullets = [];
+    const seen = new Set();
+    const addBullet = t => {
+      t = t.trim();
+      if (t.length > 5 && !seen.has(t)) { bullets.push(t); seen.add(t); }
+    };
+    (e.bullets || []).forEach(b => addBullet(b.text || ''));
+    (e.description || '').split('\n')
+      .map(l => l.replace(/^[•\-\*▪▸→>\s]+/, '').trim())
+      .filter(l => l.length > 8)
+      .forEach(addBullet);
+    if (bullets.length) groups.push({ title: e.title || 'Expérience', bullets });
+  });
+
+  // HTML des groupes
+  let globalIdx = 0;
+  const allBullets = []; // index plat pour retrouver le texte au clic
+  const listHtml = groups.length ? groups.map(g => {
+    const rowsHtml = g.bullets.map(txt => {
+      const active = currentTexts.has(txt.toLowerCase());
+      const i = globalIdx++;
+      allBullets.push(txt);
+      return `<div class="bp-opt" data-i="${i}" data-active="${active}"
+        style="padding:7px 34px 7px 13px;font-size:12.5px;cursor:pointer;line-height:1.4;
+               border-bottom:1px solid #f9fafb;position:relative;
+               color:${active ? '#6b7280' : '#1f2937'}">
+        <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                     font-size:13px;color:${active ? '#16a34a' : '#d1d5db'}">
+          ${active ? '✓' : '＋'}
+        </span>
+        ${esc(txt)}
+      </div>`;
+    }).join('');
+    return `
+      <div class="bp-group">
+        <div style="padding:5px 13px 4px;font-size:10px;font-weight:800;text-transform:uppercase;
+                    letter-spacing:.07em;color:#6366f1;background:#f5f3ff;
+                    border-bottom:1px solid #ede9fe;border-top:1px solid #ede9fe;
+                    position:sticky;top:0;z-index:1">
+          ${esc(g.title)}
+        </div>
+        ${rowsHtml}
+      </div>`;
+  }).join('') : `<div style="padding:12px 14px;font-size:12px;color:#9ca3af;font-style:italic">
+    Aucun bullet dans le profil — saisis directement ci-dessous
+  </div>`;
+
+  // ── Picker DOM ──
+  const picker = document.createElement('div');
+  picker.id = 'cv-bullet-picker';
+  picker.style.cssText = [
+    'position:absolute;z-index:200;left:0;right:0;top:calc(100% + 6px)',
+    'background:white;border:1.5px solid #6366f1;border-radius:10px',
+    'box-shadow:0 8px 36px rgba(99,102,241,.18);overflow:hidden'
+  ].join(';');
+
+  picker.innerHTML = `
+    <div style="padding:7px 10px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:6px">
+      <span style="font-size:13px;opacity:.6">🔍</span>
+      <input id="bp-input" type="text" placeholder="Filtrer les missions…"
+        style="flex:1;border:none;outline:none;font-size:12.5px;color:#111;background:transparent" autocomplete="off">
+    </div>
+    <div id="bp-list" style="max-height:240px;overflow-y:auto">${listHtml}</div>
+    <div style="padding:7px 10px;border-top:1px solid #e5e7eb;background:#fafafa;display:flex;gap:6px">
+      <input id="bp-custom" type="text" placeholder="Saisir une mission personnalisée…"
+        style="flex:1;border:1.5px solid #e5e7eb;border-radius:6px;padding:5px 9px;font-size:12.5px;outline:none">
+      <button id="bp-add"
+        style="background:#6366f1;color:white;border:none;border-radius:6px;padding:5px 13px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">
+        ＋ Ajouter
+      </button>
+    </div>`;
+
+  expEl.insertBefore(picker, triggerBtn);
+
+  const input  = picker.querySelector('#bp-input');
+  const list   = picker.querySelector('#bp-list');
+  const custom = picker.querySelector('#bp-custom');
+  const addBtn = picker.querySelector('#bp-add');
+
+  setTimeout(() => input.focus(), 0);
+
+  // Filtre live
+  input.addEventListener('input', () => {
+    const q = input.value.toLowerCase();
+    list.querySelectorAll('.bp-opt').forEach(opt => {
+      opt.style.display = opt.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+    // Masque les headers de groupe si tous leurs enfants sont cachés
+    list.querySelectorAll('.bp-group').forEach(grp => {
+      const visible = [...grp.querySelectorAll('.bp-opt')].some(o => o.style.display !== 'none');
+      grp.style.display = visible ? '' : 'none';
+    });
+  });
+
+  // Hover
+  list.addEventListener('mouseover', e => {
+    const o = e.target.closest('.bp-opt');
+    if (o && o.dataset.active !== 'true') o.style.background = '#f5f3ff';
+  });
+  list.addEventListener('mouseout', e => {
+    const o = e.target.closest('.bp-opt');
+    if (o) o.style.background = '';
+  });
+
+  // Clic : ajoute ou retire selon état
+  list.addEventListener('mousedown', e => {
+    const opt = e.target.closest('.bp-opt');
+    if (!opt) return;
+    e.preventDefault();
+    const txt    = allBullets[parseInt(opt.dataset.i)];
+    const active = opt.dataset.active === 'true';
+
+    if (active) {
+      // Retire le bullet du DOM
+      expEl.querySelectorAll('.cv-bullet-item').forEach(item => {
+        const s = item.querySelector('span:not(.cv-bullet-dot)');
+        if (s && s.textContent.trim().toLowerCase() === txt.toLowerCase()) item.remove();
+      });
+    } else {
+      _commitEditBullet(expEl, txt);
+    }
+    picker.remove();
+  });
+
+  // Champ custom
+  const commitCustom = () => {
+    const txt = custom.value.trim() || input.value.trim();
+    if (txt) { _commitEditBullet(expEl, txt); picker.remove(); }
+  };
+  addBtn.addEventListener('mousedown', e => { e.preventDefault(); commitCustom(); });
+  custom.addEventListener('keydown', e => { if (e.key === 'Enter') commitCustom(); });
+  input.addEventListener('keydown',  e => { if (e.key === 'Enter') commitCustom(); if (e.key === 'Escape') picker.remove(); });
+
+  // Clic en dehors → ferme
+  const outsideHandler = e => {
+    if (!picker.contains(e.target) && e.target !== triggerBtn) {
+      picker.remove();
+      document.removeEventListener('mousedown', outsideHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener('mousedown', outsideHandler), 100);
+}
+
+// Ajoute un bullet au DOM de l'expérience (éditable + bouton ×)
+function _commitEditBullet(expEl, text) {
+  let ul = expEl.querySelector('.cv-bullets');
+  if (!ul) {
+    ul = document.createElement('ul');
+    ul.className = 'cv-bullets';
+    const addBtn = expEl.querySelector('button[data-add-mission]');
+    expEl.insertBefore(ul, addBtn || null);
+  }
+  const li = document.createElement('li');
+  li.className = 'cv-bullet-item';
+  li.dataset.new = 'true';
+  li.style.display = 'flex';
+  li.style.alignItems = 'baseline';
+
+  const dot = document.createElement('span');
+  dot.className = 'cv-bullet-dot';
+  dot.textContent = '▸';
+
+  const textSpan = document.createElement('span');
+  textSpan.contentEditable = 'true';
+  textSpan.style.cssText = 'outline:1px dashed #6366f1;border-radius:3px;padding:0 2px;flex:1';
+  textSpan.textContent = text;
+
+  const rm = document.createElement('button');
+  rm.textContent = '×';
+  rm.style.cssText = 'background:none;border:none;color:#dc2626;cursor:pointer;font-weight:700;font-size:14px;padding:0 0 0 5px;line-height:1;vertical-align:middle;flex-shrink:0';
+  rm.onclick = e => { e.stopPropagation(); li.remove(); };
+
+  li.appendChild(dot);
+  li.appendChild(textSpan);
+  li.appendChild(rm);
+  ul.appendChild(li);
+}
+
+function _saveCVEditsFromDOM(candId) {
+  const cvSplit = document.getElementById('cv-doc-split');
+  if (!cvSplit) return;
+
+  const overrides = _getCVOverrides(candId);
+
+  // ── Titre ──
+  const titleEl = cvSplit.querySelector('.cv-title-text');
+  if (titleEl) {
+    const t = titleEl.textContent.trim();
+    if (t) overrides.title = t;
+  }
+
+  // ── Résumé ──
+  const summaryEl = cvSplit.querySelector('.cv-summary-text');
+  if (summaryEl) overrides.summaryTarget = summaryEl.textContent.trim();
+
+  // ── Expériences ──
+  const hiddenExpIndices = [];
+  const expOverrides = overrides.expOverrides || {};
+
+  cvSplit.querySelectorAll('.cv-exp[data-exp-idx]').forEach(exp => {
+    const origIdx = parseInt(exp.dataset.expIdx);
+
+    if (exp.dataset.hidden === 'true' || exp.style.display === 'none') {
+      hiddenExpIndices.push(origIdx);
+      return;
+    }
+
+    const ov = expOverrides[origIdx] || {};
+
+    // Description (si mode texte)
+    const descEl = exp.querySelector('.cv-edesc');
+    if (descEl) ov.description = descEl.textContent.trim();
+
+    // Bullets : sauvegarde de TOUS les bullets visibles (set complet)
+    const bulletTexts = [];
+    exp.querySelectorAll('.cv-bullet-item').forEach(item => {
+      const textSpan = item.querySelector('span:not(.cv-bullet-dot)');
+      if (!textSpan) return;
+      const txt = textSpan.textContent.trim();
+      if (txt && txt !== 'Saisir la mission...') bulletTexts.push(txt);
+    });
+
+    // Vérifie si le set a changé vs l'original
+    const origBulletTexts = (P.experiences[origIdx]?.bullets || [])
+      .filter(b => b.required || b.selected)
+      .map(b => b.text || '');
+    if (JSON.stringify(bulletTexts) !== JSON.stringify(origBulletTexts)) {
+      ov.overrideAllBullets = bulletTexts;
+    } else {
+      delete ov.overrideAllBullets;
+    }
+
+    if (Object.keys(ov).length) expOverrides[origIdx] = ov;
+    else delete expOverrides[origIdx];
+  });
+
+  overrides.hiddenExpIndices = hiddenExpIndices;
+  if (Object.keys(expOverrides).length) overrides.expOverrides = expOverrides;
+  else delete overrides.expOverrides;
+
+  _saveCVOverrides(candId, overrides);
+  _exitCVEditMode();
+  _refreshSplitCV();
+  toast('✓ Modifications enregistrées pour cette offre');
+}
+
+function _exitCVEditMode() {
+  const btn = document.getElementById('cv-edit-btn');
+  if (btn) {
+    btn.textContent = '✏️ Modifier le CV';
+    btn.style.background = 'none';
+    btn.style.color = 'var(--ink3)';
+    btn.style.borderColor = 'var(--border)';
+  }
+  document.getElementById('cv-edit-banner')?.remove();
+  document.getElementById('cv-edit-reset-btn')?.remove();
+  const cvSplit = document.getElementById('cv-doc-split');
+  if (cvSplit) cvSplit.dataset.editing = 'false';
+}
+
+function _resetCVOverrides(candId) {
+  if (!confirm('Réinitialiser toutes les modifications du CV pour cette offre ?')) return;
+  _saveCVOverrides(candId, {});
+  _exitCVEditMode();
+  _refreshSplitCV();
+  toast('CV réinitialisé');
+}
+
+
+// ── RENDU TEXTE OFFRE (headers détectés + paragraphes) ─────
+function _formatOfferText(rawText) {
+  if (!rawText) return '';
+  const lines = rawText.replace(/\n{3,}/g, '\n\n').split('\n');
+  let out = '';
+  let para = [];
+  const flush = () => {
+    if (!para.length) return;
+    out += `<p style="margin:0 0 10px;line-height:1.75;color:#374151;font-size:13px">${para.join('<br>')}</p>`;
+    para = [];
+  };
+  for (const line of lines) {
+    const plain = line.trim();
+    if (!plain) { flush(); continue; }
+    const isBullet = /^[•\-–—►▸*]\s/.test(plain);
+    const isHeader = !isBullet && plain.length <= 60 && !/[.,;:?!]$/.test(plain) && !/^\d+[\.\)]/.test(plain);
+    if (isHeader) {
+      flush();
+      const isBig = plain === plain.toUpperCase() || plain.length <= 35;
+      out += isBig
+        ? `<div style="font-weight:800;font-size:12px;color:#1e293b;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em;border-left:3px solid #6366f1;padding-left:8px">${esc(plain)}</div>`
+        : `<div style="font-weight:700;font-size:13px;color:#1e293b;margin:14px 0 4px">${esc(plain)}</div>`;
+    } else {
+      para.push(isBullet ? `<span style="padding-left:4px">${esc(plain)}</span>` : esc(plain));
+    }
+  }
+  flush();
+  return out;
+}
+
+// ── DÉCODAGE IA DE L'OFFRE (analyse de l'offre seule) ──────
+async function _aiDecodeOffer(offerText, jobTitle) {
+  // Nettoie le texte pour l'IA : coupe le footer, limite à 4000 chars
+  const section = _cleanOfferForAI(offerText);
+  if (!section) return { data: null, provider: null, model: null };
+
+  console.log('[DECODE] section envoyée à l\'IA (200 premiers chars):', section.slice(0, 200));
+
+  const titleLine = jobTitle ? `Poste : ${jobTitle}\n\n` : '';
+
+  const prompt = `Analyse cette offre d'emploi et réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans texte avant ou après.
+
+OFFRE:
+${titleLine}${section}
+
+Format JSON attendu :
+{
+  "contexte": "1-2 phrases sur l'entreprise et l'enjeu",
+  "profil_recherche": [{"point": "copie exacte de la ligne", "tags": ["Tag1", "Tag2"]}],
+  "missions": [{"point": "copie exacte de la ligne", "tags": ["Tag1", "Tag2"]}],
+  "competences_cles": ["compétence1", "compétence2"],
+  "keywords": ["mot-clé1", "mot-clé2"]
+}
+
+EXEMPLES CONCRETS (à imiter exactement) :
+
+Mission "Analyser les besoins en approvisionnement en fonction des prévisions de vente et des stocks"
+→ tags: ["Approvisionnement", "Prévision de vente", "Gestion de stock"]
+
+Mission "Passer les commandes auprès des fournisseurs et en assurer le suivi"
+→ tags: ["Commandes fournisseurs", "Suivi"]
+
+Mission "Optimiser les niveaux de stock afin d'éviter ruptures et surstocks"
+→ tags: ["Optimisation stock", "Anti-rupture"]
+
+Mission "Négocier les délais et conditions d'achat en lien avec le service achats"
+→ tags: ["Négociation", "Achats"]
+
+Mission "Suivre les indicateurs de performance (taux de service, rotation des stocks)"
+→ tags: ["KPI", "Taux de service", "Rotation stock"]
+
+Profil "Bac+2 en logistique ou commerce"
+→ tags: ["Bac+2", "Logistique"]
+
+Profil "Expérience de 2 ans minimum en approvisionnement"
+→ tags: ["2 ans XP", "Approvisionnement"]
+
+Règles :
+- point : COPIE EXACTE mot pour mot du texte de l'offre. JAMAIS reformuler.
+- tags : tableau de 1 à 3 mots/expressions courtes (1-3 mots chacun). PAS de phrases. PAS de verbes conjugués. JUSTE des noms ou expressions nominales.
+- Une entrée par ligne dans l'offre. Ne saute rien, ne fusionne pas.
+- JSON pur : pas de \`\`\`json, pas de commentaires.`;
+
+  const { text, provider, model } = await callAIAuto(prompt, { maxTokens: 4000, temperature: 0 });
+  console.log('[DECODE] réponse IA brute:', text.slice(0, 600));
+
+  let data;
+  try { data = safeParseJSON(text); } catch(e) { console.error('[DECODE] parse error:', e); data = null; }
+  console.log('[DECODE] data parsé:', JSON.stringify(data)?.slice(0, 400));
+
+  if (!data?.profil_recherche && !data?.missions && !data?.contexte) return { data: null, provider, model };
+  return { data, provider, model };
+}
+
+// ── RENDU HTML DU PANEL DÉCODAGE ───────────────────────────
+function _renderDecodePanelHtml(data, isLoading, provider, model, offerText) {
+  if (isLoading) {
+    return `<div style="display:flex;align-items:center;gap:10px;padding:14px 0;color:var(--ink3);font-size:13px">
+      <span class="sp" style="width:14px;height:14px;flex-shrink:0"></span>
+      Décodage IA de l'offre en cours…
+    </div>`;
+  }
+  if (!data) {
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
+      <div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)">Décodage IA</div>
+      <button onclick="window._retryDecode(window._splitCandId)"
+        style="background:#6366f1;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">
+        ↺ Lancer le décodage
+      </button>
+    </div>`;
+  }
+
+  // Badge provider
+  const providerBadge = provider ? (() => {
+    const isGemini = provider === 'Gemini';
+    const dot   = isGemini ? '#8b5cf6' : '#f97316';
+    const bgC   = isGemini ? '#f5f3ff' : '#fff7ed';
+    const bdC   = isGemini ? '#ddd6fe' : '#fed7aa';
+    const label = isGemini ? `🟣 Gemini · ${model || '2.5 Flash'}` : `🟠 Groq · ${model || 'Llama 3.3'}`;
+    return `<span style="background:${bgC};color:${dot};border:1px solid ${bdC};border-radius:100px;padding:2px 9px;font-size:10.5px;font-weight:700">${label}</span>`;
+  })() : '';
+
+  // Header
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)">Décodage IA</div>
+    <div style="display:flex;align-items:center;gap:6px">
+      ${providerBadge}
+      <button onclick="window._retryDecode(window._splitCandId)"
+        style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--ink3);font-size:10.5px;padding:2px 8px;cursor:pointer;font-weight:600"
+        title="Relancer le décodage">↺</button>
+    </div>
+  </div>`;
+
+  // ① Contexte
+  if (data.contexte) {
+    html += `<div style="font-size:12.5px;color:var(--ink2);line-height:1.55;background:#f8fafc;border-radius:7px;padding:8px 11px;border:1px solid var(--border2);margin-bottom:14px">${esc(data.contexte)}</div>`;
+  }
+
+  // ── Helpers ──────────────────────────────────────────────
+  // Rend un bloc de lignes brutes en HTML (paragraphes + headers)
+  const renderTextLines = (lines) => {
+    let out = '';
+    let para = [];
+    const flush = () => {
+      if (!para.length) return;
+      out += `<p style="margin:0 0 9px;line-height:1.75;color:#374151;font-size:13px">${para.join('<br>')}</p>`;
+      para = [];
+    };
+    for (const line of lines) {
+      const plain = line.trim();
+      if (!plain) { flush(); continue; }
+      const isBullet = /^[•\-–—►▸*]\s/.test(plain);
+      const isHeader = !isBullet && plain.length <= 60 && !/[.,;:?!]$/.test(plain) && !/^\d+[\.\)]/.test(plain);
+      if (isHeader) {
+        flush();
+        const isBig = plain === plain.toUpperCase() || plain.length <= 35;
+        out += isBig
+          ? `<div style="font-weight:800;font-size:12px;color:#1e293b;margin:16px 0 5px;text-transform:uppercase;letter-spacing:.06em;border-left:3px solid #6366f1;padding-left:8px">${esc(plain)}</div>`
+          : `<div style="font-weight:700;font-size:13px;color:#1e293b;margin:12px 0 4px">${esc(plain)}</div>`;
+        continue;
+      }
+      para.push(isBullet ? `<span style="padding-left:4px">${esc(plain)}</span>` : esc(plain));
+    }
+    flush();
+    return out;
+  };
+
+  // Rend le bloc "Missions décodées" — sans m.point (texte original déjà visible au-dessus)
+  const renderMissionsBlock = (items) => {
+    if (!items?.length) return '';
+    let b = `<div style="margin:10px 0 16px;padding:9px 13px;background:#fafaff;border:1px solid #e0e7ff;border-radius:8px">
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#6366f1;margin-bottom:7px">Compétences requises — missions</div>
+      <div style="display:flex;flex-direction:column;gap:5px">`;
+    items.forEach((m, i) => {
+      const tags = m.tags || (m.attente ? [m.attente] : []);
+      if (!tags.length) return;
+      b += `<div style="display:flex;align-items:flex-start;gap:7px">
+        <span style="flex-shrink:0;font-size:10px;font-weight:800;color:#6366f1;background:#e0e7ff;border-radius:100px;padding:1px 6px;margin-top:2px">${i + 1}</span>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${tags.map(t => `<span style="background:#eff1ff;color:#4f46e5;border:1px solid #c7d2fe;border-radius:100px;padding:2px 8px;font-size:11.5px;font-weight:600">${esc(t)}</span>`).join('')}
+        </div>
+      </div>`;
+    });
+    return b + `</div></div>`;
+  };
+
+  // Rend le bloc "Profil recherché décodé" — sans p.point
+  const renderProfilBlock = (items) => {
+    if (!items?.length) return '';
+    let b = `<div style="margin:10px 0 16px;padding:9px 13px;background:#fef7ff;border:1px solid #f0d4ff;border-radius:8px">
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#a855f7;margin-bottom:7px">Compétences requises — profil</div>
+      <div style="display:flex;flex-direction:column;gap:5px">`;
+    items.forEach((p, i) => {
+      const tags = p.tags || (p.attente ? [p.attente] : []);
+      if (!tags.length) return;
+      b += `<div style="display:flex;align-items:flex-start;gap:7px">
+        <span style="flex-shrink:0;font-size:10px;font-weight:800;color:#a855f7;background:#f3e8ff;border-radius:100px;padding:1px 6px;margin-top:2px">${i + 1}</span>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${tags.map(t => `<span style="background:#fdf4ff;color:#7c3aed;border:1px solid #e9d5ff;border-radius:100px;padding:2px 8px;font-size:11.5px;font-weight:600">${esc(t)}</span>`).join('')}
+        </div>
+      </div>`;
+    });
+    return b + `</div></div>`;
+  };
+
+  // ── Texte de l'offre découpé en sections ─────────────────
+  if (offerText) {
+    const displayText = _stripJobHeader(offerText);
+    const lines = displayText.replace(/\n{3,}/g, '\n\n').split('\n');
+
+    // Découpage en 4 zones : avant-missions | corps-missions | corps-profil | reste
+    let zone = 'pre'; // pre | missions | profil | post
+    const zones = { pre: [], missions: [], mHeader: '', profil: [], pHeader: '', post: [] };
+
+    for (const line of lines) {
+      const plain = line.trim();
+      const isShortLine = plain.length > 0 && plain.length <= 60 && !/[.,;:?!]$/.test(plain) && !/^\d+[\.\)]/.test(plain) && !/^[•\-–—►▸*]\s/.test(plain);
+
+      if (isShortLine && /vos missions?|missions?\s*:|responsabilités/i.test(plain)) {
+        zone = 'missions';
+        zones.mHeader = plain;
+        continue;
+      }
+      if (isShortLine && /^profil|compétences? (requises?|attendues?)|vous êtes|qui êtes.vous/i.test(plain)) {
+        zone = 'profil';
+        zones.pHeader = plain;
+        continue;
+      }
+      if (isShortLine && /avantages?|nous offrons|pourquoi nous rejoindre/i.test(plain)) {
+        zone = 'post';
+      }
+
+      if      (zone === 'pre')      zones.pre.push(line);
+      else if (zone === 'missions') zones.missions.push(line);
+      else if (zone === 'profil')   zones.profil.push(line);
+      else                          zones.post.push(line);
+    }
+
+    // ① Texte avant VOS MISSIONS
+    const preHtml = renderTextLines(zones.pre);
+    if (preHtml) html += `<div style="margin-bottom:4px">${preHtml}</div>`;
+
+    // ② Section VOS MISSIONS : header + texte brut + bloc décodé
+    if (zones.mHeader || zones.missions.length) {
+      if (zones.mHeader) {
+        const isBig = zones.mHeader === zones.mHeader.toUpperCase() || zones.mHeader.length <= 35;
+        html += isBig
+          ? `<div style="font-weight:800;font-size:12px;color:#1e293b;margin:16px 0 5px;text-transform:uppercase;letter-spacing:.06em;border-left:3px solid #6366f1;padding-left:8px">${esc(zones.mHeader)}</div>`
+          : `<div style="font-weight:700;font-size:13px;color:#1e293b;margin:12px 0 4px">${esc(zones.mHeader)}</div>`;
+      }
+      const mBodyHtml = renderTextLines(zones.missions);
+      if (mBodyHtml) html += mBodyHtml;
+      // Bloc décodé missions → juste en dessous du texte VOS MISSIONS
+      html += renderMissionsBlock(data.missions);
+    }
+
+    // ③ Section PROFIL : header + texte brut + bloc décodé
+    if (zones.pHeader || zones.profil.length) {
+      if (zones.pHeader) {
+        const isBig = zones.pHeader === zones.pHeader.toUpperCase() || zones.pHeader.length <= 35;
+        html += isBig
+          ? `<div style="font-weight:800;font-size:12px;color:#1e293b;margin:16px 0 5px;text-transform:uppercase;letter-spacing:.06em;border-left:3px solid #a855f7;padding-left:8px">${esc(zones.pHeader)}</div>`
+          : `<div style="font-weight:700;font-size:13px;color:#1e293b;margin:12px 0 4px">${esc(zones.pHeader)}</div>`;
+      }
+      const pBodyHtml = renderTextLines(zones.profil);
+      if (pBodyHtml) html += pBodyHtml;
+      // Bloc décodé profil → juste en dessous du texte PROFIL
+      html += renderProfilBlock(data.profil_recherche);
+    }
+
+    // ④ Reste (avantages, etc.)
+    const postHtml = renderTextLines(zones.post);
+    if (postHtml) html += `<div style="margin-bottom:4px">${postHtml}</div>`;
+  } else {
+    // Pas de texte d'offre — affiche les blocs directement
+    html += renderMissionsBlock(data.missions);
+    html += renderProfilBlock(data.profil_recherche);
+  }
+
+  // ── Compétences clés à mettre en avant ───────────────────
+  if (data.competences_cles?.length) {
+    const existing = (P.customSkills || []).map(s => s.toLowerCase());
+
+    html += `
+    <div style="border-top:1.5px solid var(--border);padding-top:10px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#6366f1">À mettre en avant</div>
+        <button onclick="window._addSelectedSkills()"
+          style="background:#6366f1;color:white;border:none;border-radius:6px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer">
+          ➕ Ajouter la sélection
+        </button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${data.competences_cles.map((c) => {
+          const alreadyIn = existing.includes(c.toLowerCase());
+          const safeVal   = esc(c);
+          if (alreadyIn) {
+            return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0">
+              ✓ ${safeVal}
+            </span>`;
+          }
+          return `<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f5f3ff;color:#4f46e5;border:1.5px solid #c7d2fe;cursor:pointer;user-select:none"
+            onmousedown="this.style.background=this.querySelector('input').checked?'#f5f3ff':'#ede9fe'"
+            onmouseup="this.style.background=this.querySelector('input').checked?'#ede9fe':'#f5f3ff'">
+            <input type="checkbox" data-skill="${safeVal}"
+              style="width:12px;height:12px;accent-color:#6366f1;cursor:pointer;flex-shrink:0" />
+            ${safeVal}
+          </label>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  // ── Mots-clés littéraux ───────────────────────────────────
+  if (data.keywords?.length) {
+    html += `
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;border-top:1.5px solid var(--border);padding-top:10px">
+      <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#6366f1;margin-right:4px;white-space:nowrap">Mots-clés</span>
+      ${data.keywords.map(k =>
+        `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:100px;padding:2px 9px;font-size:11.5px;font-weight:600">${esc(k)}</span>`
+      ).join('')}
+    </div>`;
+  }
+
+  return html;
+}
+
+// ── AJOUTER SEULEMENT LES COMPÉTENCES COCHÉES ─────────────
+window._addSelectedSkills = function() {
+  const checked = [...document.querySelectorAll('#split-decode-panel input[data-skill]:checked')]
+    .map(el => el.dataset.skill).filter(Boolean);
+  if (!checked.length) {
+    const t = document.createElement('div');
+    t.textContent = 'Coche au moins une compétence';
+    t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:8px 18px;border-radius:100px;font-size:13px;font-weight:600;z-index:9999';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1800);
+    return;
+  }
+  window._addSkillsToProfile(checked);
+};
+
+// ── AJOUTER COMPÉTENCES AU PROFIL (→ customSkills "Autres") ─
+window._addSkillsToProfile = function(skills) {
+  if (!Array.isArray(skills) || !skills.length) return;
+  if (!P.customSkills) P.customSkills = [];
+  const existing = P.customSkills.map(s => s.toLowerCase());
+  const added = [];
+  for (const s of skills) {
+    if (!existing.includes(s.toLowerCase())) {
+      P.customSkills.push(s);
+      added.push(s);
+      existing.push(s.toLowerCase());
+    }
+  }
+  ss('sc_profile', P);
+  if (typeof renderCV === 'function') { renderCV(); _syncSplitCV(); }
+  // Rafraîchit le panel décodage pour mettre à jour les ✓
+  const panel = document.getElementById('split-decode-panel');
+  if (panel && window._splitCandId) {
+    const c   = ls('sc_cands', []).find(x => x.id === window._splitCandId);
+    const raw = c?.analysis?.ai_decode || null;
+    const prov = c?.analysis?.ai_decode_provider || null;
+    const rt  = (c?.jobDescription || '').replace(/&nbsp;/g,' ').replace(/[ \t]{3,}/g,' ').trim();
+    if (raw) panel.innerHTML = _renderDecodePanelHtml(raw, false, prov, null, rt);
+  }
+  // Toast
+  const toast = document.createElement('div');
+  toast.textContent = added.length
+    ? `✓ ${added.length} compétence${added.length > 1 ? 's' : ''} ajoutée${added.length > 1 ? 's' : ''} dans "Autres"`
+    : '✓ Déjà dans le profil';
+  toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:8px 18px;border-radius:100px;font-size:13px;font-weight:600;z-index:9999;opacity:1;transition:opacity .4s';
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 2200);
+};
+
+// Retry décodage depuis le bouton dans le panel d'erreur
+window._retryDecode = function(candId) {
+  const c = ls('sc_cands', []).find(x => x.id === candId);
+  if (!c) return;
+  // Efface le cache (ancien ou échoué)
+  const cands = ls('sc_cands', []);
+  const idx = cands.findIndex(x => x.id === candId);
+  if (idx !== -1) {
+    if (!cands[idx].analysis) cands[idx].analysis = {};
+    cands[idx].analysis.ai_decode = null;
+    cands[idx].analysis.ai_decode_provider = null;
+    ss('sc_cands', cands);
+  }
+
+  const panel = document.getElementById('split-decode-panel');
+  if (panel) panel.innerHTML = _renderDecodePanelHtml(null, true);
+
+  const rawText     = (c.jobDescription||'').replace(/&nbsp;/g,' ').replace(/[ \t]{3,}/g,' ').trim();
+
+  _aiDecodeOffer(rawText, c.poste).then(({ data, provider, model }) => {
+    const cands2 = ls('sc_cands', []);
+    const idx2   = cands2.findIndex(x => x.id === candId);
+    if (idx2 !== -1) {
+      if (!cands2[idx2].analysis) cands2[idx2].analysis = {};
+      cands2[idx2].analysis.ai_decode = data;
+      cands2[idx2].analysis.ai_decode_provider = provider;
+      ss('sc_cands', cands2);
+    }
+    const rt = (ls('sc_cands', []).find(x => x.id === candId)?.jobDescription || '').replace(/&nbsp;/g,' ').trim();
+    if (panel) panel.innerHTML = _renderDecodePanelHtml(data, false, provider, model, rt);
+  }).catch(err => {
+    console.error('_retryDecode error:', err);
+    if (panel) panel.innerHTML = `
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 14px">
+        <div style="font-size:12.5px;font-weight:700;color:#dc2626;margin-bottom:4px">⚠ Décodage IA échoué</div>
+        <div style="font-size:12px;color:#b91c1c;line-height:1.5;margin-bottom:10px">${esc(err?.message || String(err))}</div>
+        <button onclick="window._retryDecode('${candId}')"
+          style="background:#dc2626;color:white;border:none;border-radius:6px;padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer">
+          ↺ Réessayer
+        </button>
+      </div>`;
+  });
+};
+
+async function openSplitView(candId) {
+  const c = ls('sc_cands', []).find(x => x.id === candId);
+  if (!c) return;
+  window._splitCandId = candId;
+
+  // ── CV adapté — panneau droit (sync) ──
+  const a = c.analysis || {};
+  _cvTarget = a.poste || c.poste;
+  localStorage.setItem('sc_cv_target', _cvTarget);
+  _matchedSkills = [...(a.keywords_present||[]),...(a.must_have||[]),...(a.nice_to_have||[])].filter(Boolean);
+  localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
+  // Reset des désélections manuelles au changement d'offre
+  if (typeof _deselectedSkills !== 'undefined') { _deselectedSkills = []; localStorage.removeItem('sc_deselected_skills'); }
+
+  // Applique les overrides per-offre pour le rendu initial
+  const openOverrides = _getCVOverrides(candId);
+  const openApplied   = Object.keys(openOverrides).length ? _applyOverridesToP(openOverrides) : false;
+  renderCV();
+  if (openApplied) _restoreP();
+  const cvDoc = document.getElementById('cv-doc');
+  document.getElementById('split-right-panel').innerHTML = cvDoc
+    ? `<div style="box-shadow:0 6px 32px rgba(0,0,0,.13);border-radius:6px;overflow:hidden">${cvDoc.outerHTML.replace(/\bid="cv-doc"[^>]*/, 'id="cv-doc-split"')}</div>`
+    : `<div style="color:var(--ink3);padding:24px;font-size:13px">CV non disponible — complète ton profil.</div>`;
+  if (openApplied) renderCV(); // restaure cv-doc principal
+
+  // ── Barre du haut ──
+  document.getElementById('split-modal-title').textContent = c.poste + ' · ' + c.company;
+  document.getElementById('split-modal-sub').textContent   = c.date || '';
+  // Priorité à l'analyse la plus récente (évite les deux scores différents)
+  const sc = c.analysis?.score_global ?? c.score;
+  if (sc !== null && sc !== undefined) {
+    const col = sc>=70?'#16a34a':sc>=50?'#d97706':'#dc2626';
+    const bar = sc>=70?'#22c55e':sc>=50?'#f59e0b':'#ef4444';
+    document.getElementById('split-modal-score').innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:20px;font-weight:900;color:${col}">${sc}%</span>
+        <div style="width:80px;height:7px;background:#e5e7eb;border-radius:100px;overflow:hidden">
+          <div style="height:100%;width:${sc}%;background:${bar};border-radius:100px"></div>
+        </div>
+        <span style="font-size:11px;color:var(--ink3);font-weight:600">match</span>
+      </div>`;
+  }
+
+  // ── Panneau gauche ──
+  const rawText     = (c.jobDescription||'').replace(/&nbsp;/g,' ').replace(/[ \t]{3,}/g,' ').trim();
+
+  // Invalide le cache si c'est l'ancien format (utilisait "attentes" au lieu de "profil_recherche"
+  // ou si les items n'ont pas de champ "attente" — nouveau format)
+  const _isNewFormat = (d) => {
+    if (!d) return false;
+    if (d.attentes) return false; // ancien champ
+    const items = (d.profil_recherche || d.missions || []);
+    if (!items.length) return true;
+    // Format actuel : doit avoir un tableau "tags"
+    if (!Array.isArray(items[0].tags)) return false;
+    return true;
+  };
+  const cachedRaw       = a.ai_decode || null;
+  const cachedDecode    = _isNewFormat(cachedRaw) ? cachedRaw : null;
+  const cachedProvider  = cachedDecode ? (a.ai_decode_provider || null) : null;
+  const decodeLoading   = !cachedDecode && !!rawText;
+
+  document.getElementById('split-left-panel').innerHTML = `
+    <div id="split-job-card" style="margin-bottom:20px">
+      <div style="background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:8px">
+        <span class="sp" style="width:13px;height:13px;flex-shrink:0"></span>
+        <span style="font-size:12.5px;color:var(--ink3)">Chargement des infos du poste et du trajet...</span>
+      </div>
+    </div>
+    <div id="split-decode-panel" style="margin-bottom:28px">
+      ${_renderDecodePanelHtml(cachedDecode, decodeLoading, cachedProvider, null, rawText)}
+    </div>
+    ${c.analysis ? `
+    <div style="border-top:2px solid var(--border);padding-top:22px">
+      <div style="font-size:12px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">Analyse complète</div>
+      <div id="split-full-analysis"></div>
+    </div>` : ''}`;
+
+  // ── Appel Gemini en arrière-plan si pas encore de cache ──
+  if (decodeLoading) {
+    _aiDecodeOffer(rawText, c.poste).then(({ data, provider, model }) => {
+      const cands2 = ls('sc_cands', []);
+      const idx2   = cands2.findIndex(x => x.id === candId);
+      if (idx2 !== -1) {
+        if (!cands2[idx2].analysis) cands2[idx2].analysis = {};
+        cands2[idx2].analysis.ai_decode = data;
+        cands2[idx2].analysis.ai_decode_provider = provider;
+        ss('sc_cands', cands2);
+      }
+      const panel = document.getElementById('split-decode-panel');
+      if (panel) panel.innerHTML = _renderDecodePanelHtml(data, false, provider, model, rawText);
+    }).catch(err => {
+      console.error('_aiDecodeOffer error:', err);
+      const panel = document.getElementById('split-decode-panel');
+      if (!panel) return;
+      const msg = err?.message || String(err);
+      panel.innerHTML = `
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 14px">
+          <div style="font-size:12.5px;font-weight:700;color:#dc2626;margin-bottom:4px">⚠ Décodage IA échoué</div>
+          <div style="font-size:12px;color:#b91c1c;line-height:1.5;margin-bottom:10px">${esc(msg)}</div>
+          <button onclick="window._retryDecode('${candId}')"
+            style="background:#dc2626;color:white;border:none;border-radius:6px;padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer">
+            ↺ Réessayer
+          </button>
+        </div>`;
+    });
+  }
+
+  // ── Emphases manuelles ──
+  setTimeout(() => {
+    _setupEmphasisSelection();
+    _applyEmphases(candId);
+  }, 200);
+
+  // ── Ouvrir le modal ──
+  document.getElementById('split-modal-overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  // ── Analyse complète (sync, rendue dans le DOM existant) ──
+  if (c.analysis) {
+    const fullEl = document.getElementById('split-full-analysis');
+    if (fullEl && typeof renderAnalyzeResult === 'function') {
+      renderAnalyzeResult(c.analysis, { errors: [], warnings: [] }, fullEl);
+    }
+  }
+
+  // ── Données structurées — depuis l'analyse locale (0 API) ──
+  let jobInfo = {
+    title:        a.poste        || c.poste    || '',
+    company:      a.entreprise   || c.company  || '',
+    location:     a.location     || '',
+    salary:       a.salary       || '',
+    contractType: a.contractType || '',
+    remote:       a.remote       || '',
+    benefits:     a.benefits     || [],
+    rating:       a.rating       || '',
+  };
+  // Fallback : si l'analyse n'a pas de données, on essaie l'extraction locale rapide
+  if (!jobInfo.location && rawText) {
+    const loc = extractJobInfoLocal ? extractJobInfoLocal(rawText) : {};
+    if (loc.location)     jobInfo.location     = loc.location;
+    if (loc.salary)       jobInfo.salary       = loc.salary;
+    if (loc.contractType) jobInfo.contractType = loc.contractType;
+    if (loc.remote)       jobInfo.remote       = loc.remote;
+  }
+  const commute = await _getCommuteFromCreteil(jobInfo.location);
+
+  // ── Mini dashboard ──
+  const card = document.getElementById('split-job-card');
+  if (!card) return;
+
+  const infoBlocks = [];
+  if (jobInfo.salary)       infoBlocks.push({icon:'💰',label:'Salaire',val:jobInfo.salary});
+  if (jobInfo.contractType) infoBlocks.push({icon:'📄',label:'Contrat',val:jobInfo.contractType});
+  if (jobInfo.remote)       infoBlocks.push({icon:'🏠',label:'Télétravail',val:jobInfo.remote});
+
+  const mapsBase = commute?.mapsBase || `https://www.google.com/maps/dir/Créteil,94000,France/${encodeURIComponent((jobInfo.location||c.company)+', France')}`;
+
+  // Tout en une seule ligne compacte
+  const commuteStr = commute
+    ? `🚗 <strong>${commute.min} min</strong> · ${commute.km} km · <a href="${mapsBase}" target="_blank" rel="noopener" style="color:var(--teal-d);font-weight:600;text-decoration:none">🚇 transport →</a>`
+    : `<a href="${mapsBase}" target="_blank" rel="noopener" style="color:var(--teal-d);font-weight:600;text-decoration:none">🗺️ Trajet →</a>`;
+
+  const chips = [
+    jobInfo.salary       && `<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:600">💰 ${esc(jobInfo.salary)}</span>`,
+    jobInfo.contractType && `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:600">📄 ${esc(jobInfo.contractType)}</span>`,
+    jobInfo.remote       && `<span style="background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:600">🏠 ${esc(jobInfo.remote)}</span>`,
+    jobInfo.location     && `<span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:600">📍 ${esc(jobInfo.location)}</span>`,
+  ].filter(Boolean).join('');
+
+  const benefitsHtml = (jobInfo.benefits?.length) ? `
+    <div style="margin-top:6px;font-size:11px;color:var(--ink3)">✨ ${jobInfo.benefits.map(b=>esc(b)).join(' · ')}</div>` : '';
+
+  card.innerHTML = `
+    <div style="border:1.5px solid var(--border);border-radius:10px;padding:10px 14px">
+      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:5px">
+        <span style="font-size:14px;font-weight:800;color:var(--ink)">${esc(c.poste)}</span>
+        <span style="font-size:12px;color:var(--ink3);font-weight:600">${esc(c.company)}</span>
+        ${jobInfo.rating ? `<span style="background:#fef3c7;color:#92400e;border-radius:100px;padding:1px 7px;font-size:11px;font-weight:700">★ ${esc(jobInfo.rating)}</span>` : ''}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:${commute||jobInfo.location?'6':'0'}px">${chips}</div>
+      ${jobInfo.location ? `<div style="font-size:11.5px;color:var(--ink3)">${commuteStr}</div>` : ''}
+      ${benefitsHtml}
+    </div>`;
+}
+
+
+function closeSplitView() {
+  document.getElementById('split-modal-overlay').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+async function reanalyzeSplitView() {
+  const candId = window._splitCandId;
+  if (!candId) return;
+  const cands = ls('sc_cands', []);
+  const c = cands.find(x => x.id === candId);
+  if (!c) return;
+
+  const offerText = c.jobDescription || '';
+  if (!offerText) { toast('Texte de l\'offre introuvable — recolle l\'annonce depuis le tableau de bord'); return; }
+
+  const btn = document.getElementById('split-reanalyze-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse…'; }
+
+  try {
+    // Reforce le refetch du jobInfo (reset cache)
+    delete c._jobInfo;
+
+    // Crée un conteneur temporaire pour recevoir le résultat
+    const tmpEl = document.createElement('div');
+    const result = await doAnalyzeCore(offerText, tmpEl);
+
+    c.analysis = {
+      score:            result.score_global ?? result.score ?? 0,
+      score_global:     result.score_global,
+      score_resume:     result.score_resume,
+      score_competences:result.score_competences,
+      score_experience: result.score_experience,
+      poste:            result.poste,
+      keywords_present: result.keywords_present || [],
+      keywords_missing: result.keywords_missing || [],
+      must_have:        result.must_have || [],
+      nice_to_have:     result.nice_to_have || [],
+      adapted_bullets:  result.adapted_bullets || [],
+      tips:             result.tips || [],
+      cover_letter:     result.cover_letter || '',
+    };
+    if (result.poste)      c.poste   = result.poste;
+    if (result.entreprise) c.company = result.entreprise;
+    // Met à jour le score racine pour cohérence avec le tableau
+    c.score = c.analysis.score_global ?? c.analysis.score ?? null;
+
+    // ── Phrase d'accroche adaptée à cette offre ──────────────
+    // On prend les compétences du profil présentes dans l'offre,
+    // en privilégiant les formulations multi-mots (domaines > outils)
+    const kpAll = result.keywords_present || [];
+    const multiWord  = kpAll.filter(k => k.trim().split(/\s+/).length >= 2);
+    const singleWord = kpAll.filter(k => k.trim().split(/\s+/).length < 2 && k.trim().length > 3);
+    const hookItems  = [...multiWord, ...singleWord].slice(0, 3);
+    if (hookItems.length) {
+      const ov = _getCVOverrides(candId);
+      ov.domainesProfile = hookItems.join(' · ');
+      _saveCVOverrides(candId, ov);
+    }
+
+    // Sauvegarde
+    const idx = cands.findIndex(x => x.id === candId);
+    if (idx !== -1) { cands[idx] = c; localStorage.setItem('sc_cands', JSON.stringify(cands)); }
+
+    // Réouvre la vue partagée avec les nouvelles données
+    openSplitView(candId);
+  } catch (e) {
+    alert('Erreur lors de la ré-analyse : ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="refresh-cw" style="width:13px;height:13px"></i> Relancer l\'analyse'; if (window.lucide) lucide.createIcons(); }
+  }
 }
 
 // ── CSV EXPORT ─────────────────────────────────────────────

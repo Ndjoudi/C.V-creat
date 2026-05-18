@@ -66,58 +66,85 @@ function updateSBProfile() {
 
 // ── CHIPS ──────────────────────────────────────────────────
 function renderChips() {
-  renderChipGroup('chips-subs',  SUBS,         'subdomains');
-  renderChipGroup('chips-tools', TOOLS,        'tools');
-  renderChipGroup('chips-certs', CERTS,        'certifs');
-  renderChipGroup('chips-sects', SECTS,        'sectors');
-  renderChipGroup('chips-info',  INFORMATIQUE, 'informatique');
-  renderCustomChips();
+  renderChipGroup('chips-subs',   SUBS,         'subdomains');
+  renderChipGroup('chips-tools',  TOOLS,        'tools');
+  renderChipGroup('chips-certs',  CERTS,        'certifs');
+  renderChipGroup('chips-sects',  SECTS,        'sectors');
+  renderChipGroup('chips-info',   INFORMATIQUE, 'informatique');
+  renderChipGroup('chips-custom', [],           'customSkills');
   updateSBProfile();
 }
 
 function renderChipGroup(elId, opts, key) {
-  document.getElementById(elId).innerHTML = opts.map(o =>
-    `<span class="chip${P[key].includes(o) ? ' sel' : ''}" onclick="toggleChip('${key}','${o}',this)">${o}</span>`
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const selected   = (P[key] || []).filter(Boolean);
+  const unselected = opts.filter(x => !selected.includes(x));
+
+  // Chips sélectionnées (en haut, colorées, avec ×)
+  let html = selected.map(o =>
+    `<span class="chip sel" style="padding-right:6px">${esc(o)}<span class="chip-x" style="display:inline-block;margin-left:5px;opacity:.5;cursor:pointer;font-size:11px;font-weight:700;line-height:1;vertical-align:1px" title="Supprimer">×</span></span>`
   ).join('');
+
+  // Séparateur entre sélectionnées et non sélectionnées
+  if (selected.length && unselected.length) {
+    html += `<span style="display:block;width:100%;border-top:1px solid var(--border);margin:8px 0 5px"></span>`;
+  }
+
+  // Chips non sélectionnées (cliquables pour ajouter)
+  html += unselected.map(o =>
+    `<span class="chip" onclick="toggleChip('${key}','${o.replace(/'/g,"\\'")}',this)">${esc(o)}</span>`
+  ).join('');
+
+  if (!selected.length && !unselected.length) {
+    html = `<span style="font-size:12px;color:var(--ink3)">Aucun élément — clique sur "+ Ajouter" pour en créer.</span>`;
+  }
+
+  el.innerHTML = html;
+
+  // Gestionnaires de suppression via JS (évite les problèmes d'échappement)
+  el.querySelectorAll('.chip-x').forEach((btn, i) => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      P[key].splice(i, 1);
+      ss('sc_profile', P);
+      renderChips();
+    });
+  });
 }
 
-function toggleChip(key, val, el) {
+function toggleChip(key, val) {
+  if (!P[key]) P[key] = [];
   if (P[key].includes(val)) P[key] = P[key].filter(x => x !== val);
   else P[key].push(val);
-  el.classList.toggle('sel');
   ss('sc_profile', P);
+  renderChips();
 }
 
-function addCustomSkill() {
-  document.getElementById('custom-skill-form').classList.toggle('hidden');
-  document.getElementById('custom-skill-inp').focus();
+// ── AJOUTER / SUPPRIMER des éléments libres ────────────────
+function showAddChip(section) {
+  const form = document.getElementById('add-chip-' + section);
+  if (!form) return;
+  form.classList.remove('hidden');
+  setTimeout(() => { const inp = document.getElementById('add-chip-' + section + '-inp'); if (inp) inp.focus(); }, 40);
 }
 
-function saveCustomSkill() {
-  const val = document.getElementById('custom-skill-inp').value.trim();
+function hideAddChip(section) {
+  const form = document.getElementById('add-chip-' + section);
+  if (form) form.classList.add('hidden');
+  const inp = document.getElementById('add-chip-' + section + '-inp');
+  if (inp) inp.value = '';
+}
+
+function saveAddChip(key, section) {
+  const inp = document.getElementById('add-chip-' + section + '-inp');
+  const val = inp ? inp.value.trim() : '';
   if (!val) return;
-  if (!P.customSkills.includes(val)) P.customSkills.push(val);
+  if (!P[key]) P[key] = [];
+  if (!P[key].includes(val)) P[key].push(val);
   ss('sc_profile', P);
-  renderCustomChips();
-  document.getElementById('custom-skill-inp').value = '';
-  document.getElementById('custom-skill-form').classList.add('hidden');
-}
-
-function renderCustomChips() {
-  const el = document.getElementById('chips-custom');
-  if (!P.customSkills.length) {
-    el.innerHTML = '<span style="font-size:12.5px;color:var(--ink3)">Aucune compétence personnalisée</span>';
-    return;
-  }
-  el.innerHTML = P.customSkills.map(s =>
-    `<span class="chip sel" style="cursor:default">${s} <span onclick="removeCustomSkill('${esc(s)}')" style="margin-left:4px;opacity:.6;cursor:pointer">×</span></span>`
-  ).join('');
-}
-
-function removeCustomSkill(val) {
-  P.customSkills = P.customSkills.filter(x => x !== val);
-  ss('sc_profile', P);
-  renderCustomChips();
+  hideAddChip(section);
+  renderChips();
 }
 
 // ── EXPERIENCES ────────────────────────────────────────────

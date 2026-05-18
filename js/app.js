@@ -4,13 +4,13 @@ const TOOLS = ['SAP MM','SAP WM/EWM','SAP APO/IBP','Oracle SCM','WMS','TMS','Exc
 const CERTS = ['APICS CPIM','APICS CSCP','Six Sigma Green Belt','Six Sigma Black Belt','Lean Manufacturing','CILT','PMP','Prince2','Agile/Scrum','CIPS','ISO 9001','ISO 14001','Lean Six Sigma'];
 const SECTS = ['Industrie','Retail / Distribution','Agroalimentaire','Pharmacie','Automobile','Luxe / Mode','Aéronautique','Grande consommation','E-commerce','BTP','Energie','Cosmétique','Santé / Médical'];
 const INFORMATIQUE = ['Microsoft Word','Claude Code','PowerPoint','Outlook','Teams','Antigravity','Google Sheets','Google Slides','Canva','Notion','Trello','Slack','Zoom','SharePoint','OneDrive','Adobe Acrobat','Salesforce','HubSpot','WordPress','ChatGPT / IA générative'];
-const STATS = ['Envoyée','En cours','Entretien','Offre reçue','Refusée'];
+const STATS = ['Analysé','Envoyé','Message in','Entretien','Refusé'];
 const STAT_COLORS = {
-  'Envoyée':      ['#3B82F6','#EFF6FF','#BFDBFE'],
-  'En cours':     ['#D97706','#FFFBEB','#FDE68A'],
-  'Entretien':    ['var(--teal)','var(--teal-bg)','var(--teal-border)'],
-  'Offre reçue':  ['#16A34A','#F0FDF4','#BBF7D0'],
-  'Refusée':      ['#DC2626','var(--red-bg)','var(--red-border)']
+  'Analysé':    ['#6366F1','#EEF2FF','#C7D2FE'],
+  'Envoyé':     ['#3B82F6','#EFF6FF','#BFDBFE'],
+  'Message in': ['#D97706','#FFFBEB','#FDE68A'],
+  'Entretien':  ['var(--teal)','var(--teal-bg)','var(--teal-border)'],
+  'Refusé':     ['#DC2626','var(--red-bg)','var(--red-border)']
 };
 
 const DEF_PROFILE = {
@@ -34,15 +34,42 @@ function ss(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
 
 // ── SAFE JSON PARSE ────────────────────────────────────────
 function safeParseJSON(raw) {
-  let txt = raw.replace(/```json\s*/gi,'').replace(/```/g,'').trim();
+  // 1. Retire les blocs markdown
+  let txt = raw.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
+
+  // 2. Normalise les guillemets typographiques → ASCII (problème fréquent avec Gemini)
+  txt = txt
+    .replace(/[“”„‟″‶]/g, '"')  // " " → "
+    .replace(/[‘’‚‛′‵]/g, "'");  // ' ' → '
+
+  // 3. Isole le JSON
   const start = txt.search(/[\[{]/);
   if (start !== -1) txt = txt.slice(start);
   const lastClose = Math.max(txt.lastIndexOf('}'), txt.lastIndexOf(']'));
   if (lastClose !== -1) txt = txt.slice(0, lastClose + 1);
-  txt = txt.replace(/"((?:[^"\\]|\\.)*)"/g, (_, s) =>
-    '"' + s.replace(/\n/g,'\\n').replace(/\r/g,'').replace(/\t/g,'\\t') + '"'
-  );
-  return JSON.parse(txt);
+
+  // 4. Essai direct
+  try { return JSON.parse(txt); } catch {}
+
+  // 5. Réparation caractère par caractère — échappe les vrais \n \r \t
+  //    qui se trouvent à l'intérieur d'une chaîne JSON
+  let fixed = '';
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < txt.length; i++) {
+    const ch = txt[i];
+    if (escaped) { fixed += ch; escaped = false; continue; }
+    if (ch === '\\') { fixed += ch; escaped = true; continue; }
+    if (ch === '"') { inString = !inString; fixed += ch; continue; }
+    if (inString) {
+      if (ch === '\n') { fixed += '\\n'; continue; }
+      if (ch === '\r') { continue; }
+      if (ch === '\t') { fixed += '\\t'; continue; }
+    }
+    fixed += ch;
+  }
+
+  return JSON.parse(fixed);
 }
 
 // ── ESCAPE ─────────────────────────────────────────────────
@@ -89,6 +116,9 @@ window.onload = () => {
 
   const key = localStorage.getItem('sc_key');
   if (key) showApp();
+  // Init le switch provider sur l'écran de setup
+  const savedProvider = localStorage.getItem('sc_ai_provider') || 'groq';
+  setupSetProvider(savedProvider);
   document.getElementById('key-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') saveKey();
   });
@@ -96,6 +126,8 @@ window.onload = () => {
   initNav();
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('f-date').value = today;
+  const dashDate = document.getElementById('dash-date');
+  if (dashDate) dashDate.value = today;
 
   // Close modals on Escape
   document.addEventListener('keydown', e => {
@@ -104,6 +136,7 @@ window.onload = () => {
       closeHistModal();
       closeNoteModal();
       if (typeof closeAnalysisModal === 'function') closeAnalysisModal();
+      if (typeof closeSplitView === 'function') closeSplitView();
     }
   });
   // Close modals on overlay click
@@ -117,11 +150,41 @@ window.onload = () => {
 };
 
 // ── KEY / APP ──────────────────────────────────────────────
+function setupSetProvider(p) {
+  localStorage.setItem('sc_ai_provider', p);
+  const groqBtn   = document.getElementById('setup-groq-btn');
+  const geminiBtn = document.getElementById('setup-gemini-btn');
+  const label     = document.getElementById('setup-key-label');
+  const note      = document.getElementById('setup-key-note');
+  const input     = document.getElementById('key-input');
+
+  if (p === 'gemini') {
+    geminiBtn.style.background = '#111'; geminiBtn.style.color = 'white'; geminiBtn.style.borderColor = '#111';
+    groqBtn.style.background   = 'none'; groqBtn.style.color   = 'var(--ink3)'; groqBtn.style.borderColor = 'var(--border)';
+    label.textContent = 'Clé API Gemini (gratuite)';
+    input.placeholder = 'AIza...';
+    note.innerHTML = 'Gratuit. Va sur <a class="alink" href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> → "Create API key in new project" → copie ta clé ici.';
+  } else {
+    groqBtn.style.background   = '#111'; groqBtn.style.color   = 'white'; groqBtn.style.borderColor = '#111';
+    geminiBtn.style.background = 'none'; geminiBtn.style.color = 'var(--ink3)'; geminiBtn.style.borderColor = 'var(--border)';
+    label.textContent = 'Clé API Groq (gratuite)';
+    input.placeholder = 'gsk_...';
+    note.innerHTML = 'Gratuit, fonctionne en France. Va sur <a class="alink" href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> → crée un compte → "Create API key" → copie ta clé ici.';
+  }
+}
+
 function saveKey() {
   const k = document.getElementById('key-input').value.trim();
-  if (!k) { toast('Entre une clé API Groq valide'); return; }
-  if (!k.startsWith('gsk_')) { toast('La clé doit commencer par gsk_'); return; }
-  localStorage.setItem('sc_key', k);
+  const p = localStorage.getItem('sc_ai_provider') || 'groq';
+  if (!k) { toast('Entre une clé API valide'); return; }
+  if (p === 'groq' && !k.startsWith('gsk_')) { toast('La clé Groq doit commencer par gsk_'); return; }
+  if (p === 'gemini' && !k.startsWith('AIza')) { toast('La clé Gemini doit commencer par AIza'); return; }
+  if (p === 'gemini') {
+    localStorage.setItem('sc_gemini_key', k);
+    localStorage.setItem('sc_key', 'gemini'); // valeur placeholder pour que showApp() s'active
+  } else {
+    localStorage.setItem('sc_key', k);
+  }
   showApp();
 }
 function resetKey() {
@@ -129,6 +192,47 @@ function resetKey() {
   localStorage.removeItem('sc_key');
   document.getElementById('setup-sc').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
+}
+
+function setProvider(p) {
+  localStorage.setItem('sc_ai_provider', p);
+  refreshProviderUI();
+}
+
+function saveGeminiKey() {
+  const k = document.getElementById('gemini-key-input')?.value.trim();
+  if (!k) { toast('Entre ta clé Gemini (AIza...)'); return; }
+  localStorage.setItem('sc_gemini_key', k);
+  document.getElementById('gemini-key-input').value = '';
+  refreshProviderUI();
+  toast('✓ Clé Gemini sauvegardée');
+}
+
+function refreshProviderUI() {
+  const p = localStorage.getItem('sc_ai_provider') || 'groq';
+  const hasGemini = !!localStorage.getItem('sc_gemini_key');
+
+  const gBtn = document.getElementById('provider-groq-btn');
+  const mBtn = document.getElementById('provider-gemini-btn');
+  const row  = document.getElementById('gemini-key-row');
+  const saved= document.getElementById('gemini-key-saved');
+  if (!gBtn) return;
+
+  // Style boutons actif/inactif
+  [gBtn, mBtn].forEach(b => {
+    b.style.background = 'none'; b.style.color = 'var(--ink3)'; b.style.borderColor = 'var(--border)';
+  });
+  const active = p === 'gemini' ? mBtn : gBtn;
+  active.style.background = '#6366f1'; active.style.color = 'white'; active.style.borderColor = '#6366f1';
+
+  // Affiche input clé Gemini si besoin
+  if (p === 'gemini') {
+    row.style.display = hasGemini ? 'none' : 'flex';
+    saved.style.display = hasGemini ? 'block' : 'none';
+  } else {
+    row.style.display = 'none';
+    saved.style.display = 'none';
+  }
 }
 function showApp() {
   document.getElementById('setup-sc').classList.add('hidden');
@@ -141,6 +245,7 @@ function showApp() {
   refreshDash();
   renderTracker();
   refreshBadges();
+  refreshProviderUI();
 }
 
 // ── MOBILE MENU ────────────────────────────────────────────
@@ -240,15 +345,16 @@ function refreshDash() {
         }
         return `<tr>
           <td>
-            <div style="font-weight:700;color:var(--ink);font-size:13px">${esc(c.poste)}</div>
+            <div style="font-weight:700;color:var(--ink);font-size:13px;cursor:pointer;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px" onclick="openSplitView('${c.id}')" title="Voir offre + CV">${esc(c.poste)}</div>
             <div style="color:var(--ink3);font-size:12px;margin-top:1px">${esc(c.company)}</div>
           </td>
           <td>${scoreBadge}</td>
           <td style="color:var(--ink3);font-size:12.5px">${c.date || ''}</td>
-          <td><span style="background:${bg};border:1.5px solid ${border};border-radius:100px;color:${col};font-size:12px;font-weight:700;padding:3px 9px">${c.status}</span></td>
+          <td><select style="background:${bg};border:1.5px solid ${border};border-radius:100px;color:${col};font-size:12px;font-weight:700;padding:3px 9px;cursor:pointer;outline:none" onchange="updCand('${c.id}','status',this.value);refreshDash()">${STATS.map(s=>`<option${s===c.status?' selected':''}>${s}</option>`).join('')}</select></td>
           <td style="white-space:nowrap">
             ${c.analysis ? `<button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="CV adapté">CV</button><button onclick="loadCVForCand('${c.id}',true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="PDF">⬇ PDF</button>` : ''}
             <button onclick="goTo('tracker')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:13px;padding:2px 5px;border-radius:4px" title="Voir dans Candidatures">→</button>
+            <button onclick="delCand('${c.id}')" style="background:none;border:1.5px solid #fecaca;cursor:pointer;color:#dc2626;font-size:12px;font-weight:700;padding:2px 7px;border-radius:100px;margin-left:3px;line-height:1" title="Supprimer">🗑</button>
           </td>
         </tr>`;
       }).join('')}</tbody>
@@ -258,22 +364,19 @@ function refreshDash() {
   }
 
   dashEl.innerHTML = `
-    <!-- Profil + actions -->
-    <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
-      <div style="flex:1;min-width:200px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="font-size:13px;font-weight:700;color:var(--ink)">Complétion du profil</div>
-          <div style="font-size:13px;font-weight:800;color:var(--teal)">${pct}%</div>
+    <!-- Profil compact -->
+    <div class="card" style="margin-bottom:12px;padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:12px;font-weight:700;color:var(--ink)">Complétion du profil</div>
+          <div style="font-size:12px;font-weight:800;color:var(--teal)">${pct}%</div>
         </div>
-        <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
-        <div style="margin-top:8px;font-size:12px;color:var(--ink3)">${pct < 100
+        <div class="prog" style="height:5px"><div class="prog-f" style="width:${pct}%"></div></div>
+        <div style="margin-top:6px;font-size:11.5px;color:var(--ink3)">${pct < 100
           ? `<span style="color:var(--teal);cursor:pointer;font-weight:600" onclick="goTo('profile')">Compléter → </span>pour de meilleurs résultats IA`
           : '✓ Profil complet — l\'IA est prête'}</div>
       </div>
-      <div style="display:flex;gap:9px;flex-wrap:wrap">
-        <button class="btn btn-p" onclick="goTo('tracker')" style="font-size:13px"><i data-lucide="plus" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"></i>Nouvelle candidature</button>
-        <button class="btn btn-g" onclick="goTo('cv')" style="font-size:13px"><i data-lucide="file-text" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"></i>Mon CV</button>
-      </div>
+      <button class="btn btn-g" onclick="goTo('cv')" style="font-size:12px;padding:6px 14px;flex-shrink:0"><i data-lucide="file-text" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px"></i>Mon CV</button>
     </div>
 
     <!-- Stat cards candidatures -->

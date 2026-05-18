@@ -81,47 +81,257 @@ function detectCVErrors() {
   return { errors, warnings };
 }
 
+// ── EXTRACTION LOCALE (0 token) ────────────────────────────
+function extractJobInfoLocal(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const lower = text.toLowerCase();
+
+  // Titre = 1ère ligne non vide courte (≤80 chars)
+  const title = lines.find(l => l.length <= 80 && l.length > 3) || '';
+
+  // Entreprise = 2ème ligne courte ou après · ou "chez"
+  const coLine = lines.find((l, i) => i > 0 && i < 6 && l.length <= 60 && l !== title) || '';
+
+  // Salaire = ligne courte (≤80 chars) avec € et chiffres
+  const salRaw = lines.find(l => l.length <= 80 && /\d/.test(l) && l.includes('€')) || '';
+  // Retire la partie contrat si collée ("De 50 000€ à 60 000€ par an - CDI" → "De 50 000€ à 60 000€ par an")
+  const salLine = salRaw.replace(/\s*[-–]\s*(cdi|cdd|intérim|stage|alternance|temps plein|temps partiel).*/i, '').trim();
+
+  // Contrat
+  const contractMatch = lower.match(/\b(cdi|cdd|intérim|interim|stage|alternance|temps plein|temps partiel|freelance|indépendant)\b/);
+  const contractType = contractMatch ? contractMatch[1].toUpperCase().replace('INTERIM','Intérim') : '';
+
+  // Lieu = ligne COURTE (≤60 chars) avec code postal ou nom de ville seul
+  const locLine = lines.find(l =>
+    l.length <= 60 && (
+      /\b\d{5}\b/.test(l) ||
+      /^(Paris|Lyon|Marseille|Bordeaux|Lille|Nantes|Toulouse|Roissy|Créteil|Sartrouville|Massy|Versailles|Mitry|Marne|Seine|Val|Île-de-France)[\s,\-]/i.test(l) ||
+      /\b(cedex|\d{2}e?)\b/i.test(l)
+    )
+  ) || '';
+
+  // Télétravail
+  const remoteMatch = lower.match(/\b(télétravail|teletravail|remote|hybride|hybrid|présentiel)\b/);
+  const remote = remoteMatch ? remoteMatch[1] : '';
+
+  return { title, company: coLine, salary: salLine, contractType, location: locLine, remote };
+}
+
+// ── SCORING LOCAL (0 token) ─────────────────────────────────
+function computeLocalScore(offerText, profileSkills, mustHave, niceToHave, profile) {
+  const p = profile || {};
+  const offerLower = offerText.toLowerCase();
+
+  // ── Textes du profil par couche ──
+  const skillsText = profileSkills.filter(s => typeof s === 'string').join(' ').toLowerCase();
+
+  const expText = (p.experiences||[]).map(e =>
+    [e.title||'', e.company||'', e.description||'', ...(e.bullets||[]).map(b=>b.text||'')].join(' ')
+  ).join(' ').toLowerCase();
+
+  const summaryText = ((p.summary||'') + ' ' + (p.title||'')).toLowerCase();
+
+  const fullProfileText = [skillsText, expText, summaryText].join(' ');
+
+  function reMatch(kw, text) {
+    if (typeof kw !== 'string' || !kw.trim() || !text) return false;
+    try {
+      const re = new RegExp(`(?<![\\wÀ-öø-ÿ])${kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?![\\wÀ-öø-ÿ])`, 'i');
+      return re.test(text);
+    } catch { return text.includes(kw.toLowerCase()); }
+  }
+
+  // ── keywords_present : skills profil trouvés dans l'offre ──
+  const present = profileSkills
+    .filter(s => typeof s === 'string' && s.trim().length > 1)
+    .filter(s => reMatch(s, offerLower));
+
+  // ── keywords_missing : exigences de l'offre absentes du profil complet ──
+  const allOfferKw = [...(mustHave||[]), ...(niceToHave||[])];
+  const missing = allOfferKw.filter(kw => !reMatch(kw, fullProfileText));
+
+  // ── Mots-clés significatifs de l'offre (4+ chars, hors stop words) ──
+  const stopWords = new Set(['dans','pour','avec','être','avoir','nous','vous','cette','votre','leur','leurs','notre','entre','comme','mais','dont','plus','très','bien','tout','tous','toute','toutes','aussi','même','alors','ainsi','donc','lors','selon','après','avant','sans','sous','vers','chez','dont','déjà','encore','souvent','parfois','jamais','toujours']);
+  const offerWords = [...new Set((offerLower.match(/\b[a-zÀ-öø-ÿ]{4,}\b/g) || []).filter(w => !stopWords.has(w)))];
+
+  // ── Score Compétences : skills du profil trouvés dans l'offre ──
+  const skillsInOffer = present.length; // déjà calculé
+  const skillsTotal   = profileSkills.filter(s => typeof s === 'string' && s.trim().length > 1).length;
+  // + bonus must_have/nice_to_have trouvés dans les skills
+  const mustTotal  = (mustHave||[]).length;
+  const niceTotal  = (niceToHave||[]).length;
+  const mustInSkills = (mustHave||[]).filter(kw => reMatch(kw, skillsText)).length;
+  const niceInSkills = (niceToHave||[]).filter(kw => reMatch(kw, skillsText)).length;
+  const mustBonus    = mustTotal > 0 ? (mustInSkills / mustTotal) * 30 : 0;
+  const skillsBase   = skillsTotal > 0 ? (skillsInOffer / skillsTotal) * 70 : 0;
+  const scoreCompetences = Math.min(Math.round(skillsBase + mustBonus), 100);
+
+  // ── Score Expériences : mots-clés de l'offre trouvés dans expériences + compétences ──
+  // On utilise fullProfileText pour éviter un score 0 si les descriptions sont courtes
+  const expHits   = offerWords.filter(w => fullProfileText.includes(w)).length;
+  const expRaw    = offerWords.length > 0 ? (expHits / offerWords.length) * 400 : 0;
+  const scoreExp  = Math.min(Math.round(expRaw), 100);
+
+  // ── Score Résumé : mots-clés de l'offre trouvés dans accroche/titre ──
+  const summaryHits  = offerWords.filter(w => summaryText.includes(w)).length;
+  const summaryRaw   = offerWords.length > 0 ? (summaryHits / offerWords.length) * 500 : 0;
+  const scoreResume  = Math.min(Math.round(summaryRaw), 100);
+
+  // ── Score global pondéré ──
+  const scoreGlobal = Math.round(scoreExp * 0.55 + scoreCompetences * 0.30 + scoreResume * 0.15);
+
+  return {
+    keywords_present:  present,
+    keywords_missing:  missing,
+    score_competences: Math.min(scoreCompetences, 100),
+    score_experience:  Math.min(scoreExp, 100),
+    score_resume:      Math.min(scoreResume, 100),
+    score_global:      Math.min(scoreGlobal, 100),
+  };
+}
+
+// ── EXTRACTION EXIGENCES LOCALE (0 token) ──────────────────
+function extractRequirementsLocal(offerText) {
+  const lines = offerText.split('\n').map(l => l.trim()).filter(l => l.length > 8 && l.length < 200);
+
+  const mustSignals = [
+    // Mots explicites
+    /\b(obligatoire|requis|impératif|exigé|exigée|indispensable|nécessaire|incontournable|impérative)\b/i,
+    // Expérience obligatoire
+    /\bexpérience (confirmée|significative|solide|requise|obligatoire|exigée|avérée|démontrée|éprouvée|réussie)\b/i,
+    /\b\d+\s*ans?\s*(d[' ]expérience|minimum|requis|exigés?)\b/i,
+    /\bminimum\s+\d+\s*ans?\b/i,
+    /\bexpérience (de|en|dans).{0,40}(minimum|requise|obligatoire|exigée)\b/i,
+    // Maîtrise
+    /\b(excellente?|parfaite?|solide|bonne?|grande?|haute?)\s+maîtrise\b/i,
+    /\bmaîtrise\s+(obligatoire|indispensable|requise|exigée|impérative)\b/i,
+    /\bmaîtrisez?\b/i,
+    // Formation / diplôme
+    /\b(bac\s*\+?\s*\d|master\s*\d?|licence|mba|ingénieur|diplôme)\b/i,
+    /\b(formation (requise|obligatoire|exigée|en)|niveau bac)\b/i,
+    /\btitulaire (d[ue'n]|d[' ]un)\b/i,
+    /\bissu[e]? (de|d[' ]une) (formation|école|université)\b/i,
+    // Verbes forts au présent
+    /\bvous (devez|maîtrisez|justifiez|possédez|disposez|démontrez|présentez|avez impérativement)\b/i,
+    /\b(doit|doivent) (maîtriser|posséder|justifier|disposer|avoir)\b/i,
+    // Connaissance obligatoire
+    /\bconnaissance (approfondie|solide|parfaite|obligatoire|requise|exigée)\b/i,
+    /\bà l'aise (avec|sur|en)\b/i,
+    /\bcapacité (avérée|démontrée|requise) (à|de)\b/i,
+  ];
+
+  const niceSignals = [
+    // Préférence
+    /\b(idéalement|de préférence|dans l'idéal|si possible|dans l'idéal)\b/i,
+    /\bde préférence\b/i,
+    // Atout / plus
+    /\bun plus\b/i,
+    /\b(serait?|sera|constitue?|représente?) un (plus|atout|avantage)\b/i,
+    /\b(est|serait?) (apprécié|appréciée|un atout|bienvenu)\b/i,
+    /\batout\b/i,
+    // Souhaité / apprécié
+    /\b(apprécié|appréciée|souhaité|souhaitée|bienvenu|bienvenue)(s?)\b/i,
+    /\b(recommandé|recommandée|suggéré|suggérée)(s?)\b/i,
+    // Une expérience en... serait
+    /\bune expérience (en|dans|sur).{0,60}(serait|sera|est un)\b/i,
+    /\bla (connaissance|maîtrise) de?.{0,40}(serait|est un|sera)\b/i,
+    // Bonus / optionnel
+    /\b(optionnel|facultatif|bonus)\b/i,
+    /\bserait un\b/i,
+  ];
+
+  // Détecte la section "Profil recherché"
+  const profilIdx = lines.findIndex(l => /^(profil recherché|profil candidat|votre profil|ce que nous recherchons)/i.test(l));
+
+  const mustRaw = new Set();
+  const niceRaw = new Set();
+
+  const stopWords = new Set(['de','du','des','la','le','les','un','une','dans','pour','avec','et','ou','à','en','par','sur','au','aux','ce','cette','ces','votre','notre','vous','nous','son','ses','leur','leurs','qui','que','dont','où','afin','lors','notamment','ainsi','avoir','être','faire','savoir','pouvoir','devoir']);
+
+  function cleanSkill(line) {
+    return line
+      // Retire les signaux
+      .replace(/\b(obligatoire|requis|impératif|exigé|indispensable|nécessaire|idéalement|de préférence|un plus|serait? un atout|constitue un atout|apprécié|souhaité|bienvenu|expérience confirmée|expérience significative|excellente? maîtrise|bonne? maîtrise|solide maîtrise)\b/gi, '')
+      // Retire ponctuation et mots parasites de début
+      .replace(/^[\s:,;.•\-–—►▸*]+/, '')
+      .replace(/\b(dans|d'|de|du|des|une|un|la|le|les|l'|au|aux|en|avec|pour|par)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function extractKeywords(raw) {
+    const words = raw.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w.toLowerCase()));
+    // Garde max 4 mots significatifs
+    return words.slice(0, 4).join(' ').replace(/[,;:.]+$/, '').trim();
+  }
+
+  lines.forEach((line, idx) => {
+    const isNice = niceSignals.some(p => p.test(line));
+    const isMust = mustSignals.some(p => p.test(line));
+    // Lignes dans la section "Profil recherché" → must par défaut
+    const inProfilSection = profilIdx !== -1 && idx > profilIdx && idx < profilIdx + 20;
+
+    if (isNice) {
+      const kw = extractKeywords(cleanSkill(line));
+      if (kw.length > 2) niceRaw.add(kw);
+    } else if (isMust || inProfilSection) {
+      const kw = extractKeywords(cleanSkill(line));
+      if (kw.length > 2) mustRaw.add(kw);
+    }
+  });
+
+  return {
+    must_have:    [...mustRaw].slice(0, 10),
+    nice_to_have: [...niceRaw].slice(0, 8),
+  };
+}
+
 // ── ANALYSE CORE — appelable depuis tracker ou écran analyse ─
 async function doAnalyzeCore(offerText, containerEl) {
-  const p  = ANON ? anonymize(P) : P;
-  const ps = p.firstName
-    ? `Titre: ${p.title||'—'} | Expérience: ${p.yearsExp||'—'}
-Sous-domaines SC: ${p.subdomains.join(', ')||'—'}
-Outils: ${p.tools.join(', ')||'—'}
-Certifications: ${p.certifs.join(', ')||'—'}
-Secteurs: ${p.sectors.join(', ')||'—'}
-Expériences: ${p.experiences.map(e => e.title+' chez '+e.company+' ('+e.duration+'): '+e.description).join(' | ')||'—'}`
-    : 'Profil non renseigné';
+  const p = ANON ? anonymize(P) : P;
 
-  const prompt = `Tu es un expert RH et consultant en recrutement supply chain, spécialisé dans l'optimisation ATS.
+  // ── 1. Extraction locale (0 token) ──
+  const local = extractJobInfoLocal(offerText);
 
-RÈGLES D'ANALYSE STRICTES :
-- score_global : % de mots-clés importants de l'offre présents dans le profil (65-75% = optimal)
-- score_resume : adéquation du résumé/accroche avec le poste visé
-- score_competences : % des compétences demandées présentes dans le profil
-- score_experience : pertinence des expériences pour ce rôle
-- must_have : compétences marquées "requis","obligatoire","impératif","exigé"
-- nice_to_have : compétences marquées "souhaité","idéalement","un plus","apprécié"
-- keywords_present : termes de l'offre présents dans le profil
-- keywords_missing : termes importants de l'offre absents du profil
-- adapted_bullets : 4 bullets PERCUTANTS formule APR (Verbe fort + Action + Résultat chiffré). Jamais "Responsable de" ou "En charge de".
-- cover_letter : lettre professionnelle complète
-- Ne jamais inventer d'informations absentes du profil
+  // ── 2. Compétences du profil ──
+  const profileSkills = [
+    ...(p.technicalSkills||[]), ...(p.softSkills||[]),
+    ...(p.tools||[]), ...(p.languages||[]),
+    ...(p.subdomains||[]), ...(p.customSkills||[])
+  ].filter(Boolean);
 
-OFFRE D'EMPLOI :
-${offerText}
+  // ── 3. Extraction locale des exigences (0 token, 0 API) ──
+  const aiResult = extractRequirementsLocal(offerText);
 
-PROFIL DU CANDIDAT :
-${ps}
+  // ── 4. Score + keywords locaux (0 token) ──
+  const localScore = computeLocalScore(offerText, profileSkills, aiResult.must_have, aiResult.nice_to_have, p);
 
-Réponds UNIQUEMENT en JSON valide, sans markdown :
-{"poste":"","entreprise":"","score_global":72,"score_resume":65,"score_competences":80,"score_experience":70,"must_have":[],"nice_to_have":[],"keywords_present":[],"keywords_missing":[],"adapted_bullets":[],"tips":[],"cover_letter":""}`;
-
-  const raw    = await callGroq(prompt, { maxTokens: 3200, temperature: 0.5 });
-  const result = safeParseJSON(raw);
-  if (result.score !== undefined && result.score_global === undefined) result.score_global = result.score;
+  // ── 5. Fusion local ──
+  const result = {
+    poste:            local.title,
+    entreprise:       local.company,
+    location:         local.location,
+    salary:           local.salary,
+    contractType:     local.contractType,
+    remote:           local.remote,
+    score_global:     localScore.score_global,
+    score_competences:localScore.score_competences,
+    score_resume:     localScore.score_resume,
+    score_experience: localScore.score_experience,
+    must_have:        aiResult.must_have    || [],
+    nice_to_have:     aiResult.nice_to_have || [],
+    keywords_present: localScore.keywords_present,
+    keywords_missing: localScore.keywords_missing,
+    adapted_bullets:  [],
+    tips:             [],
+    cover_letter:     '',
+  };
 
   renderAnalyzeResult(result, detectCVErrors(), containerEl);
+
+  // Remplissage automatique des champs dashboard (évite un 2e appel API)
+  if (result.poste)   { const el = document.getElementById('dash-poste'); if (el && !el.value) el.value = result.poste; }
+  if (result.entreprise) { const el = document.getElementById('dash-co'); if (el && !el.value) el.value = result.entreprise; }
 
   // Mise à jour poste ciblé CV
   if (result.poste) {
@@ -143,7 +353,6 @@ Réponds UNIQUEMENT en JSON valide, sans markdown :
   if (hist.length > 20) hist.pop();
   ss('sc_history', hist);
   refreshBadges();
-  proposeBulletMatches(result);
   return result;
 }
 
@@ -238,73 +447,9 @@ function renderAnalyzeResult(r, cvErrors, container) {
     ${scoreBreakdown}
   </div>`;
 
-  // ── Must-have / Nice-to-have ──
-  if (r.must_have?.length || r.nice_to_have?.length) {
-    html += `<div class="card">
-      <div class="ctitle">Exigences du poste</div>
-      ${r.must_have?.length ? `
-        <div style="margin-bottom:12px">
-          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--red);margin-bottom:8px">Indispensables</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">${r.must_have.map(k => `<span style="padding:4px 11px;border-radius:100px;font-size:12.5px;font-weight:600;background:var(--red-bg);color:var(--red);border:1.5px solid var(--red-border)">${esc(k)}</span>`).join('')}</div>
-        </div>` : ''}
-      ${r.nice_to_have?.length ? `
-        <div>
-          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#D97706;margin-bottom:8px">Souhaitées</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">${r.nice_to_have.map(k => `<span style="padding:4px 11px;border-radius:100px;font-size:12.5px;font-weight:600;background:#FFFBEB;color:#D97706;border:1.5px solid #FDE68A">${esc(k)}</span>`).join('')}</div>
-        </div>` : ''}
-    </div>`;
-  }
-
-  // ── Mots-clés présents / manquants ──
-  if (r.keywords_present?.length || r.keywords_missing?.length) {
-    html += `<div class="card">
-      <div class="ctitle">Mots-clés ATS</div>
-      ${r.keywords_present?.length ? `
-        <div style="margin-bottom:14px">
-          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--teal);margin-bottom:8px">✓ Présents dans ton profil</div>
-          <div>${r.keywords_present.map(k => `<span class="atag">${esc(k)}</span>`).join('')}</div>
-        </div>` : ''}
-      ${r.keywords_missing?.length ? `
-        <div>
-          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--red);margin-bottom:8px">✗ Absents de ton profil</div>
-          <div>${r.keywords_missing.map(k => `<span style="display:inline-block;padding:4px 10px;background:var(--red-bg);color:var(--red);border-radius:var(--radius-xs);font-size:12px;font-weight:600;margin:2px;border:1px solid var(--red-border)">${esc(k)}</span>`).join('')}</div>
-        </div>` : ''}
-    </div>`;
-  }
-
-  // ── Bullet points (suggestions IA) ──
-  html += `<div class="card">
-    <div class="ctitle-row">
-      <span class="ctitle">Bullet points adaptés pour ton CV</span>
-      <span style="font-size:11px;color:var(--sand-dark);background:var(--sand-bg);border:1px solid #D4B98A;padding:3px 9px;border-radius:100px;font-weight:600;display:inline-flex;align-items:center;gap:4px"><i data-lucide="sparkles" style="width:11px;height:11px"></i>Suggestions IA — à relire</span>
-    </div>
-    <div style="font-size:12.5px;color:var(--ink3);margin-bottom:13px">Formule APR : Verbe d'action + Action concrète + Résultat</div>
-    ${(r.adapted_bullets||[]).map(b=>`<div class="bullet">${esc(b)}</div>`).join('')}
-  </div>`;
-
-  // ── Conseils ──
-  if (r.tips?.length) {
-    html += `<div class="card"><div class="ctitle">Conseils pour cette candidature</div>${r.tips.map(t=>`<div class="bullet">${esc(t)}</div>`).join('')}</div>`;
-  }
-
-  // ── Lettre de motivation ──
-  if (r.cover_letter) {
-    html += `<div class="card">
-      <div class="ctitle-row">
-        <span class="ctitle">Lettre de motivation</span>
-        <span style="font-size:11px;color:var(--sand-dark);background:var(--sand-bg);border:1px solid #D4B98A;padding:3px 9px;border-radius:100px;font-weight:600;display:inline-flex;align-items:center;gap:4px"><i data-lucide="sparkles" style="width:11px;height:11px"></i>Suggestion IA — à personnaliser</span>
-      </div>
-      <div style="display:flex;gap:7px;margin-bottom:12px">
-        <button class="btn btn-g" style="font-size:12.5px" onclick="copyLetter()">Copier</button>
-        <button class="btn btn-g" style="font-size:12.5px" onclick="downloadLetter()">Télécharger</button>
-      </div>
-      <div class="covl" id="cover-letter-txt">${esc(r.cover_letter)}</div>
-    </div>`;
-  }
 
   container.innerHTML = html;
   if (typeof lucide !== 'undefined') lucide.createIcons();
-  window._coverLetter = r.cover_letter || '';
 }
 
 function copyLetter() { navigator.clipboard.writeText(window._coverLetter || ''); toast('Lettre copiée'); }
