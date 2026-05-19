@@ -290,7 +290,7 @@ function addCandFromDash() {
     id: Date.now().toString(),
     company: co, poste,
     date:           document.getElementById('dash-date').value,
-    status:         'À traiter',
+    status:         '',
     notes:          '',
     indeedUrl:      '',
     jobDescription: pasteEl?.dataset.desc || '',
@@ -372,9 +372,7 @@ function renderTracker() {
           </td>
           <td>${scoreBadge}</td>
           <td style="color:var(--ink3);font-size:12.5px">${c.date || ''}</td>
-          <td><select style="background:${bg};border:1.5px solid ${border};border-radius:100px;color:${col};font-size:12px;font-weight:700;padding:3px 9px;cursor:pointer;outline:none" onchange="updCand('${c.id}','status',this.value)">${
-            STATS.map(s => `<option${s === c.status ? ' selected' : ''}>${s}</option>`).join('')
-          }</select></td>
+          <td>${renderStatusLetters(c.id, c.status, 'updCand')}</td>
           <td class="notes-cell" onclick="openNoteModal('${esc(c.company)}','${esc(c.poste)}',\`${(c.notes||'').replace(/`/g,"'")}\`)" title="Cliquer pour voir">${esc(c.notes) || '<span style="opacity:.4">—</span>'}</td>
           <td style="white-space:nowrap">${c.analysis ? `
             <button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Voir le CV adapté à cette offre">CV</button><button onclick="loadCVForCand('${c.id}', true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="Télécharger PDF">⬇ PDF</button>` : ''}<button onclick="openInterviewForCand('${c.id}')" style="background:none;border:1.5px solid #e9d5ff;cursor:pointer;color:#7c3aed;font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Simuler l'entretien pour ce poste">🎤 Entretien</button><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
@@ -564,6 +562,11 @@ function updCand(id, k, v) {
     return `<div class="stat" style="border-color:${border}"><div class="stat-n" style="color:${col}">${c2.filter(x => x.status === s).length}</div><div class="stat-l">${s}</div></div>`;
   }).join('');
   refreshBadges();
+}
+
+function updCandAndRefresh(id, k, v) {
+  updCand(id, k, v);
+  refreshDash();
 }
 
 // ── NOTE MODAL ─────────────────────────────────────────────

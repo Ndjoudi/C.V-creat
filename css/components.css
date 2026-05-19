@@ -128,13 +128,13 @@ select.inp{cursor:pointer}
 
 /* ── STATS ─────────────────────────────────────────────── */
 .stat{
-  background:var(--card);border-radius:var(--radius);padding:18px 16px;
+  background:var(--card);border-radius:10px;padding:10px 12px;
   border:1px solid var(--border);text-align:center;
   box-shadow:var(--shadow);transition:var(--t);
 }
-.stat:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
-.stat-n{font-size:30px;font-weight:700;color:var(--teal);line-height:1}
-.stat-l{font-size:11px;color:var(--ink3);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.stat:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.stat-n{font-size:20px;font-weight:700;color:var(--teal);line-height:1}
+.stat-l{font-size:10px;color:var(--ink3);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 
 /* ── LOADING ───────────────────────────────────────────── */
 .ldg{
@@ -196,6 +196,7 @@ select.inp{cursor:pointer}
   box-shadow:var(--shadow-lg);animation:slideUp .22s ease;
 }
 .modal-wide{max-width:700px}
+.modal-full{max-width:calc(100vw - 40px);max-height:92vh}
 .mhd{
   padding:20px 24px 16px;border-bottom:1px solid var(--border);
   display:flex;justify-content:space-between;align-items:flex-start;

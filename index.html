@@ -7,8 +7,8 @@
 <meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/base.css?v=35"/>
-<link rel="stylesheet" href="css/components.css?v=35"/>
+<link rel="stylesheet" href="css/base.css?v=36"/>
+<link rel="stylesheet" href="css/components.css?v=37"/>
 <link rel="stylesheet" href="css/cv.css?v=35"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
@@ -60,44 +60,59 @@
 
   <!-- ── SIDEBAR ─────────────────────────────────────────── -->
   <div class="sb" id="sidebar">
+    <!-- Logo + toggle -->
     <div class="sb-logo">
-      <div class="sb-icon"><i data-lucide="zap"></i></div>
-      <div class="sb-name">Supply<br>Copilot</div>
-      <div class="sb-sub">Career Intelligence</div>
+      <div class="sb-icon" onclick="toggleSidebar()" title="Réduire / Agrandir" style="cursor:pointer"><i data-lucide="zap"></i></div>
+      <div class="sb-logo-text">
+        <div class="sb-name">Supply Copilot</div>
+        <div class="sb-sub">Career Intelligence</div>
+      </div>
     </div>
+
+    <!-- Nav -->
     <nav class="nav" id="nav">
       <div class="nav-section">Principal</div>
-      <div class="ni on"  data-sc="dash">     <i data-lucide="layout-dashboard" class="ni-icon"></i>Tableau de bord</div>
-      <div class="ni"     data-sc="profile">  <i data-lucide="circle-user"      class="ni-icon"></i>Mon Profil</div>
-      <div class="ni"     data-sc="cv">       <i data-lucide="file-text"        class="ni-icon"></i>Mon CV</div>
+      <div class="ni on"  data-sc="dash">     <i data-lucide="layout-dashboard" class="ni-icon"></i><span class="ni-label">Tableau de bord</span></div>
+      <div class="ni"     data-sc="profile">  <i data-lucide="circle-user"      class="ni-icon"></i><span class="ni-label">Mon Profil</span></div>
+      <div class="ni"     data-sc="cv">       <i data-lucide="file-text"        class="ni-icon"></i><span class="ni-label">Mon CV</span></div>
       <div class="nav-section" style="margin-top:8px">IA</div>
-      <div class="ni"     data-sc="tracker">  <i data-lucide="briefcase"        class="ni-icon"></i>Candidatures <span class="ni-badge" id="badge-cands" style="display:none"></span></div>
-      <div class="ni"     data-sc="interview"><i data-lucide="mic"              class="ni-icon"></i>Simulation entretien <span class="ni-badge" id="badge-new">Nouveau</span></div>
-      <div class="ni"     data-sc="history">  <i data-lucide="history"          class="ni-icon"></i>Mes analyses <span class="ni-badge" id="badge-hist" style="display:none"></span></div>
+      <div class="ni"     data-sc="tracker">  <i data-lucide="briefcase"        class="ni-icon"></i><span class="ni-label">Candidatures</span> <span class="ni-badge" id="badge-cands" style="display:none"></span></div>
+      <div class="ni"     data-sc="interview"><i data-lucide="mic"              class="ni-icon"></i><span class="ni-label">Simulation entretien</span> <span class="ni-badge" id="badge-new">Nouveau</span></div>
+      <div class="ni"     data-sc="history">  <i data-lucide="history"          class="ni-icon"></i><span class="ni-label">Mes analyses</span> <span class="ni-badge" id="badge-hist" style="display:none"></span></div>
     </nav>
+
+    <!-- Footer -->
     <div class="sb-ft">
-      <div id="sb-profile-info" class="hidden" style="margin-bottom:10px">
-        <div class="sb-flabel">Profil actif</div>
-        <div class="sb-fname" id="sb-pname"></div>
-        <div class="sb-frole" id="sb-prole"></div>
-      </div>
-      <div class="sb-actions">
-        <button class="btn btn-g" onclick="resetKey()" style="flex:1;justify-content:center;font-size:12px;padding:7px 10px">Changer la clé</button>
-        <button class="btn-icon" onclick="exportAllData()" title="Exporter toutes les données"><i data-lucide="upload"></i></button>
-        <button class="btn-icon" onclick="importAllData()" title="Importer une sauvegarde"><i data-lucide="download"></i></button>
-      </div>
-      <!-- Provider selector -->
-      <div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:10px;border:1px solid var(--border)">
-        <div style="font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">🤖 Modèle IA</div>
-        <div style="display:flex;gap:5px;margin-bottom:8px">
-          <button id="provider-groq-btn" onclick="setProvider('groq')" style="flex:1;font-size:11px;padding:4px 6px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-weight:600;transition:all .15s">Groq</button>
-          <button id="provider-gemini-btn" onclick="setProvider('gemini')" style="flex:1;font-size:11px;padding:4px 6px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-weight:600;transition:all .15s">Gemini</button>
+      <!-- Plein -->
+      <div class="sb-ft-full">
+        <div id="sb-profile-info" class="hidden" style="margin-bottom:10px">
+          <div class="sb-flabel">Profil actif</div>
+          <div class="sb-fname" id="sb-pname"></div>
+          <div class="sb-frole" id="sb-prole"></div>
         </div>
-        <div id="gemini-key-row" style="display:none;gap:5px">
-          <input id="gemini-key-input" type="password" placeholder="AIza..." class="inp" style="font-size:11px;padding:5px 8px;flex:1"/>
-          <button onclick="saveGeminiKey()" style="font-size:11px;padding:5px 8px;border-radius:6px;border:none;background:#10b981;color:white;cursor:pointer;font-weight:600;white-space:nowrap">Sauver</button>
+        <div class="sb-actions">
+          <button class="btn btn-g" onclick="resetKey()" style="flex:1;justify-content:center;font-size:12px;padding:7px 10px">Changer la clé</button>
+          <button class="btn-icon" onclick="exportAllData()" title="Exporter"><i data-lucide="upload"></i></button>
+          <button class="btn-icon" onclick="importAllData()" title="Importer"><i data-lucide="download"></i></button>
         </div>
-        <div id="gemini-key-saved" style="display:none;font-size:11px;color:#10b981;font-weight:600">✓ Clé Gemini enregistrée</div>
+        <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+          <div style="font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">🤖 Modèle IA</div>
+          <div style="display:flex;gap:5px;margin-bottom:8px">
+            <button id="provider-groq-btn" onclick="setProvider('groq')" style="flex:1;font-size:11px;padding:4px 6px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-weight:600;transition:all .15s">Groq</button>
+            <button id="provider-gemini-btn" onclick="setProvider('gemini')" style="flex:1;font-size:11px;padding:4px 6px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-weight:600;transition:all .15s">Gemini</button>
+          </div>
+          <div id="gemini-key-row" style="display:none;gap:5px">
+            <input id="gemini-key-input" type="password" placeholder="AIza..." class="inp" style="font-size:11px;padding:5px 8px;flex:1"/>
+            <button onclick="saveGeminiKey()" style="font-size:11px;padding:5px 8px;border-radius:6px;border:none;background:#10b981;color:white;cursor:pointer;font-weight:600;white-space:nowrap">Sauver</button>
+          </div>
+          <div id="gemini-key-saved" style="display:none;font-size:11px;color:#10b981;font-weight:600">✓ Clé Gemini enregistrée</div>
+        </div>
+      </div>
+      <!-- Icônes seules (collapsed) -->
+      <div class="sb-ft-icons">
+        <button class="btn-icon" onclick="resetKey()" title="Changer la clé"><i data-lucide="key-round"></i></button>
+        <button class="btn-icon" onclick="exportAllData()" title="Exporter"><i data-lucide="upload"></i></button>
+        <button class="btn-icon" onclick="importAllData()" title="Importer"><i data-lucide="download"></i></button>
       </div>
     </div>
   </div>
@@ -115,20 +130,17 @@
           <button class="btn btn-g" onclick="goTo('tracker')"><i data-lucide="briefcase" class="btn-icon-sm"></i>Ajouter une candidature</button>
         </div>
       </div>
-      <div class="page-header">
-        <div>
-          <div class="ptitle" id="dash-title">Bonjour</div>
-          <div class="psub">Ton copilote de carrière supply chain propulsé par l'IA</div>
-        </div>
-        <div style="display:flex;gap:8px;flex-shrink:0">
+      <div class="page-header" style="margin-bottom:14px;align-items:center">
+        <div class="ptitle" id="dash-title" style="font-size:18px;font-weight:800;letter-spacing:-.3px">Bonjour</div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
           <a href="https://fr.indeed.com/jobs?q=&l=%C3%8Ele-de-France&from=searchOnHP%2Cwhereautocomplete&vjk=2d9490b69ecbdb98" target="_blank" rel="noopener"
-            style="display:inline-flex;align-items:center;gap:6px;background:#2164f3;color:white;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            style="display:inline-flex;align-items:center;gap:5px;background:#2164f3;color:white;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             Indeed
           </a>
           <a href="https://www.linkedin.com/jobs/search/?currentJobId=4402252746&geoId=104246759&keywords=supply%20chain&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true" target="_blank" rel="noopener"
-            style="display:inline-flex;align-items:center;gap:6px;background:#0a66c2;color:white;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+            style="display:inline-flex;align-items:center;gap:5px;background:#0a66c2;color:white;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
             LinkedIn
           </a>
         </div>
@@ -663,17 +675,26 @@
 
 <!-- ── BULLET PICKER MODAL ──────────────────────────────── -->
 <div id="bullet-picker-overlay" class="overlay hidden">
-  <div class="modal modal-wide">
+  <div class="modal modal-full">
     <div class="mhd">
-      <div>
-        <div class="mtitle" id="bullet-picker-title">Sélectionne les bullets à garder</div>
-        <div class="msub">Décoche les bullets non pertinents — les autres seront ajoutés à ta base</div>
+      <div style="flex:1">
+        <div class="mtitle" id="bullet-picker-title">Reformuler les bullets</div>
+        <div class="msub" id="bullet-picker-sub">Choisir la version à garder pour chaque bullet</div>
+      </div>
+      <!-- Choix IA -->
+      <div style="display:flex;gap:5px;align-items:center;margin:0 12px" id="bullet-picker-ai-btns">
+        <button onclick="reformulateBulletsWithProvider('groq')"
+          style="background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+          🟠 Groq</button>
+        <button onclick="reformulateBulletsWithProvider('gemini')"
+          style="background:#f5f3ff;color:#7c3aed;border:1.5px solid #ddd6fe;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+          🟣 Gemini</button>
       </div>
       <button class="mclose" onclick="closeBulletPicker()">×</button>
     </div>
     <div class="mbody" id="bullet-picker-list"></div>
     <div class="mfoot">
-      <button class="btn btn-p" onclick="confirmBulletPicker()" style="flex:1;justify-content:center"><i data-lucide="check" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"></i>Ajouter les bullets sélectionnés</button>
+      <button class="btn btn-p" onclick="confirmBulletPicker()" style="flex:1;justify-content:center"><i data-lucide="check" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"></i>Appliquer la sélection</button>
       <button class="btn btn-g" onclick="closeBulletPicker()">Annuler</button>
     </div>
   </div>
@@ -726,14 +747,14 @@
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
 <script src="js/api.js?v=36"></script>
-<script src="js/app.js?v=50"></script>
-<script src="js/profile.js?v=49"></script>
+<script src="js/app.js?v=58"></script>
+<script src="js/profile.js?v=52"></script>
 <script src="js/import-cv.js?v=35"></script>
 <script src="js/cv.js?v=37"></script>
 <script src="js/analyze.js?v=35"></script>
 <script src="js/interview.js?v=36"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=99"></script>
+<script src="js/tracker.js?v=101"></script>
 <script src="js/modal.js?v=35"></script>
 
 </body>

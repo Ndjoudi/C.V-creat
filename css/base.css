@@ -104,39 +104,60 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Inter',syste
   background:var(--bg2);
   border-right:1px solid var(--border);
   display:flex;flex-direction:column;flex-shrink:0;
-  transition:transform .28s ease;
+  transition:width .22s ease, min-width .22s ease, transform .28s ease;
+  overflow:hidden;
 }
+.sb.collapsed{ width:56px; min-width:56px; }
+
+/* Logo */
 .sb-logo{
-  padding:22px 18px 16px;
+  padding:14px 10px 12px;
   border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+  overflow:hidden;
 }
+.sb-logo-text{ transition:opacity .15s, width .22s; overflow:hidden; white-space:nowrap; }
+.sb.collapsed .sb-logo-text{ opacity:0; width:0; }
+
 .sb-icon{
-  width:36px;height:36px;
+  width:32px;height:32px;flex-shrink:0;
   background:var(--teal);
-  border-radius:10px;display:flex;align-items:center;justify-content:center;
-  margin-bottom:10px;box-shadow:0 3px 12px rgba(0,0,0,.12);
-  color:#fff;
+  border-radius:9px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 3px 12px rgba(0,0,0,.12);color:#fff;
+  transition:opacity .15s, transform .15s;
 }
-.sb-icon svg{width:18px;height:18px}
-.sb-name{font-size:17px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.3px}
-.sb-sub{font-size:9px;color:var(--sand);text-transform:uppercase;letter-spacing:2px;margin-top:3px;font-weight:600}
-.nav{padding:10px 8px;flex:1;overflow-y:auto}
+.sb-icon:hover{ opacity:.85; transform:scale(.95); }
+.sb-icon svg{width:16px;height:16px}
+.sb-name{font-size:16px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.3px}
+.sb-sub{font-size:9px;color:var(--sand);text-transform:uppercase;letter-spacing:2px;margin-top:2px;font-weight:600}
+
+/* Nav */
+.nav{padding:8px 6px;flex:1;overflow-y:auto;overflow-x:hidden}
 .nav-section{
   font-size:9px;font-weight:700;color:var(--ink3);
   text-transform:uppercase;letter-spacing:1.4px;
   padding:10px 12px 5px;opacity:.6;
+  white-space:nowrap;overflow:hidden;
+  transition:opacity .15s, max-height .22s;
 }
+.sb.collapsed .nav-section{ opacity:0; max-height:0; padding:0; }
+
 .ni{
   display:flex;align-items:center;gap:9px;
-  padding:9px 12px;border-radius:10px;
+  padding:9px 10px;border-radius:10px;
   cursor:pointer;color:var(--ink3);font-size:13px;font-weight:500;
   margin-bottom:1px;user-select:none;transition:var(--t);
+  white-space:nowrap;overflow:hidden;
 }
+.sb.collapsed .ni{ justify-content:center; padding:9px 0; }
 .ni:hover{background:var(--teal-bg);color:var(--teal)}
 .ni.on{
   background:var(--teal-bg);color:var(--teal);font-weight:600;
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);
 }
+.ni-label{ transition:opacity .15s, width .22s; overflow:hidden; }
+.sb.collapsed .ni-label{ opacity:0; width:0; }
+
 .ni-icon{
   width:18px;height:18px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
@@ -145,13 +166,24 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Inter',syste
 .ni-badge{
   margin-left:auto;background:var(--teal);color:#fff;
   font-size:10px;font-weight:700;padding:2px 7px;border-radius:100px;
-  line-height:1.4;
+  line-height:1.4;transition:opacity .15s;
 }
-.sb-ft{padding:12px 14px;border-top:1px solid var(--border)}
+.sb.collapsed .ni-badge{ opacity:0; width:0; padding:0; margin:0; overflow:hidden; }
+
+/* Footer */
+.sb-ft{
+  padding:12px 10px;border-top:1px solid var(--border);
+  overflow:hidden;
+}
+.sb-ft-full{ transition:opacity .15s; white-space:nowrap; }
+.sb.collapsed .sb-ft-full{ opacity:0; height:0; overflow:hidden; pointer-events:none; }
+.sb-ft-icons{ display:none; flex-direction:column; align-items:center; gap:6px; }
+.sb.collapsed .sb-ft-icons{ display:flex; }
+
 .sb-flabel{font-size:9px;color:var(--sand);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;font-weight:700}
 .sb-fname{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:1px}
 .sb-frole{font-size:11px;color:var(--ink3);margin-bottom:10px}
-.sb-actions{display:flex;gap:6px}
+.sb-actions{display:flex;gap:6px;flex-wrap:wrap}
 
 /* ── MAIN ──────────────────────────────────────────────── */
 .main{

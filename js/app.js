@@ -4,14 +4,40 @@ const TOOLS = ['SAP MM','SAP WM/EWM','SAP APO/IBP','Oracle SCM','WMS','TMS','Exc
 const CERTS = ['APICS CPIM','APICS CSCP','Six Sigma Green Belt','Six Sigma Black Belt','Lean Manufacturing','CILT','PMP','Prince2','Agile/Scrum','CIPS','ISO 9001','ISO 14001','Lean Six Sigma'];
 const SECTS = ['Industrie','Retail / Distribution','Agroalimentaire','Pharmacie','Automobile','Luxe / Mode','Aéronautique','Grande consommation','E-commerce','BTP','Energie','Cosmétique','Santé / Médical'];
 const INFORMATIQUE = ['Microsoft Word','Claude Code','PowerPoint','Outlook','Teams','Antigravity','Google Sheets','Google Slides','Canva','Notion','Trello','Slack','Zoom','SharePoint','OneDrive','Adobe Acrobat','Salesforce','HubSpot','WordPress','ChatGPT / IA générative'];
-const STATS = ['Analysé','Envoyé','Message in','Entretien','Refusé'];
+const STATS = ['À traiter','Envoyé','Message in','Entretien','Refusé'];
+let _dashFilter = 'Tous';
+let _dashFilterSource = 'Tous';
+let _dashSortDate = 'desc'; // desc = récent → ancien
+function setDashFilter(f) { _dashFilter = f; refreshDash(); }
+function setDashFilterSource(f) { _dashFilterSource = f; refreshDash(); }
+function toggleDashSortDate() { _dashSortDate = _dashSortDate === 'desc' ? 'asc' : 'desc'; refreshDash(); }
 const STAT_COLORS = {
-  'Analysé':    ['#6366F1','#EEF2FF','#C7D2FE'],
+  'À traiter':  ['var(--ink3)','var(--bg)','var(--border)'],
   'Envoyé':     ['#3B82F6','#EFF6FF','#BFDBFE'],
   'Message in': ['#D97706','#FFFBEB','#FDE68A'],
   'Entretien':  ['var(--teal)','var(--teal-bg)','var(--teal-border)'],
   'Refusé':     ['#DC2626','var(--red-bg)','var(--red-border)']
 };
+// Lettres cliquables de statut — ['À','E','M','E','R']
+const STAT_LETTERS = ['À','E','M','E','R'];
+function renderStatusLetters(candId, currentStatus, onChangeFn) {
+  return `<div style="display:flex;gap:3px;align-items:center">` +
+    STATS.map((s, i) => {
+      const [col,,border] = STAT_COLORS[s] || ['var(--ink3)','var(--bg)','var(--border)'];
+      const active = s === currentStatus;
+      return `<span
+        onclick="${onChangeFn}('${candId}','status','${s}')"
+        title="${s}"
+        style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:11px;font-weight:800;cursor:pointer;transition:all .15s;
+          ${active
+            ? `background:${col};color:white;border:2px solid ${col};`
+            : `background:transparent;color:var(--ink3);border:1.5px solid var(--border);opacity:.55;`}"
+        onmouseover="if('${s}'!=='${currentStatus}')this.style.opacity='1'"
+        onmouseout="if('${s}'!=='${currentStatus}')this.style.opacity='.55'"
+      >${STAT_LETTERS[i]}</span>`;
+    }).join('') +
+  `</div>`;
+}
 
 const DEF_PROFILE = {
   firstName:'',lastName:'',email:'',phone:'',location:'',linkedin:'',
@@ -126,6 +152,7 @@ window.onload = () => {
   });
   initTabs();
   initNav();
+  initSidebarState();
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('f-date').value = today;
   const dashDate = document.getElementById('dash-date');
@@ -250,6 +277,18 @@ function showApp() {
   refreshProviderUI();
 }
 
+// ── SIDEBAR COLLAPSE ───────────────────────────────────────
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const collapsed = sb.classList.toggle('collapsed');
+  localStorage.setItem('sc_sb_collapsed', collapsed ? '1' : '0');
+}
+function initSidebarState() {
+  if (localStorage.getItem('sc_sb_collapsed') === '1') {
+    document.getElementById('sidebar').classList.add('collapsed');
+  }
+}
+
 // ── MOBILE MENU ────────────────────────────────────────────
 function openMobileMenu() {
   document.getElementById('sidebar').classList.add('open');
@@ -326,92 +365,91 @@ function refreshDash() {
     return `<div class="stat" style="border-color:${border}"><div class="stat-n" style="color:${col}">${n}</div><div class="stat-l">${s}</div></div>`;
   }).join('');
 
-  // ── Tableau des candidatures récentes (5 dernières) ──
-  const recent = [...cands].reverse().slice(0, 5);
+  // ── Filtrage ──
+  let filtered = [...cands];
+  if (_dashFilter !== 'Tous')       filtered = filtered.filter(c => c.status === _dashFilter);
+  if (_dashFilterSource !== 'Tous') filtered = filtered.filter(c => (c.jobSource || '') === _dashFilterSource);
+  filtered.sort((a, b) => {
+    const da = a.date || '', db = b.date || '';
+    return _dashSortDate === 'desc' ? db.localeCompare(da) : da.localeCompare(db);
+  });
+  if (_dashFilter === 'Tous' && _dashFilterSource === 'Tous') filtered = filtered.slice(0, 8);
+
+  // ── Tableau filtré ──
+  const renderRow = c => {
+    const sourceBadge = c.jobSource === 'linkedin'
+      ? `<span style="background:#e0f0ff;color:#0a66c2;border:1px solid #bfdbfe;border-radius:100px;padding:2px 9px;font-size:11px;font-weight:700">LinkedIn</span>`
+      : c.jobSource === 'indeed'
+      ? `<span style="background:#e8eeff;color:#2164f3;border:1px solid #c7d2fe;border-radius:100px;padding:2px 9px;font-size:11px;font-weight:700">Indeed</span>`
+      : `<span style="opacity:.3;font-size:12px">—</span>`;
+    return `<tr>
+      <td>
+        <div style="font-weight:700;color:var(--ink);font-size:13px;cursor:pointer;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px" onclick="openSplitView('${c.id}')" title="Voir offre + CV">${esc(c.poste)}</div>
+        <div style="color:var(--ink3);font-size:12px;margin-top:1px">${esc(c.company)}</div>
+      </td>
+      <td>${sourceBadge}</td>
+      <td style="color:var(--ink3);font-size:12.5px">${c.date || ''}</td>
+      <td>${renderStatusLetters(c.id, c.status, 'updCandAndRefresh')}</td>
+      <td style="white-space:nowrap">
+        ${c.analysis ? `<button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="CV adapté">CV</button><button onclick="loadCVForCand('${c.id}',true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="PDF">⬇ PDF</button>` : ''}
+        <button onclick="openSplitView('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:13px;padding:2px 5px;border-radius:4px" title="Ouvrir">↗</button>
+        <button onclick="delCand('${c.id}')" style="background:none;border:1.5px solid #fecaca;cursor:pointer;color:#dc2626;font-size:12px;font-weight:700;padding:2px 7px;border-radius:100px;margin-left:3px;line-height:1" title="Supprimer">🗑</button>
+      </td>
+    </tr>`;
+  };
+
   let recentHtml;
-  if (recent.length) {
+  if (filtered.length) {
     recentHtml = `<table class="tbl">
-      <thead><tr>
-        <th>Poste · Entreprise</th><th>Score</th><th>Date</th><th>Statut</th><th></th>
-      </tr></thead>
-      <tbody>${recent.map(c => {
-        const [col, bg, border] = STAT_COLORS[c.status] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
-        const sc = c.score;
-        let scoreBadge = '<span style="opacity:.35;font-size:12px">—</span>';
-        if (sc !== null && sc !== undefined) {
-          const sc_col = sc >= 70 ? 'var(--teal)'    : sc >= 50 ? '#D97706'        : 'var(--red)';
-          const sc_bg  = sc >= 70 ? 'var(--teal-bg)' : sc >= 50 ? '#FFFBEB'        : 'var(--red-bg)';
-          const sc_bd  = sc >= 70 ? 'var(--teal-border)' : sc >= 50 ? '#FDE68A'   : 'var(--red-border)';
-          const hasA   = !!c.analysis;
-          scoreBadge = `<span style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:700;color:${sc_col};background:${sc_bg};border:1.5px solid ${sc_bd};${hasA ? 'cursor:pointer' : ''}" ${hasA ? `onclick="openAnalysisModal('${c.id}')" title="Voir l'analyse"` : ''}>${sc}%${hasA ? ' ↗' : ''}</span>`;
-        }
-        return `<tr>
-          <td>
-            <div style="font-weight:700;color:var(--ink);font-size:13px;cursor:pointer;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px" onclick="openSplitView('${c.id}')" title="Voir offre + CV">${esc(c.poste)}</div>
-            <div style="color:var(--ink3);font-size:12px;margin-top:1px">${esc(c.company)}</div>
-          </td>
-          <td>${scoreBadge}</td>
-          <td style="color:var(--ink3);font-size:12.5px">${c.date || ''}</td>
-          <td><select style="background:${bg};border:1.5px solid ${border};border-radius:100px;color:${col};font-size:12px;font-weight:700;padding:3px 9px;cursor:pointer;outline:none" onchange="updCand('${c.id}','status',this.value);refreshDash()">${STATS.map(s=>`<option${s===c.status?' selected':''}>${s}</option>`).join('')}</select></td>
-          <td style="white-space:nowrap">
-            ${c.analysis ? `<button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="CV adapté">CV</button><button onclick="loadCVForCand('${c.id}',true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="PDF">⬇ PDF</button>` : ''}
-            <button onclick="goTo('tracker')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:13px;padding:2px 5px;border-radius:4px" title="Voir dans Candidatures">→</button>
-            <button onclick="delCand('${c.id}')" style="background:none;border:1.5px solid #fecaca;cursor:pointer;color:#dc2626;font-size:12px;font-weight:700;padding:2px 7px;border-radius:100px;margin-left:3px;line-height:1" title="Supprimer">🗑</button>
-          </td>
-        </tr>`;
-      }).join('')}</tbody>
+      <thead><tr><th>Poste · Entreprise</th><th>Source</th><th>Date</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${filtered.map(renderRow).join('')}</tbody>
     </table>`;
   } else {
-    recentHtml = `<div class="empty" style="padding:30px"><div class="empty-ic">◫</div><div class="empty-t">Aucune candidature</div><div class="empty-s">Ajoute ta première depuis l'onglet Candidatures</div></div>`;
+    recentHtml = `<div class="empty" style="padding:24px"><div class="empty-ic">◫</div><div class="empty-t">${cands.length ? 'Aucune candidature pour ce filtre' : 'Aucune candidature'}</div></div>`;
   }
 
-  dashEl.innerHTML = `
-    <!-- Profil compact -->
-    <div class="card" style="margin-bottom:12px;padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <div style="flex:1;min-width:180px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <div style="font-size:12px;font-weight:700;color:var(--ink)">Complétion du profil</div>
-          <div style="font-size:12px;font-weight:800;color:var(--teal)">${pct}%</div>
-        </div>
-        <div class="prog" style="height:5px"><div class="prog-f" style="width:${pct}%"></div></div>
-        <div style="margin-top:6px;font-size:11.5px;color:var(--ink3)">${pct < 100
-          ? `<span style="color:var(--teal);cursor:pointer;font-weight:600" onclick="goTo('profile')">Compléter → </span>pour de meilleurs résultats IA`
-          : '✓ Profil complet — l\'IA est prête'}</div>
-      </div>
-      <button class="btn btn-g" onclick="goTo('cv')" style="font-size:12px;padding:6px 14px;flex-shrink:0"><i data-lucide="file-text" style="width:12px;height:12px;vertical-align:-2px;margin-right:4px"></i>Mon CV</button>
-    </div>
+  // ── Chips statut ──
+  const filterChips = ['Tous', ...STATS].map(f => {
+    const active = f === _dashFilter;
+    const [col] = STAT_COLORS[f] || ['var(--ink3)'];
+    const count = f === 'Tous' ? cands.length : cands.filter(c => c.status === f).length;
+    return `<span onclick="setDashFilter('${f}')" title="${f}" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+      ${active ? `background:${col==='var(--ink3)'?'#374151':col};color:white;border:1.5px solid transparent;` : `background:transparent;color:var(--ink3);border:1.5px solid var(--border);`}"
+    >${f}${count ? ` <span style="font-size:10px;opacity:.8">${count}</span>` : ''}</span>`;
+  }).join('');
 
+  // ── Chips source ──
+  const sourceChips = ['Tous','linkedin','indeed'].map(s => {
+    const active = s === _dashFilterSource;
+    const label = s === 'Tous' ? 'Toutes sources' : s === 'linkedin' ? 'LinkedIn' : 'Indeed';
+    const col = s === 'linkedin' ? '#0a66c2' : s === 'indeed' ? '#2164f3' : 'var(--ink3)';
+    const count = s === 'Tous' ? cands.length : cands.filter(c => c.jobSource === s).length;
+    return `<span onclick="setDashFilterSource('${s}')" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+      ${active ? `background:${col==='var(--ink3)'?'#374151':col};color:white;border:1.5px solid transparent;` : `background:transparent;color:var(--ink3);border:1.5px solid var(--border);`}"
+    >${label}${count ? ` <span style="font-size:10px;opacity:.8">${count}</span>` : ''}</span>`;
+  }).join('');
+
+  // ── Bouton tri date ──
+  const dateSortBtn = `<span onclick="toggleDashSortDate()" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11.5px;font-weight:700;cursor:pointer;background:transparent;color:var(--ink3);border:1.5px solid var(--border);">
+    Date ${_dashSortDate === 'desc' ? '↓' : '↑'}
+  </span>`;
+
+  dashEl.innerHTML = `
     <!-- Stat cards candidatures -->
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">${statCards}</div>
 
-    <!-- Titre section + lien tout voir -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:14px;font-weight:700;color:var(--ink)">Candidatures récentes</div>
-      ${cands.length > 5 ? `<span style="font-size:12.5px;color:var(--teal-d);cursor:pointer;font-weight:600" onclick="goTo('tracker')">Voir tout (${cands.length}) →</span>` : ''}
+    <!-- Titre + filtres -->
+    <div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:14px;font-weight:700;color:var(--ink)">Candidatures</div>
+        ${dateSortBtn}
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">${filterChips}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">${sourceChips}</div>
     </div>
     <div style="margin-bottom:20px">${recentHtml}</div>
 
-    <!-- Actions rapides -->
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <div class="card ac" onclick="goTo('interview')" style="flex:1;min-width:150px;padding:14px 16px">
-        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;display:flex;align-items:center;gap:7px">
-          <i data-lucide="mic" style="width:14px;height:14px;color:var(--teal);flex-shrink:0"></i>Simulation entretien
-        </div>
-        <div style="font-size:12px;color:var(--ink3);line-height:1.5">Questions sur mesure par IA</div>
-      </div>
-      <div class="card ac" onclick="goTo('history')" style="flex:1;min-width:150px;padding:14px 16px">
-        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;display:flex;align-items:center;gap:7px">
-          <i data-lucide="history" style="width:14px;height:14px;color:var(--teal);flex-shrink:0"></i>Mes analyses
-        </div>
-        <div style="font-size:12px;color:var(--ink3);line-height:1.5">Historique des offres analysées</div>
-      </div>
-      <div class="card ac" onclick="goTo('profile')" style="flex:1;min-width:150px;padding:14px 16px">
-        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;display:flex;align-items:center;gap:7px">
-          <i data-lucide="user-round" style="width:14px;height:14px;color:var(--teal);flex-shrink:0"></i>Mon profil
-        </div>
-        <div style="font-size:12px;color:var(--ink3);line-height:1.5">${P.tools.length} outils · ${P.experiences.length} expériences</div>
-      </div>
-    </div>`;
+    `;
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }

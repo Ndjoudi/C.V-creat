@@ -207,13 +207,6 @@ function renderExpList() {
         '<div class="fg"><label class="lb">Localisation</label>' +
           '<input class="inp" value="' + esc(e.location||'') + '" placeholder="Paris" oninput="updExp(\'' + e.id + '\',\'location\',this.value)"/></div>' +
       '</div>' +
-      '<!-- Fiche de poste (notes privées, non affichée sur CV) -->' +
-      '<details class="exp-details">' +
-        '<summary class="exp-details-summary"><i data-lucide="file-text" style="width:14px;height:14px"></i>Fiche de poste <span style="font-size:10.5px;color:var(--ink3);margin-left:6px;font-weight:400">notes privées · non affichée sur le CV</span></summary>' +
-        '<div style="margin-top:10px">' +
-          '<textarea class="inp" rows="3" placeholder="• Périmètre attendu&#10;• Missions réelles effectuées&#10;• Contexte du poste" oninput="updExp(\'' + e.id + '\',\'description\',this.value)">' + esc(e.description) + '</textarea>' +
-        '</div>' +
-      '</details>' +
       '<!-- Réalisations & Résultats (BULLET BANK) -->' +
       '<div class="exp-section">' +
         '<div class="exp-section-hd">' +
@@ -221,8 +214,8 @@ function renderExpList() {
             '<div class="exp-section-label">Réalisations &amp; Résultats</div>' +
             '<div class="exp-section-sub">Ces bullets apparaissent sur le CV · ★ = toujours affiché · ○ = affiché si sélectionné</div>' +
           '</div>' +
-          '<button id="gen-bullets-' + e.id + '" class="btn-ai" onclick="generateBulletsForExp(\'' + e.id + '\')">' +
-            '<i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l\'IA' +
+          '<button id="gen-bullets-' + e.id + '" class="btn-ai" onclick="reformulateBulletsForExp(\'' + e.id + '\')">' +
+            '<i data-lucide="wand-sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Reformuler' +
           '</button>' +
         '</div>' +
         '<div id="bullets-list-' + e.id + '">' +
@@ -236,20 +229,6 @@ function renderExpList() {
           '<div style="font-size:10.5px;color:var(--ink3);margin-top:5px">Formule APR : Verbe d\'action fort · Action concrète · Résultat chiffré</div>' +
         '</div>' +
       '</div>' +
-      '<details class="exp-details">' +
-        '<summary class="exp-details-summary"><i data-lucide="notebook-pen" style="width:14px;height:14px"></i>Souvenirs de semaine</summary>' +
-        '<div style="margin-top:10px">' +
-          '<div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.6;background:var(--bg);border-radius:8px;padding:9px 12px;border:1px solid var(--border)">Je balaye la semaine de travail en notant les actions, interactions et apprentissages — à transformer ensuite en bullet points CV.</div>' +
-          '<textarea class="inp" rows="4" placeholder="Semaine du 15 jan : réunion S&OP, analyse stock mort 450 refs..." oninput="updExp(\'' + e.id + '\',\'souvenirs\',this.value)">' + esc(e.souvenirs||'') + '</textarea>' +
-        '</div>' +
-      '</details>' +
-      '<details class="exp-details">' +
-        '<summary class="exp-details-summary"><i data-lucide="search" style="width:14px;height:14px"></i>Fiche métier</summary>' +
-        '<div style="margin-top:10px">' +
-          '<div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.6;background:var(--bg);border-radius:8px;padding:9px 12px;border:1px solid var(--border)">Recherche <strong>« ' + esc(e.title||'ton poste') + ' — fiche métier »</strong> sur Google, ROME ou LinkedIn, puis colle ici les infos utiles.</div>' +
-          '<textarea class="inp" rows="3" placeholder="Compétences attendues, formations recommandées, évolutions de carrière..." oninput="updExp(\'' + e.id + '\',\'fichemetier\',this.value)">' + esc(e.fichemetier||'') + '</textarea>' +
-        '</div>' +
-      '</details>' +
     '</div>';
   }).join('');
   if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -312,51 +291,107 @@ function toggleRequired(expId, bId) {
   }
 }
 
-async function generateBulletsForExp(expId) {
+let _reformulateExpId = null;
+
+async function reformulateBulletsWithProvider(forceProvider) {
+  if (_reformulateExpId) await reformulateBulletsForExp(_reformulateExpId, forceProvider);
+}
+
+async function reformulateBulletsForExp(expId, forceProvider) {
+  _reformulateExpId = expId;
   const exp = P.experiences.find(e => e.id === expId);
   if (!exp) return;
-  const btn = document.getElementById('gen-bullets-' + expId);
-  if (btn) { btn.disabled = true; btn.textContent = 'Génération...'; }
 
-  const context = [
-    exp.title       ? 'Poste: ' + exp.title           : '',
-    exp.company     ? 'Entreprise: ' + exp.company     : '',
-    exp.contractType? 'Type: ' + exp.contractType      : '',
-    exp.sector      ? 'Secteur: ' + exp.sector         : '',
-    exp.description ? 'Fiche de poste:\n' + exp.description : '',
-    exp.souvenirs   ? 'Notes/souvenirs:\n' + exp.souvenirs   : '',
-    exp.fichemetier ? 'Fiche métier:\n' + exp.fichemetier    : ''
-  ].filter(Boolean).join('\n\n');
-
-  if (context.length < 30) {
-    toast('Remplis d\'abord la fiche de poste ou les souvenirs');
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l\'IA'; if(typeof lucide!=='undefined')lucide.createIcons(); }
+  const existingBullets = (exp.bullets || []).map(b => b.text || b).filter(Boolean);
+  if (!existingBullets.length) {
+    toast('Ajoute d\'abord des bullets à reformuler');
     return;
   }
 
-  const prompt = `Expert RH. À partir de ce contexte de poste, génère exactement 6 bullet points percutants pour CV.
+  const btn = document.getElementById('gen-bullets-' + expId);
+  if (btn) { btn.disabled = true; btn.textContent = 'Reformulation...'; }
 
-CONTEXTE:
-${context}
+  const bulletsList = existingBullets.map((b, i) => `${i + 1}. ${b}`).join('\n');
 
-RÈGLES STRICTES (formule APR):
-- Commence TOUJOURS par un verbe fort au passé composé (Optimisé, Piloté, Réduit, Augmenté, Déployé, Négocié, Automatisé, Coordonné, Structuré, Développé, Mis en place, Géré...)
-- Action concrète et précise
-- Résultat chiffré quand possible (%, €, nombre, délai, ratio)
-- 10-15 mots maximum par bullet
-- INTERDIT : "Responsable de", "En charge de", "Participation à"
+  const prompt = `Tu es expert RH spécialisé CV supply chain. Reformule chaque bullet point pour le rendre plus percutant, en appliquant strictement la formule APR.
 
-Réponds UNIQUEMENT en JSON valide: {"bullets":["bullet 1","bullet 2","bullet 3","bullet 4","bullet 5","bullet 6"]}`;
+BULLETS ACTUELS:
+${bulletsList}
+
+RÈGLES:
+- Commence par un verbe fort au passé composé (Optimisé, Piloté, Réduit, Négocié, Déployé, Coordonné, Mis en place, Structuré...)
+- Action concrète et précise (garde le même sens, amplifie l'impact)
+- Résultat chiffré si possible (%, nombre, délai) — invente RIEN, garde les chiffres existants
+- 10-15 mots maximum
+- INTERDIT : "Responsable de", "En charge de", "Participation à", "Gestion de"
+- Garde le même nombre de bullets
+
+Réponds UNIQUEMENT en JSON: {"bullets":["reformulation 1","reformulation 2",...]}`;
+
+  // Affiche spinner dans la popup si déjà ouverte (relance via bouton IA)
+  const listEl = document.getElementById('bullet-picker-list');
+  const overlay = document.getElementById('bullet-picker-overlay');
+  if (!overlay.classList.contains('hidden') && listEl) {
+    listEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:24px;color:var(--ink3);font-size:13px"><span class="sp" style="width:14px;height:14px;flex-shrink:0"></span>Reformulation en cours…</div>`;
+  }
 
   try {
-    const raw  = await callGroq(prompt, { maxTokens: 600, temperature: 0.55 });
+    let raw;
+    if (forceProvider === 'gemini') {
+      raw = await callGemini(prompt, { maxTokens: 600, temperature: 0.4 });
+    } else {
+      raw = await callGroq(prompt, { maxTokens: 600, temperature: 0.4 });
+    }
     const data = safeParseJSON(raw);
-    showBulletPicker(expId, data.bullets || []);
+    const reformulated = data.bullets || [];
+    if (!reformulated.length) { toast('Aucune reformulation générée'); return; }
+    showReformulationPicker(expId, existingBullets, reformulated);
   } catch(err) {
-    toast('Erreur lors de la génération');
+    toast('Erreur lors de la reformulation');
+    if (listEl) listEl.innerHTML = `<div style="color:var(--red);padding:20px;font-size:13px">⚠ ${err.message}</div>`;
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l\'IA'; if(typeof lucide!=='undefined')lucide.createIcons(); }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="wand-sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Reformuler'; if(typeof lucide!=='undefined')lucide.createIcons(); }
   }
+}
+
+function showReformulationPicker(expId, originals, reformulated) {
+  const overlay = document.getElementById('bullet-picker-overlay');
+  const exp = P.experiences.find(e => e.id === expId);
+  document.getElementById('bullet-picker-title').textContent = (exp?.title || 'Expérience') + ' — Choisir la version à garder';
+  const aibtns = document.getElementById('bullet-picker-ai-btns');
+  if (aibtns) aibtns.style.display = 'flex';
+  const subEl = document.getElementById('bullet-picker-sub');
+  if (subEl) subEl.textContent = 'Choisir la version à garder pour chaque bullet';
+
+  const pairs = originals.map((orig, i) => {
+    const newV = reformulated[i] || orig;
+    const same = orig.trim() === newV.trim();
+    return `<div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+        <label style="display:flex;gap:10px;align-items:flex-start;padding:11px 13px;cursor:pointer;border-right:1px solid var(--border);background:${same?'var(--bg)':''}">
+          <input type="radio" name="ref-${i}" value="orig" checked style="margin-top:3px;accent-color:#374151;flex-shrink:0"/>
+          <div>
+            <div style="font-size:9.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Actuel</div>
+            <div style="font-size:12.5px;color:var(--ink);line-height:1.55">${esc(orig)}</div>
+          </div>
+        </label>
+        <label style="display:flex;gap:10px;align-items:flex-start;padding:11px 13px;cursor:pointer;background:${same?'var(--bg)':'#f0fdf4'}">
+          <input type="radio" name="ref-${i}" value="new" style="margin-top:3px;accent-color:#16a34a;flex-shrink:0"${same?' disabled':''}/>
+          <div>
+            <div style="font-size:9.5px;font-weight:700;color:${same?'var(--ink3)':'#16a34a'};text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">${same?'Identique':'Reformulé ✦'}</div>
+            <div style="font-size:12.5px;color:var(--ink);line-height:1.55">${esc(newV)}</div>
+          </div>
+        </label>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('bullet-picker-list').innerHTML = pairs;
+  overlay.dataset.expId = expId;
+  overlay.dataset.mode  = 'reformulate';
+  overlay.dataset.originals    = JSON.stringify(originals);
+  overlay.dataset.reformulated = JSON.stringify(reformulated);
+  overlay.classList.remove('hidden');
 }
 
 function showBulletPicker(expId, bullets) {
@@ -364,6 +399,10 @@ function showBulletPicker(expId, bullets) {
   const overlay = document.getElementById('bullet-picker-overlay');
   const exp = P.experiences.find(e => e.id === expId);
   document.getElementById('bullet-picker-title').textContent = (exp?.title || 'Expérience') + ' — Sélectionne les bullets à garder';
+  const aibtns = document.getElementById('bullet-picker-ai-btns');
+  if (aibtns) aibtns.style.display = 'none';
+  const subEl = document.getElementById('bullet-picker-sub');
+  if (subEl) subEl.textContent = 'Décoche les bullets non pertinents — les autres seront ajoutés à ta base';
   document.getElementById('bullet-picker-list').innerHTML = bullets.map((b, i) =>
     `<label class="bullet-picker-item">
       <input type="checkbox" id="bpck-${i}" checked style="flex-shrink:0;margin-top:3px;accent-color:#000;width:15px;height:15px"/>
@@ -376,21 +415,42 @@ function showBulletPicker(expId, bullets) {
 }
 
 function confirmBulletPicker() {
-  const overlay  = document.getElementById('bullet-picker-overlay');
-  const expId    = overlay.dataset.expId;
-  const bullets  = JSON.parse(overlay.dataset.bullets || '[]');
-  const exp      = P.experiences.find(e => e.id === expId);
+  const overlay = document.getElementById('bullet-picker-overlay');
+  const expId   = overlay.dataset.expId;
+  const exp     = P.experiences.find(e => e.id === expId);
   if (!exp) return;
-  if (!exp.bullets) exp.bullets = [];
-  let added = 0;
-  bullets.forEach((b, i) => {
-    const cb = document.getElementById('bpck-' + i);
-    if (cb?.checked) { exp.bullets.push({ id: Date.now().toString() + i, text: b, required: false, selected: false }); added++; }
-  });
-  ss('sc_profile', P);
-  overlay.classList.add('hidden');
-  renderExpList();
-  toast(added + ' bullet' + (added > 1 ? 's' : '') + ' ajouté' + (added > 1 ? 's' : ''));
+
+  if (overlay.dataset.mode === 'reformulate') {
+    // Mode reformulation : remplace chaque bullet par la version choisie
+    const originals    = JSON.parse(overlay.dataset.originals    || '[]');
+    const reformulated = JSON.parse(overlay.dataset.reformulated || '[]');
+    let changed = 0;
+    originals.forEach((orig, i) => {
+      const radio = document.querySelector(`input[name="ref-${i}"]:checked`);
+      if (radio?.value === 'new' && reformulated[i]) {
+        const bullet = exp.bullets.find(b => (b.text || b) === orig);
+        if (bullet) { bullet.text = reformulated[i]; changed++; }
+      }
+    });
+    ss('sc_profile', P);
+    overlay.classList.add('hidden');
+    delete overlay.dataset.mode;
+    renderExpList();
+    toast(changed + ' bullet' + (changed !== 1 ? 's' : '') + ' remplacé' + (changed !== 1 ? 's' : ''));
+  } else {
+    // Mode ajout classique
+    const bullets = JSON.parse(overlay.dataset.bullets || '[]');
+    if (!exp.bullets) exp.bullets = [];
+    let added = 0;
+    bullets.forEach((b, i) => {
+      const cb = document.getElementById('bpck-' + i);
+      if (cb?.checked) { exp.bullets.push({ id: Date.now().toString() + i, text: b, required: false, selected: false }); added++; }
+    });
+    ss('sc_profile', P);
+    overlay.classList.add('hidden');
+    renderExpList();
+    toast(added + ' bullet' + (added > 1 ? 's' : '') + ' ajouté' + (added > 1 ? 's' : ''));
+  }
 }
 
 function closeBulletPicker() { document.getElementById('bullet-picker-overlay').classList.add('hidden'); }
