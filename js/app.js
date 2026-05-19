@@ -82,6 +82,8 @@ let P = ls('sc_profile', DEF_PROFILE);
 // Migrate old profiles missing newer fields
 ['customSkills','education','languages','informatique'].forEach(k => { if (!P[k]) P[k] = []; });
 ['linkedin','mobility','permis','disponibilite','contratRecherche','domainesProfile','hobbies','photo','summaryTarget'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
+// Migration v3 : domainesProfile est désormais généré automatiquement par offre (split view)
+if (!P._v3_hookMigrated) { P.domainesProfile = ''; P._v3_hookMigrated = true; ss('sc_profile', P); }
 if (!P.highlightConfig) P.highlightConfig = { formation:true, contrat:true, dispo:true, mobility:true, permis:false };
 if (P.highlightConfig.contrat === undefined) P.highlightConfig.contrat = true;
 // Migrate experience objects to include new fields

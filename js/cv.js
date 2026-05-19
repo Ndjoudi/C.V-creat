@@ -1,3 +1,10 @@
+// ── MIGRATION : supprime domainesProfile générique ─────────
+if (typeof P !== 'undefined' && P.domainesProfile && !P._v3_hookMigrated) {
+  P.domainesProfile = '';
+  P._v3_hookMigrated = true;
+  if (typeof ss === 'function') ss('sc_profile', P);
+}
+
 // ── PROFILE HIGHLIGHT BUILDER ──────────────────────────────
 function buildProfileHighlight() {
   const segments = [];
@@ -19,7 +26,7 @@ function buildProfileHighlight() {
 
   // Ligne 2 : Pills (contrat, disponibilité, mobilité, permis)
   const pills = [];
-  if (P.contratRecherche) pills.push(`<span class="cv-phi-pill cv-phi-pill--dark">${esc(P.contratRecherche)}</span>`);
+  if (P.contratRecherche) pills.push(`<span class="cv-phi-plain">En recherche d'un </span><span class="cv-phi-pill cv-phi-pill--dark">${esc(P.contratRecherche)}</span>`);
   if (P.disponibilite)    pills.push(`<span class="cv-phi-plain" style="font-size:11px">Disponible </span><span class="cv-phi-pill cv-phi-pill--green">${esc(P.disponibilite)}</span>`);
   if (P.mobility)         pills.push(`<span class="cv-phi-pill cv-phi-pill--blue">${esc(P.mobility)}</span>`);
   if (P.permis)           pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
