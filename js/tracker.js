@@ -7,10 +7,234 @@ let _lastAnalysisResult = null;   // gardé pour addCand()
 let _dashPasteTimer        = null;
 let _dashLastAnalysisResult = null;
 
+// ── FETCH INDEED VIA WORKER ────────────────────────────────
+function _extractIndeedJobKey(url) {
+  const m = url.match(/[?&](?:jk|vjk)=([a-zA-Z0-9]+)/);
+  return m ? m[1] : null;
+}
+
+async function _fetchIndeedJob(url) {
+  const jk = _extractIndeedJobKey(url);
+  if (!jk) throw new Error('ID du poste introuvable (paramètre jk= ou vjk=)');
+
+  let origin = 'https://fr.indeed.com';
+  try { origin = new URL(url).origin; } catch {}
+  const targetUrl = `${origin}/viewjob?jk=${jk}`;
+
+  const res = await fetch(`${_LI_WORKER}?url=${encodeURIComponent(targetUrl)}`);
+  if (!res.ok) throw new Error(`Erreur ${res.status}`);
+  const html = await res.text();
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  let structured = null;
+  doc.querySelectorAll('script[type="application/ld+json"]').forEach(s => {
+    try { const j = JSON.parse(s.textContent); if (j['@type'] === 'JobPosting') structured = j; } catch {}
+  });
+
+  // JSON-LD peut retourner des tableaux ou des objets — on force en string
+  const toStr = v => !v ? '' : Array.isArray(v) ? v[0] || '' : String(v);
+
+  const title    = toStr(structured?.title)
+                 || doc.querySelector('[data-testid="jobsearch-JobInfoHeader-title"], h1.jobsearch-JobInfoHeader-title, h1')?.textContent?.trim() || '';
+  const company  = toStr(structured?.hiringOrganization?.name)
+                 || doc.querySelector('[data-testid="inlineHeader-companyName"], .jobsearch-InlineCompanyRating a')?.textContent?.trim() || '';
+  const location = toStr(structured?.jobLocation?.[0]?.address?.addressLocality)
+                 || doc.querySelector('[data-testid="job-location"]')?.textContent?.trim() || '';
+  const contract = toStr(Array.isArray(structured?.employmentType) ? structured.employmentType[0] : structured?.employmentType)
+                 || doc.querySelector('[data-testid="job-type-informations"] li')?.textContent?.trim() || '';
+  const salaryVal = structured?.baseSalary?.value?.value;
+  const salary   = salaryVal
+                 ? `${salaryVal} ${structured.baseSalary.currency || '€'}`
+                 : doc.querySelector('[data-testid="attribute_snippet_testid"]')?.textContent?.trim() || '';
+
+  const rawDesc  = structured?.description
+                 || doc.querySelector('#jobDescriptionText, .jobsearch-jobDescriptionText')?.innerHTML || '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = rawDesc;
+  tmp.querySelectorAll('button').forEach(el => el.remove());
+  tmp.querySelectorAll('br').forEach(el => el.replaceWith('\n'));
+  tmp.querySelectorAll('p, li, div, h1, h2, h3, h4').forEach(el => { if (el.nextSibling) el.after('\n'); });
+  const descText = (tmp.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+
+  return { title, company, location, contract, salary, descText, source: 'indeed', url: targetUrl };
+}
+
+// ── FETCH LINKEDIN VIA WORKER ──────────────────────────────
+const _LI_WORKER = 'https://broad-term-79e4.djoudi-neel.workers.dev';
+
+function _extractLinkedInJobId(url) {
+  const patterns = [/currentJobId=(\d+)/, /\/jobs\/view\/(\d+)/, /\/jobs\/(\d+)/];
+  for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
+  return null;
+}
+
+async function _fetchLinkedInJob(url) {
+  const jobId = _extractLinkedInJobId(url);
+  if (!jobId) throw new Error('ID du poste introuvable dans ce lien');
+
+  const targetUrl = `https://www.linkedin.com/jobs/view/${jobId}`;
+  const res = await fetch(`${_LI_WORKER}?url=${encodeURIComponent(targetUrl)}`);
+  if (!res.ok) throw new Error(`Erreur ${res.status}`);
+  const html = await res.text();
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // JSON-LD (le plus fiable)
+  let structured = null;
+  doc.querySelectorAll('script[type="application/ld+json"]').forEach(s => {
+    try { const j = JSON.parse(s.textContent); if (j['@type'] === 'JobPosting') structured = j; } catch {}
+  });
+
+  const toStr = v => !v ? '' : Array.isArray(v) ? v[0] || '' : String(v);
+
+  const title    = toStr(structured?.title)
+                 || doc.querySelector('h1')?.textContent?.trim() || '';
+  const company  = toStr(structured?.hiringOrganization?.name)
+                 || doc.querySelector('.topcard__org-name-link,.company-name')?.textContent?.trim() || '';
+  const location = toStr(structured?.jobLocation?.[0]?.address?.addressLocality)
+                 || doc.querySelector('.topcard__flavor--bullet,.job-location')?.textContent?.trim() || '';
+  const contract = toStr(Array.isArray(structured?.employmentType) ? structured.employmentType[0] : structured?.employmentType);
+
+  // Description → on priorise le HTML DOM (mise en forme conservée) sur le JSON-LD (texte brut)
+  const domDescEl = doc.querySelector('.show-more-less-html__markup')
+                 || doc.querySelector('.description__text')
+                 || doc.querySelector('[class*="description"]');
+
+  const tmp = document.createElement('div');
+  if (domDescEl) {
+    tmp.innerHTML = domDescEl.innerHTML;
+  } else if (structured?.description) {
+    tmp.innerHTML = structured.description;
+  }
+  tmp.querySelectorAll('button, .show-more-less-button').forEach(el => el.remove());
+  // Conversion HTML → texte propre avec sauts de ligne (innerText ne marche pas hors DOM)
+  tmp.querySelectorAll('br').forEach(el => el.replaceWith('\n'));
+  tmp.querySelectorAll('p, li, div, h1, h2, h3, h4').forEach(el => {
+    if (el.nextSibling) el.after('\n');
+  });
+  const descText = (tmp.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+
+  return { title, company, location, contract, descText, jobId, source: 'linkedin', url: targetUrl };
+}
+
+// ── DÉTECTION SOURCE OFFRE ─────────────────────────────────
+function _detectJobSource(text) {
+  const t = text.slice(0, 1200).toLowerCase();
+  if (
+    t.includes('candidature simplifiée') ||
+    t.includes('personnes que vous pouvez contacter') ||
+    t.includes('essayer premium') ||
+    t.includes('membres de votre réseau') ||
+    t.includes('linkedin')
+  ) return 'linkedin';
+  if (
+    t.includes('détails de l\'emploi') ||
+    t.includes('type de poste') ||
+    t.includes('trajet estimé') ||
+    t.includes('correspondance entre ce poste') ||
+    t.includes('indeed')
+  ) return 'indeed';
+  return null; // source inconnue / texte brut
+}
+
+function _showSourceBadge(source) {
+  const el = document.getElementById('dash-source-badge');
+  if (!el) return;
+  if (!source) { el.innerHTML = ''; return; }
+  const conf = {
+    linkedin: { bg: '#0a66c2', label: 'LinkedIn détecté' },
+    indeed:   { bg: '#2164f3', label: 'Indeed détecté'   },
+  }[source];
+  el.innerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;background:${conf.bg};color:white;border-radius:100px;padding:2px 9px;font-size:10.5px;font-weight:700">✓ ${conf.label}</span>`;
+}
+
 function scheduleDashPasteAnalysis() {
   clearTimeout(_dashPasteTimer);
-  _dashPasteTimer = setTimeout(runDashPasteAnalysis, 600);
+  // Délai 300ms : laisse le navigateur écrire la valeur collée dans le textarea
+  _dashPasteTimer = setTimeout(() => {
+    const ta = document.getElementById('dash-paste-text');
+    if (!ta) return;
+    const val = ta.value.trim();
+    if (!val) return;
+
+    // URL LinkedIn → fetch automatique
+    if (/^https?:\/\/(www\.)?linkedin\.com\/jobs\//i.test(val)) {
+      _showSourceBadge('linkedin');
+      _runJobFetch(val, 'linkedin');
+      return;
+    }
+
+    // URL Indeed → fetch automatique
+    if (/^https?:\/\/([a-z]+\.)?indeed\.com\//i.test(val) && _extractIndeedJobKey(val)) {
+      _showSourceBadge('indeed');
+      _runJobFetch(val, 'indeed');
+      return;
+    }
+
+    // Texte collé : détection source + analyse normale
+    _showSourceBadge(_detectJobSource(val));
+    if (val.length >= 30) runDashPasteAnalysis();
+  }, 300);
 }
+
+// Stocke le job fetché pour l'analyse différée
+let _liLastJob = null;
+
+async function _runJobFetch(url, source) {
+  const status  = document.getElementById('dash-paste-status');
+  const preview = document.getElementById('dash-linkedin-preview');
+  const label   = source === 'indeed' ? 'Indeed' : 'LinkedIn';
+
+  status.style.color = 'var(--ink3)';
+  status.innerHTML = `<span class="sp" style="width:12px;height:12px;display:inline-block;margin-right:6px;vertical-align:-2px"></span>Récupération ${label}…`;
+  if (preview) preview.style.display = 'none';
+
+  try {
+    const job = source === 'indeed'
+      ? await _fetchIndeedJob(url)
+      : await _fetchLinkedInJob(url);
+    _liLastJob = job;
+
+    if (!job.descText || job.descText.length < 50) {
+      throw new Error('Description vide — LinkedIn a peut-être bloqué la requête');
+    }
+
+    // Stocke la description pour addCandFromDash()
+    const ta = document.getElementById('dash-paste-text');
+    if (ta) ta.dataset.desc = job.descText;
+
+    // Pré-remplit poste + entreprise
+    const posteEl = document.getElementById('dash-poste');
+    const coEl    = document.getElementById('dash-co');
+    if (posteEl && job.title)   posteEl.value = job.title;
+    if (coEl    && job.company) coEl.value    = job.company;
+
+    // Affiche la fiche formatée
+    document.getElementById('li-prev-title').textContent   = job.title   || '—';
+    document.getElementById('li-prev-company').textContent = job.company || '—';
+    document.getElementById('li-prev-location').textContent = job.location ? '📍 ' + job.location : '';
+    document.getElementById('li-prev-desc').textContent    = job.descText;
+    const prevStatus = document.getElementById('li-prev-status');
+    if (prevStatus) prevStatus.textContent = '';
+
+    const badgesEl = document.getElementById('li-prev-badges');
+    badgesEl.innerHTML = '';
+    if (job.contract) badgesEl.innerHTML += `<span style="background:#dcfce7;color:#166534;border-radius:100px;padding:2px 10px;font-size:11px;font-weight:600">${esc(job.contract)}</span>`;
+    if (job.salary)   badgesEl.innerHTML += `<span style="background:#f3e8ff;color:#7c3aed;border-radius:100px;padding:2px 10px;font-size:11px;font-weight:600">${esc(job.salary)}</span>`;
+
+    preview.style.display = 'block';
+    status.style.color = 'var(--teal-d)';
+    status.innerHTML = `<strong>✓</strong> ${esc([job.title, job.company].filter(Boolean).join(' · '))}`;
+
+  } catch(e) {
+    status.style.color = 'var(--red)';
+    status.textContent = '⚠ ' + (e.message || 'Récupération échouée');
+  }
+}
+
 
 async function runDashPasteAnalysis() {
   const ta     = document.getElementById('dash-paste-text');
@@ -60,6 +284,8 @@ function addCandFromDash() {
   if (!co || !poste) { toast('Remplis le poste et l\'entreprise'); return; }
   const cands  = ls('sc_cands', []);
   const pasteEl = document.getElementById('dash-paste-text');
+  // Récupère les métadonnées du job fetché (LinkedIn/Indeed) si disponibles
+  const jobMeta = _liLastJob || {};
   cands.push({
     id: Date.now().toString(),
     company: co, poste,
@@ -68,9 +294,15 @@ function addCandFromDash() {
     notes:          '',
     indeedUrl:      '',
     jobDescription: pasteEl?.dataset.desc || '',
-    score:          null,   // Score affiché uniquement après comparaison manuelle
-    analysis:       null    // Idem — pas d'analyse auto à l'ajout
+    jobLocation:    jobMeta.location  || '',
+    jobContract:    jobMeta.contract  || '',
+    jobSalary:      jobMeta.salary    || '',
+    jobUrl:         jobMeta.url       || '',
+    jobSource:      jobMeta.source    || '',
+    score:          null,
+    analysis:       null
   });
+  _liLastJob = null; // reset après enregistrement
   ss('sc_cands', cands);
   pasteEl.value = '';
   delete pasteEl.dataset.desc;
@@ -145,7 +377,7 @@ function renderTracker() {
           }</select></td>
           <td class="notes-cell" onclick="openNoteModal('${esc(c.company)}','${esc(c.poste)}',\`${(c.notes||'').replace(/`/g,"'")}\`)" title="Cliquer pour voir">${esc(c.notes) || '<span style="opacity:.4">—</span>'}</td>
           <td style="white-space:nowrap">${c.analysis ? `
-            <button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Voir le CV adapté à cette offre">CV</button><button onclick="loadCVForCand('${c.id}', true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="Télécharger PDF">⬇ PDF</button>` : ''}<button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
+            <button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Voir le CV adapté à cette offre">CV</button><button onclick="loadCVForCand('${c.id}', true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="Télécharger PDF">⬇ PDF</button>` : ''}<button onclick="openInterviewForCand('${c.id}')" style="background:none;border:1.5px solid #e9d5ff;cursor:pointer;color:#7c3aed;font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Simuler l'entretien pour ce poste">🎤 Entretien</button><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
@@ -385,6 +617,7 @@ function _stripJobHeader(rawText) {
   const lines = rawText.split('\n');
 
   const boilerplate = [
+    // ── Indeed ──
     /^\s*détails de l.emploi\s*$/i,
     /^\s*trajet estimé\s*$/i,
     /^\s*job address\s*$/i,
@@ -395,19 +628,35 @@ function _stripJobHeader(rawText) {
     /^\s*(postuler|enregistrer|signaler|partager)\s*$/i,
     /^\s*\d[\d\s,\.]*\s*€.*$/i,
     /^\s*(cdi|cdd|intérim|interim|stage|alternance|temps plein|temps partiel|freelance)\s*$/i,
-    /^\s*(présentiel|télétravail|teletravail|hybride)\s*$/i,
+    /^\s*(présentiel|sur site|télétravail|teletravail|hybride)\s*$/i,
     /^\s*\+\s*\d+\s*avantages?\s*$/i,
-    /^\s*(il y a \d+|aujourd.hui|today)\s*/i,
+    /^\s*(il y a \d+|aujourd.hui|today)[\s·,]*/i,
+    /^\s*plus de \d+\s*candidats?\s*$/i,
     /^\s*\d+\s*(avis|offres?|emplois?)\s*$/i,
     /^\s*[⭐★•·\-–—]+\s*$/,
     /^\s*\d+\s*minutes?\s+depuis\s+/i,
+    // ── LinkedIn ──
+    /^\s*candidature simplifiée\s*$/i,
+    /^\s*voir plus d.options\s*$/i,
+    /^\s*aucune info disponible.*$/i,
+    /^\s*essayer premium.*$/i,
+    /^\s*accédez à des informations exclusives.*$/i,
+    /^\s*découvrez comment vous vous positionnez.*$/i,
+    /^\s*personnes que vous pouvez contacter\s*$/i,
+    /^\s*tout afficher\s*$/i,
+    /^\s*[a-zÀ-ÿ]+ et d.autres membres de votre réseau\s*$/i,
+    /^\s*enregistrer .{0,60} chez .{0,60}$/i,
+    /^\s*(sur site|on.?site)\s*$/i,
   ];
 
   const startMarkers = [
-    /^(description du poste|description de poste|à propos du poste|le poste\b)/i,
+    /^(description du poste|description de poste|à propos du poste|à propos de l.offre|le poste\b)/i,
     /^(vos missions?|missions? principales?|nous recherchons|votre mission|votre rôle)/i,
     /^(contexte\b|présentation du poste|rattaché|au sein de|dans le cadre de)/i,
     /^(qui sommes.nous|about the role|job description)/i,
+    /^j.ai l.immense plaisir/i,
+    /^raconter /i,
+    /^nous recherchons (les talents|un|une)/i,
   ];
 
   let startIdx = 0;
@@ -422,7 +671,7 @@ function _stripJobHeader(rawText) {
   }
 
   // Coupe le footer
-  const footer = /^\s*(avantages?|postuler|postulez|enregistrer|signaler|partager|extraits de la description|correspondance entre ce poste|pourquoi nous rejoindre)\s*$/i;
+  const footer = /^\s*(avantages?|postuler|postulez|enregistrer|signaler|partager|extraits de la description|correspondance entre ce poste|pourquoi nous rejoindre|requirements|exigences|show more|show less|voir moins|voir plus)\s*$/i;
   const body = lines.slice(startIdx);
   let endIdx = body.length;
   for (let i = 0; i < body.length; i++) {
@@ -1175,7 +1424,7 @@ function _formatOfferText(rawText) {
 }
 
 // ── DÉCODAGE IA DE L'OFFRE (analyse de l'offre seule) ──────
-async function _aiDecodeOffer(offerText, jobTitle) {
+async function _aiDecodeOffer(offerText, jobTitle, forceProvider) {
   // Nettoie le texte pour l'IA : coupe le footer, limite à 4000 chars
   const section = _cleanOfferForAI(offerText);
   if (!section) return { data: null, provider: null, model: null };
@@ -1227,7 +1476,16 @@ Règles :
 - Une entrée par ligne dans l'offre. Ne saute rien, ne fusionne pas.
 - JSON pur : pas de \`\`\`json, pas de commentaires.`;
 
-  const { text, provider, model } = await callAIAuto(prompt, { maxTokens: 4000, temperature: 0 });
+  let text, provider, model;
+  if (forceProvider === 'groq') {
+    text = await _callGroqDirect(prompt, { maxTokens: 4000, temperature: 0 });
+    provider = 'Groq'; model = 'llama-3.3-70b';
+  } else if (forceProvider === 'gemini') {
+    text = await callGemini(prompt, { maxTokens: 4000, temperature: 0 });
+    provider = 'Gemini'; model = 'gemini-2.5-flash';
+  } else {
+    ({ text, provider, model } = await callAIAuto(prompt, { maxTokens: 4000, temperature: 0 }));
+  }
   console.log('[DECODE] réponse IA brute:', text.slice(0, 600));
 
   let data;
@@ -1240,50 +1498,75 @@ Règles :
 
 // ── RENDU HTML DU PANEL DÉCODAGE ───────────────────────────
 function _renderDecodePanelHtml(data, isLoading, provider, model, offerText) {
-  if (isLoading) {
-    return `<div style="display:flex;align-items:center;gap:10px;padding:14px 0;color:var(--ink3);font-size:13px">
-      <span class="sp" style="width:14px;height:14px;flex-shrink:0"></span>
-      Décodage IA de l'offre en cours…
+  const candId  = window._splitCandId;
+  const cand    = candId ? ls('sc_cands', []).find(x => x.id === candId) : null;
+  const descText = offerText ? _stripJobHeader(offerText) : '';
+
+  let html = '';
+
+  // ── PARTIE 1 : texte de l'offre (toujours en haut) ───────
+  if (descText) {
+    const showBtn = !data && !isLoading;
+    html += `
+    <div style="border:1.5px solid #bfdbfe;border-radius:10px;overflow:hidden;margin-bottom:18px">
+      <div style="background:#eff6ff;padding:11px 14px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px;flex-shrink:0">🏢</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:#1e293b">${esc(cand?.poste || '')}</div>
+          <div style="font-size:12px;color:#0a66c2;font-weight:600">${esc(cand?.company || '')}</div>
+        </div>
+        ${showBtn ? `<div style="display:flex;gap:6px;flex-shrink:0">
+          <button onclick="window._retryDecode('${candId}','groq')"
+            style="background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+            🟠 Groq</button>
+          <button onclick="window._retryDecode('${candId}','gemini')"
+            style="background:#f5f3ff;color:#7c3aed;border:1.5px solid #ddd6fe;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+            🟣 Gemini</button>
+        </div>` : ''}
+      </div>
+      <div style="padding:14px 16px;max-height:400px;overflow-y:auto;border-top:1px solid #bfdbfe">
+        <div style="font-size:12.5px;color:#334155;line-height:1.75;white-space:pre-line">${esc(descText)}</div>
+      </div>
     </div>`;
-  }
-  if (!data) {
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
-      <div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)">Décodage IA</div>
-      <button onclick="window._retryDecode(window._splitCandId)"
-        style="background:#6366f1;color:white;border:none;border-radius:7px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">
-        ↺ Lancer le décodage
-      </button>
+  } else if (!data && !isLoading) {
+    return `<div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:10px;padding:14px 16px;font-size:12.5px;color:#92400e">
+      ⚠ Aucun texte d'offre — ajoute cette candidature depuis le tableau de bord avec un lien LinkedIn ou Indeed.
     </div>`;
   }
 
-  // Badge provider
+  // ── PARTIE 2 : spinner pendant le décodage ────────────────
+  if (isLoading) {
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:14px 0;color:var(--ink3);font-size:13px">
+      <span class="sp" style="width:14px;height:14px;flex-shrink:0"></span>Décodage IA en cours…
+    </div>`;
+    return html;
+  }
+
+  if (!data) return html; // texte affiché, pas encore analysé
+
+  // ── PARTIE 3 : résultats IA — en dessous du texte ─────────
   const providerBadge = provider ? (() => {
     const isGemini = provider === 'Gemini';
-    const dot   = isGemini ? '#8b5cf6' : '#f97316';
-    const bgC   = isGemini ? '#f5f3ff' : '#fff7ed';
-    const bdC   = isGemini ? '#ddd6fe' : '#fed7aa';
-    const label = isGemini ? `🟣 Gemini · ${model || '2.5 Flash'}` : `🟠 Groq · ${model || 'Llama 3.3'}`;
+    const dot = isGemini ? '#8b5cf6' : '#f97316';
+    const bgC = isGemini ? '#f5f3ff' : '#fff7ed';
+    const bdC = isGemini ? '#ddd6fe' : '#fed7aa';
+    const label = isGemini ? `🟣 Gemini · ${model||'2.5 Flash'}` : `🟠 Groq · ${model||'Llama 3.3'}`;
     return `<span style="background:${bgC};color:${dot};border:1px solid ${bdC};border-radius:100px;padding:2px 9px;font-size:10.5px;font-weight:700">${label}</span>`;
   })() : '';
 
-  // Header
-  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-    <div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)">Décodage IA</div>
-    <div style="display:flex;align-items:center;gap:6px">
-      ${providerBadge}
-      <button onclick="window._retryDecode(window._splitCandId)"
-        style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--ink3);font-size:10.5px;padding:2px 8px;cursor:pointer;font-weight:600"
-        title="Relancer le décodage">↺</button>
-    </div>
-  </div>`;
-
-  // ① Contexte
-  if (data.contexte) {
-    html += `<div style="font-size:12.5px;color:var(--ink2);line-height:1.55;background:#f8fafc;border-radius:7px;padding:8px 11px;border:1px solid var(--border2);margin-bottom:14px">${esc(data.contexte)}</div>`;
-  }
+  html += `<div style="border-top:2px solid var(--border);padding-top:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)">Analyse IA</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        ${providerBadge}
+        <button onclick="window._retryDecode(window._splitCandId,'groq')"
+          style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;font-size:10.5px;padding:2px 8px;cursor:pointer;font-weight:700" title="Relancer avec Groq">🟠</button>
+        <button onclick="window._retryDecode(window._splitCandId,'gemini')"
+          style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;font-size:10.5px;padding:2px 8px;cursor:pointer;font-weight:700" title="Relancer avec Gemini">🟣</button>
+      </div>
+    </div>`;
 
   // ── Helpers ──────────────────────────────────────────────
-  // Rend un bloc de lignes brutes en HTML (paragraphes + headers)
   const renderTextLines = (lines) => {
     let out = '';
     let para = [];
@@ -1349,79 +1632,9 @@ function _renderDecodePanelHtml(data, isLoading, provider, model, offerText) {
     return b + `</div></div>`;
   };
 
-  // ── Texte de l'offre découpé en sections ─────────────────
-  if (offerText) {
-    const displayText = _stripJobHeader(offerText);
-    const lines = displayText.replace(/\n{3,}/g, '\n\n').split('\n');
-
-    // Découpage en 4 zones : avant-missions | corps-missions | corps-profil | reste
-    let zone = 'pre'; // pre | missions | profil | post
-    const zones = { pre: [], missions: [], mHeader: '', profil: [], pHeader: '', post: [] };
-
-    for (const line of lines) {
-      const plain = line.trim();
-      const isShortLine = plain.length > 0 && plain.length <= 60 && !/[.,;:?!]$/.test(plain) && !/^\d+[\.\)]/.test(plain) && !/^[•\-–—►▸*]\s/.test(plain);
-
-      if (isShortLine && /vos missions?|missions?\s*:|responsabilités/i.test(plain)) {
-        zone = 'missions';
-        zones.mHeader = plain;
-        continue;
-      }
-      if (isShortLine && /^profil|compétences? (requises?|attendues?)|vous êtes|qui êtes.vous/i.test(plain)) {
-        zone = 'profil';
-        zones.pHeader = plain;
-        continue;
-      }
-      if (isShortLine && /avantages?|nous offrons|pourquoi nous rejoindre/i.test(plain)) {
-        zone = 'post';
-      }
-
-      if      (zone === 'pre')      zones.pre.push(line);
-      else if (zone === 'missions') zones.missions.push(line);
-      else if (zone === 'profil')   zones.profil.push(line);
-      else                          zones.post.push(line);
-    }
-
-    // ① Texte avant VOS MISSIONS
-    const preHtml = renderTextLines(zones.pre);
-    if (preHtml) html += `<div style="margin-bottom:4px">${preHtml}</div>`;
-
-    // ② Section VOS MISSIONS : header + texte brut + bloc décodé
-    if (zones.mHeader || zones.missions.length) {
-      if (zones.mHeader) {
-        const isBig = zones.mHeader === zones.mHeader.toUpperCase() || zones.mHeader.length <= 35;
-        html += isBig
-          ? `<div style="font-weight:800;font-size:12px;color:#1e293b;margin:16px 0 5px;text-transform:uppercase;letter-spacing:.06em;border-left:3px solid #6366f1;padding-left:8px">${esc(zones.mHeader)}</div>`
-          : `<div style="font-weight:700;font-size:13px;color:#1e293b;margin:12px 0 4px">${esc(zones.mHeader)}</div>`;
-      }
-      const mBodyHtml = renderTextLines(zones.missions);
-      if (mBodyHtml) html += mBodyHtml;
-      // Bloc décodé missions → juste en dessous du texte VOS MISSIONS
-      html += renderMissionsBlock(data.missions);
-    }
-
-    // ③ Section PROFIL : header + texte brut + bloc décodé
-    if (zones.pHeader || zones.profil.length) {
-      if (zones.pHeader) {
-        const isBig = zones.pHeader === zones.pHeader.toUpperCase() || zones.pHeader.length <= 35;
-        html += isBig
-          ? `<div style="font-weight:800;font-size:12px;color:#1e293b;margin:16px 0 5px;text-transform:uppercase;letter-spacing:.06em;border-left:3px solid #a855f7;padding-left:8px">${esc(zones.pHeader)}</div>`
-          : `<div style="font-weight:700;font-size:13px;color:#1e293b;margin:12px 0 4px">${esc(zones.pHeader)}</div>`;
-      }
-      const pBodyHtml = renderTextLines(zones.profil);
-      if (pBodyHtml) html += pBodyHtml;
-      // Bloc décodé profil → juste en dessous du texte PROFIL
-      html += renderProfilBlock(data.profil_recherche);
-    }
-
-    // ④ Reste (avantages, etc.)
-    const postHtml = renderTextLines(zones.post);
-    if (postHtml) html += `<div style="margin-bottom:4px">${postHtml}</div>`;
-  } else {
-    // Pas de texte d'offre — affiche les blocs directement
-    html += renderMissionsBlock(data.missions);
-    html += renderProfilBlock(data.profil_recherche);
-  }
+  // Blocs décodés directement (le texte brut est déjà affiché au-dessus)
+  html += renderMissionsBlock(data.missions);
+  html += renderProfilBlock(data.profil_recherche);
 
   // ── Compétences clés à mettre en avant ───────────────────
   if (data.competences_cles?.length) {
@@ -1484,6 +1697,8 @@ function _renderDecodePanelHtml(data, isLoading, provider, model, offerText) {
   if (_hookCandId && !isLoading) {
     setTimeout(() => _generateHookProposals(_hookCandId, data), 0);
   }
+
+  html += `</div>`; // ferme la partie 3
 
   return html;
 }
@@ -1653,7 +1868,41 @@ window._addSkillsToProfile = function(skills) {
 };
 
 // Retry décodage depuis le bouton dans le panel d'erreur
-window._retryDecode = function(candId) {
+window._reattachJobDesc = async function(candId) {
+  const val    = (document.getElementById('reattach-paste')?.value || '').trim();
+  const status = document.getElementById('reattach-status');
+  if (!val) return;
+
+  if (status) status.textContent = 'En cours…';
+
+  try {
+    let descText = '';
+
+    if (/^https?:\/\/(www\.)?linkedin\.com\/jobs\//i.test(val)) {
+      const job = await _fetchLinkedInJob(val);
+      descText = job.descText;
+    } else if (/^https?:\/\/([a-z]+\.)?indeed\.com\//i.test(val) && _extractIndeedJobKey(val)) {
+      const job = await _fetchIndeedJob(val);
+      descText = job.descText;
+    } else {
+      descText = val; // texte brut collé directement
+    }
+
+    if (!descText || descText.length < 30) throw new Error('Texte trop court ou vide');
+
+    // Sauvegarde dans la candidature
+    const cands = ls('sc_cands', []);
+    const idx = cands.findIndex(x => x.id === candId);
+    if (idx !== -1) { cands[idx].jobDescription = descText; ss('sc_cands', cands); }
+
+    // Recharge le split view
+    openSplitView(candId);
+  } catch(e) {
+    if (status) { status.style.color = 'var(--red)'; status.textContent = '⚠ ' + e.message; }
+  }
+};
+
+window._retryDecode = function(candId, forceProvider) {
   const c = ls('sc_cands', []).find(x => x.id === candId);
   if (!c) return;
   // Efface le cache (ancien ou échoué)
@@ -1671,7 +1920,7 @@ window._retryDecode = function(candId) {
 
   const rawText     = (c.jobDescription||'').replace(/&nbsp;/g,' ').replace(/[ \t]{3,}/g,' ').trim();
 
-  _aiDecodeOffer(rawText, c.poste).then(({ data, provider, model }) => {
+  _aiDecodeOffer(rawText, c.poste, forceProvider).then(({ data, provider, model }) => {
     const cands2 = ls('sc_cands', []);
     const idx2   = cands2.findIndex(x => x.id === candId);
     if (idx2 !== -1) {
@@ -1688,10 +1937,14 @@ window._retryDecode = function(candId) {
       <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 14px">
         <div style="font-size:12.5px;font-weight:700;color:#dc2626;margin-bottom:4px">⚠ Décodage IA échoué</div>
         <div style="font-size:12px;color:#b91c1c;line-height:1.5;margin-bottom:10px">${esc(err?.message || String(err))}</div>
-        <button onclick="window._retryDecode('${candId}')"
-          style="background:#dc2626;color:white;border:none;border-radius:6px;padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer">
-          ↺ Réessayer
-        </button>
+        <div style="display:flex;gap:6px">
+          <button onclick="window._retryDecode('${candId}','groq')"
+            style="background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;border-radius:6px;padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer">
+            🟠 Groq</button>
+          <button onclick="window._retryDecode('${candId}','gemini')"
+            style="background:#f5f3ff;color:#7c3aed;border:1.5px solid #ddd6fe;border-radius:6px;padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer">
+            🟣 Gemini</button>
+        </div>
       </div>`;
   });
 };
@@ -1724,21 +1977,26 @@ async function openSplitView(candId) {
   // ── Barre du haut ──
   document.getElementById('split-modal-title').textContent = c.poste + ' · ' + c.company;
   document.getElementById('split-modal-sub').textContent   = c.date || '';
-  // Priorité à l'analyse la plus récente (évite les deux scores différents)
-  const sc = c.analysis?.score_global ?? c.score;
-  if (sc !== null && sc !== undefined) {
-    const col = sc>=70?'#16a34a':sc>=50?'#d97706':'#dc2626';
-    const bar = sc>=70?'#22c55e':sc>=50?'#f59e0b':'#ef4444';
-    document.getElementById('split-modal-score').innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:20px;font-weight:900;color:${col}">${sc}%</span>
-        <div style="width:80px;height:7px;background:#e5e7eb;border-radius:100px;overflow:hidden">
-          <div style="height:100%;width:${sc}%;background:${bar};border-radius:100px"></div>
-        </div>
-        <span style="font-size:11px;color:var(--ink3);font-weight:600">match</span>
-      </div>`;
-  }
 
+  // Bouton "Voir l'annonce" avec badge source
+  const jobLinkEl = document.getElementById('split-job-link');
+  if (jobLinkEl) {
+    if (c.jobUrl) {
+      const srcConf = c.jobSource === 'linkedin'
+        ? { bg: '#0a66c2', label: 'LinkedIn' }
+        : c.jobSource === 'indeed'
+        ? { bg: '#2164f3', label: 'Indeed' }
+        : { bg: '#374151', label: 'Annonce' };
+      jobLinkEl.innerHTML = `
+        <a href="${esc(c.jobUrl)}" target="_blank" rel="noopener"
+           style="display:inline-flex;align-items:center;gap:6px;background:${srcConf.bg};color:white;border:none;border-radius:8px;cursor:pointer;font-size:12.5px;padding:5px 14px;font-weight:600;text-decoration:none;white-space:nowrap">
+          <span style="font-size:10px;background:rgba(255,255,255,.22);border-radius:4px;padding:1px 5px;font-weight:800">${srcConf.label}</span>
+          Voir l'annonce ↗
+        </a>`;
+    } else {
+      jobLinkEl.innerHTML = '';
+    }
+  }
   // ── Panneau gauche ──
   const rawText     = (c.jobDescription||'').replace(/&nbsp;/g,' ').replace(/[ \t]{3,}/g,' ').trim();
 
@@ -1756,7 +2014,8 @@ async function openSplitView(candId) {
   const cachedRaw       = a.ai_decode || null;
   const cachedDecode    = _isNewFormat(cachedRaw) ? cachedRaw : null;
   const cachedProvider  = cachedDecode ? (a.ai_decode_provider || null) : null;
-  const decodeLoading   = !cachedDecode && !!rawText;
+  // Pas de déclenchement auto — on affiche le texte d'abord, l'IA se lance sur clic
+  const decodeLoading = false;
 
   document.getElementById('split-left-panel').innerHTML = `
     <div id="split-job-card" style="margin-bottom:20px">
@@ -1766,16 +2025,11 @@ async function openSplitView(candId) {
       </div>
     </div>
     <div id="split-decode-panel" style="margin-bottom:28px">
-      ${_renderDecodePanelHtml(cachedDecode, decodeLoading, cachedProvider, null, rawText)}
-    </div>
-    ${c.analysis ? `
-    <div style="border-top:2px solid var(--border);padding-top:22px">
-      <div style="font-size:12px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">Analyse complète</div>
-      <div id="split-full-analysis"></div>
-    </div>` : ''}`;
+      ${_renderDecodePanelHtml(cachedDecode, false, cachedProvider, null, rawText)}
+    </div>`;
 
-  // ── Appel Gemini en arrière-plan si pas encore de cache ──
-  if (decodeLoading) {
+  // Déclenchement auto uniquement si déjà en cache (pas de spinner au chargement)
+  if (false) {
     _aiDecodeOffer(rawText, c.poste).then(({ data, provider, model }) => {
       const cands2 = ls('sc_cands', []);
       const idx2   = cands2.findIndex(x => x.id === candId);
@@ -1814,21 +2068,13 @@ async function openSplitView(candId) {
   document.getElementById('split-modal-overlay').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 
-  // ── Analyse complète (sync, rendue dans le DOM existant) ──
-  if (c.analysis) {
-    const fullEl = document.getElementById('split-full-analysis');
-    if (fullEl && typeof renderAnalyzeResult === 'function') {
-      renderAnalyzeResult(c.analysis, { errors: [], warnings: [] }, fullEl);
-    }
-  }
-
   // ── Données structurées — depuis l'analyse locale (0 API) ──
   let jobInfo = {
     title:        a.poste        || c.poste    || '',
     company:      a.entreprise   || c.company  || '',
-    location:     a.location     || '',
-    salary:       a.salary       || '',
-    contractType: a.contractType || '',
+    location:     a.location     || c.jobLocation  || '',
+    salary:       a.salary       || c.jobSalary    || '',
+    contractType: a.contractType || c.jobContract  || '',
     remote:       a.remote       || '',
     benefits:     a.benefits     || [],
     rating:       a.rating       || '',
@@ -1888,72 +2134,6 @@ function closeSplitView() {
   document.body.style.overflow = '';
 }
 
-async function reanalyzeSplitView() {
-  const candId = window._splitCandId;
-  if (!candId) return;
-  const cands = ls('sc_cands', []);
-  const c = cands.find(x => x.id === candId);
-  if (!c) return;
-
-  const offerText = c.jobDescription || '';
-  if (!offerText) { toast('Texte de l\'offre introuvable — recolle l\'annonce depuis le tableau de bord'); return; }
-
-  const btn = document.getElementById('split-reanalyze-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse…'; }
-
-  try {
-    // Reforce le refetch du jobInfo (reset cache)
-    delete c._jobInfo;
-
-    // Crée un conteneur temporaire pour recevoir le résultat
-    const tmpEl = document.createElement('div');
-    const result = await doAnalyzeCore(offerText, tmpEl);
-
-    c.analysis = {
-      score:            result.score_global ?? result.score ?? 0,
-      score_global:     result.score_global,
-      score_resume:     result.score_resume,
-      score_competences:result.score_competences,
-      score_experience: result.score_experience,
-      poste:            result.poste,
-      keywords_present: result.keywords_present || [],
-      keywords_missing: result.keywords_missing || [],
-      must_have:        result.must_have || [],
-      nice_to_have:     result.nice_to_have || [],
-      adapted_bullets:  result.adapted_bullets || [],
-      tips:             result.tips || [],
-      cover_letter:     result.cover_letter || '',
-    };
-    if (result.poste)      c.poste   = result.poste;
-    if (result.entreprise) c.company = result.entreprise;
-    // Met à jour le score racine pour cohérence avec le tableau
-    c.score = c.analysis.score_global ?? c.analysis.score ?? null;
-
-    // ── Phrase d'accroche adaptée à cette offre ──────────────
-    // On prend les compétences du profil présentes dans l'offre,
-    // en privilégiant les formulations multi-mots (domaines > outils)
-    const kpAll = result.keywords_present || [];
-    const multiWord  = kpAll.filter(k => k.trim().split(/\s+/).length >= 2);
-    const singleWord = kpAll.filter(k => k.trim().split(/\s+/).length < 2 && k.trim().length > 3);
-    const hookItems  = [...multiWord, ...singleWord].slice(0, 3);
-    if (hookItems.length) {
-      const ov = _getCVOverrides(candId);
-      ov.domainesProfile = hookItems.join(' · ');
-      _saveCVOverrides(candId, ov);
-    }
-
-    // Sauvegarde
-    const idx = cands.findIndex(x => x.id === candId);
-    if (idx !== -1) { cands[idx] = c; localStorage.setItem('sc_cands', JSON.stringify(cands)); }
-
-    // Réouvre la vue partagée avec les nouvelles données
-    openSplitView(candId);
-  } catch (e) {
-    alert('Erreur lors de la ré-analyse : ' + e.message);
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="refresh-cw" style="width:13px;height:13px"></i> Relancer l\'analyse'; if (window.lucide) lucide.createIcons(); }
-  }
-}
 
 // ── CSV EXPORT ─────────────────────────────────────────────
 function exportCSV() {

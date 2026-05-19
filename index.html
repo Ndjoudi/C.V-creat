@@ -120,6 +120,18 @@
           <div class="ptitle" id="dash-title">Bonjour</div>
           <div class="psub">Ton copilote de carrière supply chain propulsé par l'IA</div>
         </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <a href="https://fr.indeed.com/jobs?q=&l=%C3%8Ele-de-France&from=searchOnHP%2Cwhereautocomplete&vjk=2d9490b69ecbdb98" target="_blank" rel="noopener"
+            style="display:inline-flex;align-items:center;gap:6px;background:#2164f3;color:white;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Indeed
+          </a>
+          <a href="https://www.linkedin.com/jobs/search/?currentJobId=4402252746&geoId=104246759&keywords=supply%20chain&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true" target="_blank" rel="noopener"
+            style="display:inline-flex;align-items:center;gap:6px;background:#0a66c2;color:white;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+            LinkedIn
+          </a>
+        </div>
       </div>
 
       <!-- Formulaire Nouvelle candidature direct -->
@@ -129,15 +141,36 @@
           <span style="font-size:11.5px;color:var(--ink3)">Colle l'annonce — le poste et l'entreprise se remplissent automatiquement</span>
         </div>
         <textarea class="inp" id="dash-paste-text" rows="2"
-          placeholder="Colle ici le texte de l'annonce..."
+          placeholder="Colle le lien LinkedIn — ou le texte de l'annonce (Indeed, LinkedIn…)"
           style="resize:none;font-size:12px;margin-bottom:4px;padding:8px 10px"
           onpaste="scheduleDashPasteAnalysis()"></textarea>
-        <div id="dash-paste-status" style="font-size:11px;margin-bottom:8px;min-height:14px;line-height:1.5;color:var(--ink3)"></div>
+        <div style="display:flex;align-items:center;gap:8px;min-height:18px;margin-bottom:4px">
+          <div id="dash-source-badge"></div>
+          <div id="dash-paste-status" style="font-size:11px;line-height:1.5;color:var(--ink3)"></div>
+        </div>
         <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
           <div class="fg" style="flex:2;min-width:120px;margin:0"><label class="lb" style="font-size:10px">POSTE</label><input class="inp" id="dash-poste" placeholder="Responsable Logistique" style="padding:6px 10px;font-size:12px"/></div>
           <div class="fg" style="flex:2;min-width:120px;margin:0"><label class="lb" style="font-size:10px">ENTREPRISE</label><input class="inp" id="dash-co" placeholder="Carrefour" style="padding:6px 10px;font-size:12px"/></div>
           <div class="fg" style="flex:1;min-width:110px;margin:0"><label class="lb" style="font-size:10px">DATE</label><input class="inp" id="dash-date" type="date" style="padding:6px 10px;font-size:12px"/></div>
           <button class="btn btn-p" onclick="addCandFromDash()" style="font-size:12.5px;padding:7px 16px;flex-shrink:0;align-self:flex-end">Enregistrer</button>
+        </div>
+        <!-- Prévisualisation LinkedIn (fiche formatée avant analyse IA) -->
+        <div id="dash-linkedin-preview" style="display:none;margin-top:12px;border:1.5px solid #bfdbfe;border-radius:10px;overflow:hidden">
+          <div style="background:#eff6ff;padding:12px 16px;display:flex;align-items:flex-start;gap:12px">
+            <div style="font-size:22px;flex-shrink:0">🏢</div>
+            <div style="flex:1;min-width:0">
+              <div id="li-prev-title" style="font-size:15px;font-weight:700;color:#1e293b"></div>
+              <div id="li-prev-company" style="font-size:13px;color:#0a66c2;font-weight:600;margin-top:2px"></div>
+              <div id="li-prev-location" style="font-size:12px;color:#64748b;margin-top:2px"></div>
+              <div id="li-prev-badges" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+            </div>
+          </div>
+          <div style="padding:14px 16px;max-height:320px;overflow-y:auto;border-top:1px solid #bfdbfe">
+            <div id="li-prev-desc" style="font-size:12.5px;color:#334155;line-height:1.7;white-space:pre-line"></div>
+          </div>
+          <div style="padding:10px 16px;background:#f8fafc;border-top:1px solid #bfdbfe">
+            <span style="font-size:11px;color:#64748b">✓ Poste et entreprise pré-remplis — clique sur <strong>Enregistrer</strong> pour sauvegarder. L'analyse IA se lance dans le détail de la candidature.</span>
+          </div>
         </div>
         <div id="dash-analysis-result" class="hidden"></div>
       </div>
@@ -673,8 +706,7 @@
       <div style="font-size:14px;font-weight:800;color:var(--ink)" id="split-modal-title"></div>
       <div style="font-size:11.5px;color:var(--ink3)" id="split-modal-sub"></div>
     </div>
-    <div id="split-modal-score"></div>
-    <button id="split-reanalyze-btn" onclick="reanalyzeSplitView()" style="background:#6366f1;border:none;border-radius:8px;cursor:pointer;color:white;font-size:12.5px;padding:5px 14px;font-weight:600;display:flex;align-items:center;gap:6px"><i data-lucide="refresh-cw" style="width:13px;height:13px"></i> Comparer avec mon profil</button>
+    <div id="split-job-link"></div>
     <button id="cv-edit-btn" onclick="toggleCVEditMode()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">✏️ Modifier le CV</button>
     <button onclick="loadCVForCand(window._splitCandId, true)" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">⬇ PDF</button>
   </div>
@@ -699,9 +731,9 @@
 <script src="js/import-cv.js?v=35"></script>
 <script src="js/cv.js?v=37"></script>
 <script src="js/analyze.js?v=35"></script>
-<script src="js/interview.js?v=35"></script>
+<script src="js/interview.js?v=36"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=78"></script>
+<script src="js/tracker.js?v=99"></script>
 <script src="js/modal.js?v=35"></script>
 
 </body>

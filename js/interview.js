@@ -6,6 +6,19 @@ function prefillInterviewRole() {
   if (field && !field.value && P.title) field.value = P.title;
 }
 
+// Ouvre la simulation pré-remplie depuis une candidature du tableau
+function openInterviewForCand(candId) {
+  const c = ls('sc_cands', []).find(x => x.id === candId);
+  if (!c) return;
+  goTo('interview');
+  const roleField  = document.getElementById('itv-role');
+  const offerField = document.getElementById('itv-offer');
+  if (roleField)  roleField.value  = c.poste  || '';
+  if (offerField) offerField.value = c.jobDescription || '';
+  // Scroll vers le haut de la section
+  document.getElementById('sc-interview')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 async function generateInterview() {
   const role  = document.getElementById('itv-role').value.trim() || P.title || 'Supply Chain';
   const level = document.getElementById('itv-level').value;
