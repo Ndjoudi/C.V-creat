@@ -358,11 +358,26 @@ function refreshDash() {
     P.subdomains.length > 0, P.tools.length > 0, P.experiences.length > 0, P.education.length > 0];
   const pct     = Math.round(fields.filter(Boolean).length / 9 * 100);
 
-  // ── Stats candidatures (même style que le tracker) ──
-  const statCards = STATS.map(s => {
-    const [col,, border] = STAT_COLORS[s] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
-    const n = cands.filter(c => c.status === s).length;
-    return `<div class="stat" style="border-color:${border}"><div class="stat-n" style="color:${col}">${n}</div><div class="stat-l">${s}</div></div>`;
+  // ── Stat-filter cards (cliquables) ──
+  const allCount = cands.length;
+  const allActive = _dashFilter === 'Tous';
+  const statCards = [
+    { key: 'Tous', label: 'TOUS', count: allCount }
+  ].concat(STATS.map(s => ({ key: s, label: s, count: cands.filter(c => c.status === s).length })))
+  .map(({ key, label, count }) => {
+    const [col,, border] = STAT_COLORS[key] || ['var(--ink)', 'var(--bg)', 'var(--border)'];
+    const active = key === _dashFilter;
+    return `<div onclick="setDashFilter('${key}')" style="
+      cursor:pointer;user-select:none;text-align:center;
+      background:${active ? `${col}12` : 'var(--card)'};
+      border:1.5px solid ${active ? col : 'var(--border)'};
+      border-radius:10px;padding:7px 12px;min-width:64px;flex:1;
+      transition:border-color .15s,background .15s;
+      box-shadow:${active ? `0 0 0 2px ${col}22` : 'none'};
+    ">
+      <div style="font-size:18px;font-weight:800;color:${col};line-height:1.1">${count}</div>
+      <div style="font-size:9.5px;font-weight:700;color:var(--ink3);letter-spacing:.5px;margin-top:3px;white-space:nowrap">${label}</div>
+    </div>`;
   }).join('');
 
   // ── Filtrage ──
@@ -408,15 +423,7 @@ function refreshDash() {
     recentHtml = `<div class="empty" style="padding:24px"><div class="empty-ic">◫</div><div class="empty-t">${cands.length ? 'Aucune candidature pour ce filtre' : 'Aucune candidature'}</div></div>`;
   }
 
-  // ── Chips statut ──
-  const filterChips = ['Tous', ...STATS].map(f => {
-    const active = f === _dashFilter;
-    const [col] = STAT_COLORS[f] || ['var(--ink3)'];
-    const count = f === 'Tous' ? cands.length : cands.filter(c => c.status === f).length;
-    return `<span onclick="setDashFilter('${f}')" title="${f}" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
-      ${active ? `background:${col==='var(--ink3)'?'#374151':col};color:white;border:1.5px solid transparent;` : `background:transparent;color:var(--ink3);border:1.5px solid var(--border);`}"
-    >${f}${count ? ` <span style="font-size:10px;opacity:.8">${count}</span>` : ''}</span>`;
-  }).join('');
+  // filterChips remplacés par statCards cliquables (ci-dessus)
 
   // ── Chips source ──
   const sourceChips = ['Tous','linkedin','indeed'].map(s => {
@@ -435,21 +442,18 @@ function refreshDash() {
   </span>`;
 
   dashEl.innerHTML = `
-    <!-- Stat cards candidatures -->
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">${statCards}</div>
+    <!-- Stat-filter cards -->
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">${statCards}</div>
 
-    <!-- Titre + filtres -->
+    <!-- Titre + filtres source + tri -->
     <div style="margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-size:14px;font-weight:700;color:var(--ink)">Candidatures</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="display:flex;gap:5px;flex-wrap:wrap">${sourceChips}</div>
         ${dateSortBtn}
       </div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">${filterChips}</div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap">${sourceChips}</div>
     </div>
     <div style="margin-bottom:20px">${recentHtml}</div>
-
-    `;
+  `;
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }

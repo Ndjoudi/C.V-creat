@@ -216,7 +216,15 @@ async function _runJobFetch(url, source) {
     document.getElementById('li-prev-title').textContent   = job.title   || '—';
     document.getElementById('li-prev-company').textContent = job.company || '—';
     document.getElementById('li-prev-location').textContent = job.location ? '📍 ' + job.location : '';
-    document.getElementById('li-prev-desc').textContent    = job.descText;
+    const descEl = document.getElementById('li-prev-desc');
+    descEl.textContent = job.descText;
+    // reset état réduit à chaque nouvelle offre
+    descEl.style.maxHeight = '52px';
+    const fadeEl = document.getElementById('li-prev-fade');
+    const togEl  = document.getElementById('li-prev-toggle');
+    if (fadeEl) fadeEl.style.display = 'block';
+    if (togEl)  { togEl.textContent = '▼ Voir plus'; togEl.style.display = 'inline'; }
+
     const prevStatus = document.getElementById('li-prev-status');
     if (prevStatus) prevStatus.textContent = '';
 
@@ -2151,4 +2159,20 @@ function exportCSV() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('Export CSV téléchargé');
+}
+
+function toggleLiDesc() {
+  const descEl  = document.getElementById('li-prev-desc');
+  const fadeEl  = document.getElementById('li-prev-fade');
+  const togEl   = document.getElementById('li-prev-toggle');
+  const expanded = descEl.style.maxHeight === 'none' || parseInt(descEl.style.maxHeight) > 52;
+  if (expanded) {
+    descEl.style.maxHeight = '52px';
+    if (fadeEl) fadeEl.style.display = 'block';
+    togEl.textContent = '▼ Voir plus';
+  } else {
+    descEl.style.maxHeight = 'none';
+    if (fadeEl) fadeEl.style.display = 'none';
+    togEl.textContent = '▲ Réduire';
+  }
 }
