@@ -305,16 +305,11 @@ function renderCV() {
         <div class="cv-skill-tags">${P.subdomains.map(tagEl).join('')}</div>
       </div>`;
     }
-    if (P.tools.length || true) {
+    {
+      const merged = [...P.tools.map(tagEl), ...P.informatique.map(tagEl)];
       html += `<div class="cv-skill-row">
         ${catLabel('Outils SC','tools')}
-        <div class="cv-skill-tags">${P.tools.map(tagEl).join('')}</div>
-      </div>`;
-    }
-    if (P.informatique.length || true) {
-      html += `<div class="cv-skill-row">
-        ${catLabel('Bureautique','informatique')}
-        <div class="cv-skill-tags">${P.informatique.map(tagEl).join('')}</div>
+        <div class="cv-skill-tags">${merged.join('')}</div>
       </div>`;
     }
     if (P.certifs.length) {
