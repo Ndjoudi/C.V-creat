@@ -207,6 +207,8 @@ function renderExpList() {
         '<div class="fg"><label class="lb">Localisation</label>' +
           '<input class="inp" value="' + esc(e.location||'') + '" placeholder="Paris" oninput="updExp(\'' + e.id + '\',\'location\',this.value)"/></div>' +
       '</div>' +
+      '<div class="fg" style="margin-bottom:14px"><label class="lb">Rattaché(e) à</label>' +
+        '<input class="inp" value="' + esc(e.reportingTo||'') + '" placeholder="Ex : Directeur des Opérations, DAF, PDG..." oninput="updExp(\'' + e.id + '\',\'reportingTo\',this.value)"/></div>' +
       '<!-- Réalisations & Résultats (BULLET BANK) -->' +
       '<div class="exp-section">' +
         '<div class="exp-section-hd">' +
