@@ -217,7 +217,6 @@ function renderCV() {
   <div class="cv-hd">
     <div style="flex:1">
       <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
-      ${displayTitle ? `<div class="cv-ti"><span class="cv-title-text">${esc(displayTitle)}</span>${P.yearsExp ? `<span class="cv-yexp"> · ${esc(P.yearsExp)} d'expérience</span>` : ''}</div>` : ''}
       ${contacts ? `<div class="cv-contact-line">${contacts}</div>` : ''}
       ${extraLine ? `<div class="cv-contact-line" style="margin-top:3px">${extraLine}</div>` : ''}
     </div>
@@ -247,11 +246,8 @@ function renderCV() {
         : renderDescription(e.description);
       const expIdx = (typeof e._origIdx === 'number') ? e._origIdx : i;
       html += `<div class="cv-exp" data-exp-idx="${expIdx}">
-        <div class="cv-erow">
-          <div class="cv-etitle">${esc(e.title)}${e.contractType ? ' <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px;background:#F2F2F2;color:#6E6E73;border:1px solid #D2D2D7;vertical-align:middle;margin-left:5px">' + esc(e.contractType) + '</span>' : ''}${e.reportingTo ? `<span style="font-size:10px;font-weight:400;font-style:italic;color:#6E6E73;margin-left:8px;vertical-align:middle">Rattaché(e) directement au ${esc(e.reportingTo)}</span>` : ''}</div>
-          <div class="cv-edates">${esc(e.duration)}</div>
-        </div>
-        ${e.company ? `<div class="cv-eco">${esc(e.company)}${e.sector ? ' · ' + esc(e.sector) : ''}${e.location ? ' · ' + esc(e.location) : ''}</div>` : ''}
+        <div class="cv-etitle">${esc(e.title)}${e.contractType ? ' <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px;background:#F2F2F2;color:#6E6E73;border:1px solid #D2D2D7;vertical-align:middle;margin-left:5px">' + esc(e.contractType) + '</span>' : ''}${e.reportingTo ? `<span style="font-size:10px;font-weight:400;font-style:italic;color:#6E6E73;margin-left:8px;vertical-align:middle">Rattaché(e) directement au ${esc(e.reportingTo)}</span>` : ''}</div>
+        ${e.company ? `<div class="cv-erow"><div class="cv-eco">${esc(e.company)}${e.sector ? ' · ' + esc(e.sector) : ''}${e.location ? ' · ' + esc(e.location) : ''}</div><div class="cv-edates">${esc(e.duration)}</div></div>` : ''}
         ${bodyHtml}
       </div>`;
     });

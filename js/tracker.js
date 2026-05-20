@@ -1692,142 +1692,39 @@ function _renderDecodePanelHtml(data, isLoading, provider, model, offerText) {
     </div>`;
   }
 
-  // ── 3 accroches suggérées (placeholder async) ────────────
-  const _hookCandId = window._splitCandId || '';
+  // ── Phrase profil à compléter ─────────────────────────────
+  const _phrasePoste = window._splitCandId
+    ? (ls('sc_cands',[]).find(x => x.id === window._splitCandId)?.poste || '')
+    : '';
   html += `
-  <div id="hook-proposals-${_hookCandId}" style="border-top:2px solid var(--border);margin-top:14px;padding-top:14px">
-    <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#0ea5e9;margin-bottom:8px">
-      ✦ 3 accroches suggérées pour ce poste
-    </div>
-    <div style="font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:6px">
-      <span class="sp" style="width:11px;height:11px;display:inline-block"></span>Génération en cours…
+  <div style="border-top:1.5px solid var(--border);margin-top:10px;padding-top:10px">
+    <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#6366f1;margin-bottom:7px">Phrase profil</div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--ink)">
+      <span style="white-space:nowrap">Fort de 5 ans en logistique e-commerce,</span>
+      <input id="phrase-competences" type="text"
+        placeholder="tes compétences clés…"
+        style="border:none;border-bottom:1.5px dashed #94a3b8;outline:none;background:transparent;font-size:12.5px;color:var(--ink);width:200px;padding:1px 4px"/>
+      <span style="white-space:nowrap">, je vise un poste de</span>
+      <strong id="phrase-poste-display" style="color:#2563eb">${esc(_phrasePoste)}</strong>
+      <span>.</span>
+      <button onclick="
+        const comp = document.getElementById('phrase-competences').value.trim();
+        const post = document.getElementById('phrase-poste-display').textContent.trim();
+        const phrase = 'Fort de 5 ans en logistique e-commerce, ' + comp + ', je vise un poste de ' + post + '.';
+        navigator.clipboard.writeText(phrase);
+        this.textContent='✓ Copié !';this.style.background='#16a34a';
+        setTimeout(()=>{this.textContent='Copier';this.style.background='#0ea5e9'},1600)"
+        style="background:#0ea5e9;color:white;border:none;border-radius:6px;padding:4px 11px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px">
+        Copier
+      </button>
     </div>
   </div>`;
-
-  // Lance la génération async (met à jour le DOM quand prêt)
-  if (_hookCandId && !isLoading) {
-    setTimeout(() => _generateHookProposals(_hookCandId, data), 0);
-  }
 
   html += `</div>`; // ferme la partie 3
 
   return html;
 }
 
-// ── GÉNÉRATION ASYNC DES ACCROCHES ────────────────────────
-function _renderHookProposalsHtml(proposals) {
-  if (!proposals || !proposals.length) return '<div style="font-size:12px;color:var(--ink3)">Aucune accroche générée.</div>';
-  return `
-  <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#0ea5e9;margin-bottom:10px">
-    ✦ 3 accroches suggérées pour ce poste
-  </div>
-  <div style="display:flex;flex-direction:column;gap:7px">
-    ${proposals.map(p => {
-      const safe = esc(p);
-      const escaped = p.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"');
-      return `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;
-        background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:9px 12px">
-        <span style="font-size:12.5px;color:#0369a1;font-weight:500;flex:1;line-height:1.4">${safe}</span>
-        <button onclick="navigator.clipboard.writeText('${escaped}');
-          this.textContent='✓ Copié !';this.style.background='#16a34a';
-          setTimeout(()=>{this.textContent='Copier';this.style.background='#0ea5e9'},1500)"
-          style="background:#0ea5e9;color:white;border:none;border-radius:6px;
-            padding:5px 11px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
-          Copier
-        </button>
-      </div>`;
-    }).join('')}
-  </div>
-  <div style="font-size:10.5px;color:var(--ink3);margin-top:8px">
-    Colle-la dans ton profil → champ "Domaines / Phrase d'accroche"
-  </div>`;
-}
-
-async function _generateHookProposals(candId, data) {
-  const el = document.getElementById('hook-proposals-' + candId);
-  if (!el) return;
-
-  // Vérifie le cache (version 2 du prompt — on invalide l'ancien cache v1)
-  const cands = ls('sc_cands', []);
-  const c = cands.find(x => x.id === candId);
-  if (c?.analysis?.hookProposals?.length && c?.analysis?.hookProposalsV === 5) {
-    el.innerHTML = _renderHookProposalsHtml(c.analysis.hookProposals);
-    return;
-  }
-
-  try {
-    const mTags = (data.missions || []).flatMap(m => m.tags || []).filter(t => t && t.length > 2);
-    const pTags = (data.profil_recherche || []).flatMap(m => m.tags || []).filter(t => t && t.length > 2);
-    const contexte = data.contexte || '';
-    const jobTitle = c?.poste || '';
-
-    // Filtre les tags : on enlève les noms d'entreprise/produit (présents dans contexte)
-    const contexteWords = contexte.toLowerCase().split(/\W+/).filter(w => w.length > 3);
-    const filterBrand = (tags) => tags.filter(t => {
-      const tl = t.toLowerCase();
-      return !contexteWords.some(w => tl.includes(w));
-    });
-    const cleanMTags = filterBrand([...new Set(mTags)]).slice(0, 6);
-    const cleanPTags = filterBrand([...new Set(pTags)]).slice(0, 4);
-
-    const prompt = `Tu es expert en personal branding et recrutement. Génère 3 accroches DIFFÉRENTES pour la section PROFIL d'un CV.
-
-OBJECTIF : Donner envie au recruteur de continuer à lire le CV et de décrocher son téléphone.
-
-PROFIL CANDIDAT : En fin de Master Supply Chain — PPA Business School, disponible octobre 2026
-POSTE CIBLÉ : ${jobTitle}
-CE QUE LE POSTE DEMANDE : ${cleanMTags.join(', ')}${cleanPTags.length ? ' / ' + cleanPTags.join(', ') : ''}
-
-FORMAT : Chaque accroche = 2 phrases courtes qui fonctionnent ensemble (35 à 50 mots au total)
-- Phrase 1 : qui je suis + mon positionnement fort (pas "étudiant(e)", commence par la valeur)
-- Phrase 2 : ce que j'apporte concrètement à CE poste spécifique, pourquoi me choisir
-
-RÈGLES STRICTES :
-- JAMAIS de nom d'entreprise, de marque, de produit ou de lieu
-- BANNIR ABSOLUMENT ces formulations clichées que tous les candidats utilisent :
-  "rigoureux(se)", "orienté(e) résultats", "passionné(e) par", "spécialisé(e) en",
-  "dynamique", "motivé(e)", "polyvalent(e)", "sens du travail en équipe",
-  "autonome", "force de proposition", "à l'écoute"
-- Remplace les adjectifs creux par des FAITS CONCRETS, des DOMAINES PRÉCIS, des ACTIONS
-- Pas de "Futur(e) diplômé(e)" — trop faible. Commence par un fait ou une compétence tangible
-- Les 3 propositions doivent être vraiment différentes (angle différent : expertise / ambition / impact)
-
-EXEMPLES DU STYLE ATTENDU (concrets, sans clichés) :
-"Master Supply Chain PPA 2026, formé(e) à la planification des approvisionnements et à la gestion des stocks. Je cherche à appliquer ces compétences terrain dès octobre 2026 sur un poste à impact opérationnel."
-"Deux ans de formation supply chain orientée flux et pilotage fournisseurs — je veux prendre en charge vos approvisionnements et contribuer directement à la performance de votre chaîne logistique dès octobre 2026."
-"En fin de Master Supply Chain à PPA, avec une formation axée sur l'optimisation des flux et la coordination logistique. Disponible octobre 2026 pour un poste où je peux agir vite et créer de la valeur."
-
-Réponds UNIQUEMENT avec un JSON valide : ["accroche 1", "accroche 2", "accroche 3"]`;
-
-    const { text } = await callAIAuto(prompt, { maxTokens: 400, temperature: 0.7 });
-    let proposals = null;
-    try { proposals = safeParseJSON(text); } catch(e) { /* ignore */ }
-    if (!Array.isArray(proposals) || !proposals.length) {
-      // Fallback : extrait les strings du texte brut
-      const matches = text.match(/"([^"]{15,120})"/g);
-      if (matches) proposals = matches.map(m => m.replace(/^"|"$/g, '')).slice(0, 3);
-    }
-    if (!Array.isArray(proposals) || !proposals.length) throw new Error('parse failed');
-
-    // Cache dans la candidature
-    const cands2 = ls('sc_cands', []);
-    const idx = cands2.findIndex(x => x.id === candId);
-    if (idx !== -1) {
-      if (!cands2[idx].analysis) cands2[idx].analysis = {};
-      cands2[idx].analysis.hookProposals = proposals;
-      cands2[idx].analysis.hookProposalsV = 5;
-      ss('sc_cands', cands2);
-    }
-
-    const el2 = document.getElementById('hook-proposals-' + candId);
-    if (el2) el2.innerHTML = _renderHookProposalsHtml(proposals);
-
-  } catch(e) {
-    const el2 = document.getElementById('hook-proposals-' + candId);
-    if (el2) el2.innerHTML = `<div style="font-size:11.5px;color:var(--ink3)">⚠ Génération échouée — ${esc(e.message)}</div>`;
-  }
-}
 
 // ── AJOUTER SEULEMENT LES COMPÉTENCES COCHÉES ─────────────
 window._addSelectedSkills = function() {

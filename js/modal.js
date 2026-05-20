@@ -1,9 +1,9 @@
 // ── AI GENERATION MODAL ────────────────────────────────────
+// "Mon profil" → phrase template (1 étape : coller l'offre)
+const PHRASE_TEMPLATE = `Fort de ${'{yearsExp}'} en logistique e-commerce, [COMPETENCES_CLES], je vise un poste de [POSTE_VISE].`;
+
 const RQ = [
-  { id:'poste',   q:'Pour quel poste tu génères cette accroche ?',                    type:'text', ph:'Ex: CDI - Assistant Marketing, Stage Logistique, Alternance RH...' },
-  { id:'domains', q:'Quels sont tes domaines ou compétences clés pour ce poste ?',    type:'text', ph:'Ex: gestion de stock, analyse de données, relation client, pack Office...' },
-  { id:'win',     q:'Ta meilleure réalisation ou atout pour ce poste ?',              type:'text', ph:'Ex: réduction ruptures 30%, maîtrise d\'Excel, projet WMS...' },
-  { id:'tone',    q:'Quel ton tu préfères pour ton accroche ?', type:'choice', choices:['Professionnel / Sobre','Dynamique / Ambitieux','Expert / Technique'] },
+  { id:'offer', q:'Colle le texte de l\'offre d\'emploi ici :', type:'textarea', ph:'Copie-colle le texte complet de l\'offre (LinkedIn, Indeed, APEC…)' },
 ];
 const EQ = [
   { id:'missions', q:'Quelles étaient tes missions principales sur ce poste ?',  type:'text', ph:'Ex: gestion stocks, coordination transport, planification MRP...' },
@@ -15,7 +15,7 @@ let modalState = { type: null, expId: null, step: 0, answers: {}, generated: '' 
 
 function openModal(type, expId = null) {
   modalState = { type, expId, step: 0, answers: {}, generated: '' };
-  const titles = { resume: 'Mon profil', target: 'Pour ce poste', exp: 'Générer la description' };
+  const titles = { resume: 'Phrase profil', target: 'Pour ce poste', exp: 'Générer la description' };
   document.getElementById('modal-title').innerHTML = `<i data-lucide="sparkles" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"></i>${titles[type] || 'Générer'}`;
   if (typeof lucide !== 'undefined') lucide.createIcons();
   document.getElementById('modal-overlay').classList.remove('hidden');
@@ -29,8 +29,8 @@ function renderModalStep() {
   const done = step >= qs.length;
 
   document.getElementById('modal-sub').textContent = done
-    ? (generated ? 'Résultat — utilise ou affine' : 'Génération...')
-    : `Question ${step + 1} sur ${qs.length}`;
+    ? (generated ? 'Résultat — copie ou affine' : 'Génération...')
+    : `Étape ${step + 1} sur ${qs.length}`;
   document.getElementById('modal-foot').classList.toggle('hidden', !generated);
 
   if (done && !generated) { generateText(); return; }
@@ -40,24 +40,18 @@ function renderModalStep() {
   const dots = qs.map((_, i) => `<div class="sdot${i < step ? ' done' : i === step ? ' cur' : ''}"></div>`).join('');
   let body   = `<div class="sdots">${dots}</div><div class="cbbl cbbl-ai">${q.q}</div>`;
 
-  if (q.type === 'text') {
-    body += `<textarea class="inp" id="m-inp" rows="3" style="margin-top:8px" placeholder="${q.ph}"></textarea>
-    <div style="display:flex;justify-content:flex-end;margin-top:9px">
-      <button class="btn btn-p" onclick="submitModalAnswer()">Suivant →</button>
-    </div>`;
-  } else {
-    body += `<div style="display:flex;flex-wrap:wrap;margin-top:10px">${q.choices.map(c => `<span class="cbtn" onclick="selectTone(this,'${c}')">${c}</span>`).join('')}</div>
-    <div style="display:flex;justify-content:flex-end;margin-top:11px">
-      <button class="btn btn-p" id="tone-btn" onclick="submitTone()" disabled>Générer <i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-left:3px"></i></button>
-    </div>`;
-  }
+  const rows = q.type === 'textarea' ? 7 : 3;
+  body += `<textarea class="inp" id="m-inp" rows="${rows}" style="margin-top:8px" placeholder="${q.ph}"></textarea>
+  <div style="display:flex;justify-content:flex-end;margin-top:9px">
+    <button class="btn btn-p" onclick="submitModalAnswer()">Générer <i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-left:3px"></i></button>
+  </div>`;
 
   document.getElementById('modal-body').innerHTML = body;
   if (typeof lucide !== 'undefined') lucide.createIcons();
   const inp = document.getElementById('m-inp');
   if (inp) {
     inp.focus();
-    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitModalAnswer(); } });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && q.type !== 'textarea') { e.preventDefault(); submitModalAnswer(); } });
   }
 }
 
@@ -96,32 +90,36 @@ async function generateText(refine = '') {
     const isTarget = modalState.type === 'target';
 
     if (isTarget) {
-      // "Pour ce poste" — 1-2 phrases ciblées, ce qui CORRESPOND au poste spécifique
+      // "Pour ce poste" — 1-2 phrases ciblées
       prompt = `Tu es un expert en recrutement. Génère 1 à 2 phrases (30-50 mots) qui montrent POURQUOI ce candidat correspond au poste ciblé.
 
-POSTE CIBLÉ : "${a.poste || _cvTarget || 'poste ciblé'}"
-Ce que je mets en avant pour ce poste : ${a.domains}
-Mon meilleur atout pour ce rôle : ${a.win}
+POSTE CIBLÉ : "${a.offer || _cvTarget || 'poste ciblé'}"
 Langues disponibles : ${langs || 'non renseigné'}
 Disponibilité : "${P.disponibilite || 'disponible rapidement'}"
-Ton : ${a.tone}
 ${refine ? 'Modification : ' + refine : ''}
 
-RÈGLES : commence par "Particulièrement motivé(e) par" ou "Attiré(e) par" ou équivalent. Cite 1-2 compétences/atouts directement liés au poste. Mentionne la langue si pertinente. Termine par la disponibilité.
+RÈGLES : commence par "Particulièrement motivé(e) par" ou "Attiré(e) par" ou équivalent. Cite 1-2 compétences/atouts directement liés au poste. Termine par la disponibilité.
 Réponds UNIQUEMENT avec le texte, sans guillemets.`;
     } else {
-      // "Mon profil" — description stable et générale
-      prompt = `Tu es un expert en recrutement. Génère 2-3 phrases (40-60 mots) décrivant le profil professionnel général de ce candidat.
+      // "Mon profil" — phrase template avec trous
+      const offerText = a.offer || '';
+      const yearsExp  = P.yearsExp || '5 ans';
 
-Années d'expérience : ${P.yearsExp || 'non précisé'}
-Domaines / compétences : ${a.domains || P.subdomains.join(', ') || 'non précisé'}
-Meilleure réalisation : ${a.win}
-Outils maîtrisés : ${P.tools.slice(0,5).join(', ') || '—'}
-Ton : ${a.tone}
-${refine ? 'Modification : ' + refine : ''}
+      if (refine) {
+        // Affinage libre sur la phrase déjà générée
+        prompt = `Voici une phrase de profil CV : "${modalState.generated}"
+Modification demandée : ${refine}
+Réponds UNIQUEMENT avec la phrase corrigée, sans guillemets.`;
+      } else {
+        prompt = `À partir de l'offre d'emploi ci-dessous, extrais UNIQUEMENT en JSON :
+1. "competences" : 2-3 compétences clés demandées dans l'offre, formulées en 3-4 mots max chacune, séparées par des virgules (ex: "planification opérationnelle, coordination d'équipes")
+2. "titre" : le titre EXACT du poste tel qu'il apparaît dans l'offre, sans rien changer
 
-RÈGLES : ne pas mentionner le poste ciblé (c'est un profil stable). Commence par la situation (ex: "Professionnel(le) avec X ans d'expérience"). Donne une image claire des compétences permanentes.
-Réponds UNIQUEMENT avec le texte, sans guillemets ni titre.`;
+OFFRE :
+${offerText.slice(0, 3000)}
+
+Réponds UNIQUEMENT en JSON valide : {"competences":"...","titre":"..."}`;
+      }
     }
   } else {
     const exp = P.experiences.find(e => e.id === modalState.expId) || {};
@@ -133,7 +131,18 @@ Réponds UNIQUEMENT avec les bullet points (un par ligne, commençant par •).`
   }
 
   try {
-    modalState.generated = await callGroq(prompt, { maxTokens: 400, temperature: 0.75 });
+    const raw = await callGroq(prompt, { maxTokens: 400, temperature: 0.4 });
+
+    // Pour "Mon profil" (hors affinage) : assembler la phrase template depuis le JSON
+    if (modalState.type === 'resume' && !refine) {
+      const data = safeParseJSON(raw);
+      const competences = data.competences || '';
+      const titre       = data.titre       || '';
+      const yearsExp    = P.yearsExp || '5 ans';
+      modalState.generated = `Fort de ${yearsExp} en logistique e-commerce, ${competences}, je vise un poste de ${titre}.`;
+    } else {
+      modalState.generated = raw;
+    }
     renderModalResult();
   } catch (e) {
     document.getElementById('modal-body').innerHTML = `<div style="color:var(--red);font-size:13.5px;padding:14px;background:var(--red-bg);border-radius:var(--radius-sm);border:1px solid var(--red-border)">Erreur : ${esc(e.message)}</div>`;
