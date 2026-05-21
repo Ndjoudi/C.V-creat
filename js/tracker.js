@@ -803,8 +803,14 @@ function _refreshSplitCV() {
 
   if (applied) renderCV(); // Restaure le cv-doc principal (sans overrides)
 
-  // Ré-applique les emphases visuelles (badges/soulignements) après le re-render
-  if (candId) setTimeout(() => _applyEmphases(candId), 0);
+  // Strip les spans statiques (renderBulletHtml) avant de reposer les interactifs
+  if (candId) setTimeout(() => {
+    const split = document.getElementById('cv-doc-split');
+    if (split) {
+      split.querySelectorAll('span[data-cv-em]').forEach(s => s.replaceWith(document.createTextNode(s.textContent)));
+    }
+    _applyEmphases(candId);
+  }, 0);
 }
 
 // ── MISE EN AVANT MANUELLE (sélection texte → badge ou souligné) ──────
@@ -889,24 +895,18 @@ function _showEmphasisToolbar(text, range) {
       const overrides = _getCVOverrides(candId);
       if (!overrides.emphases) overrides.emphases = [];
 
+      if (!P.emphases) P.emphases = [];
       if (type === 'remove') {
-        overrides.emphases = overrides.emphases.filter(em =>
-          !(em.text.toLowerCase() === text.toLowerCase() &&
-            (em.expIdx === expIdx || (em.expIdx == null && expIdx == null)))
-        );
+        P.emphases = P.emphases.filter(em => em.text.toLowerCase() !== text.toLowerCase());
       } else {
-        // Évite les doublons (même texte + même scope)
-        overrides.emphases = overrides.emphases.filter(em =>
-          !(em.text.toLowerCase() === text.toLowerCase() && em.expIdx === expIdx)
-        );
-        // expIdx = null → s'applique à toute la section où on a sélectionné
-        overrides.emphases.push({ text, type, expIdx });
+        P.emphases = P.emphases.filter(em => em.text.toLowerCase() !== text.toLowerCase());
+        P.emphases.push({ text, type, expIdx });
       }
-
-      _saveCVOverrides(candId, overrides);
+      ss('sc_profile', P);
       toolbar.remove();
       window.getSelection()?.removeAllRanges();
-      _applyEmphases(candId);
+      _refreshSplitCV();
+      if (typeof renderCV === 'function') renderCV();
     });
   });
 
@@ -923,13 +923,11 @@ function _showEmphasisToolbar(text, range) {
 // Applique les emphases sauvegardées sur #cv-doc-split
 // Chaque emphase est scopée à son expérience d'origine (em.expIdx)
 function _applyEmphases(candId) {
-  const overrides = _getCVOverrides(candId);
-  const emphases  = overrides.emphases || [];
-  const cvSplit   = document.getElementById('cv-doc-split');
+  const emphases = P.emphases || [];
+  const cvSplit  = document.getElementById('cv-doc-split');
   if (!cvSplit || !emphases.length) return;
 
   emphases.forEach(em => {
-    // Si l'emphase était dans une expérience précise → scope limité à ce bloc
     let target = cvSplit;
     if (em.expIdx !== null && em.expIdx !== undefined) {
       target = cvSplit.querySelector(`.cv-exp[data-exp-idx="${em.expIdx}"]`) || cvSplit;
@@ -981,10 +979,12 @@ function _wrapPhrase(container, phrase, type, candId) {
       span.parentNode?.replaceChild(frag, span);
       // 2. Met à jour les overrides sauvegardés
       const ov = _getCVOverrides(candId);
-      ov.emphases = (ov.emphases || []).filter(em => em.text.toLowerCase() !== phrase.toLowerCase());
-      _saveCVOverrides(candId, ov);
-      // 3. Re-render complet pour synchroniser proprement
-      setTimeout(() => _refreshSplitCV(), 0);
+      // Supprime du profil global (source unique de vérité)
+      if (!P.emphases) P.emphases = [];
+      P.emphases = P.emphases.filter(em => em.text.toLowerCase() !== phrase.toLowerCase());
+      ss('sc_profile', P);
+      // Re-render les deux vues
+      setTimeout(() => { _refreshSplitCV(); if (typeof renderCV === 'function') renderCV(); }, 0);
     };
 
     const parent = textNode.parentNode;

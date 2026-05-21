@@ -45,6 +45,7 @@ const DEF_PROFILE = {
   permis:'',disponibilite:'',contratRecherche:'',domainesProfile:'',hobbies:'',photo:'',
   subdomains:[],tools:[],certifs:[],sectors:[],customSkills:[],informatique:[],
   experiences:[],education:[],languages:[],
+  emphases:[],
   highlightConfig:{ formation:true, contrat:true, dispo:true, mobility:true, permis:false }
 };
 
@@ -105,6 +106,7 @@ function esc(s) {
 
 // ── PROFILE STATE ──────────────────────────────────────────
 let P = ls('sc_profile', DEF_PROFILE);
+if (!P.emphases) P.emphases = [];
 // Migrate old profiles missing newer fields
 ['customSkills','education','languages','informatique'].forEach(k => { if (!P[k]) P[k] = []; });
 ['linkedin','mobility','permis','disponibilite','contratRecherche','domainesProfile','hobbies','photo','summaryTarget'].forEach(k => { if (P[k] === undefined) P[k] = ''; });

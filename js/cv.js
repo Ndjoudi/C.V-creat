@@ -1,3 +1,59 @@
+// ── RENDU BULLET AVEC EMPHASES DU PROFIL ──────────────────
+function renderBulletHtml(text, expIdx) {
+  const emphases = (P.emphases || []).filter(em =>
+    em.expIdx === expIdx || em.expIdx === null || em.expIdx === undefined
+  );
+  if (!emphases.length) return esc(text);
+
+  const pillStyle      = 'background:#ede9fe;color:#5b21b6;border-radius:100px;padding:1px 9px;font-weight:700;font-size:.92em;border:1px solid #ddd6fe';
+  const underlineStyle = 'font-weight:800;border-bottom:2.5px solid #6366f1;padding-bottom:1px';
+
+  // Trie les emphases par position dans le texte (longest match first pour éviter chevauchements)
+  const sorted = [...emphases].sort((a, b) => b.text.length - a.text.length);
+
+  // Découpe le texte en segments (texte brut / spans)
+  let segments = [{ t: text, raw: true }];
+  sorted.forEach(em => {
+    const newSegs = [];
+    segments.forEach(seg => {
+      if (!seg.raw) { newSegs.push(seg); return; }
+      const lo = seg.t.toLowerCase();
+      const emLo = em.text.toLowerCase();
+      let idx = lo.indexOf(emLo);
+      if (idx === -1) { newSegs.push(seg); return; }
+      if (idx > 0) newSegs.push({ t: seg.t.slice(0, idx), raw: true });
+      newSegs.push({ t: seg.t.slice(idx, idx + em.text.length), raw: false, type: em.type });
+      const rest = seg.t.slice(idx + em.text.length);
+      if (rest) newSegs.push({ t: rest, raw: true });
+    });
+    segments = newSegs;
+  });
+
+  return segments.map(seg => {
+    if (seg.raw) return esc(seg.t);
+    const style = seg.type === 'pill' ? pillStyle : underlineStyle;
+    return `<span data-cv-em="${seg.type}" style="${style}">${esc(seg.t)}</span>`;
+  }).join('');
+}
+
+// ── MIGRATION : importe les emphases des overrides → P.emphases ────
+(function migrateEmphases() {
+  try {
+    if (P._emphasesMigrated) return;
+    const allKeys = Object.keys(localStorage).filter(k => k.startsWith('sc_cvov_'));
+    allKeys.forEach(k => {
+      const ov = JSON.parse(localStorage.getItem(k) || '{}');
+      (ov.emphases || []).forEach(em => {
+        if (!P.emphases.find(e => e.text.toLowerCase() === em.text.toLowerCase())) {
+          P.emphases.push({ text: em.text, type: em.type, expIdx: em.expIdx });
+        }
+      });
+    });
+    P._emphasesMigrated = true;
+    ss('sc_profile', P);
+  } catch(e) {}
+})();
+
 // ── MIGRATION : supprime domainesProfile générique ─────────
 if (typeof P !== 'undefined' && P.domainesProfile && !P._v3_hookMigrated) {
   P.domainesProfile = '';
@@ -241,10 +297,10 @@ function renderCV() {
     P.experiences.forEach((e, i) => {
       // Show bullets if any exist (required or selected), otherwise fall back to description
       const activeBullets = (e.bullets || []).filter(b => b.required || b.selected);
-      const bodyHtml = activeBullets.length
-        ? `<ul class="cv-bullets">${activeBullets.map(b => `<li class="cv-bullet-item"><span class="cv-bullet-dot">▸</span><span>${esc(b.text)}</span></li>`).join('')}</ul>`
-        : renderDescription(e.description);
       const expIdx = (typeof e._origIdx === 'number') ? e._origIdx : i;
+      const bodyHtml = activeBullets.length
+        ? `<ul class="cv-bullets">${activeBullets.map(b => `<li class="cv-bullet-item"><span class="cv-bullet-dot">▸</span><span>${renderBulletHtml(b.text, expIdx)}</span></li>`).join('')}</ul>`
+        : renderDescription(e.description);
       html += `<div class="cv-exp" data-exp-idx="${expIdx}">
         <div class="cv-etitle">${esc(e.title)}${e.contractType ? ' <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px;background:#F2F2F2;color:#6E6E73;border:1px solid #D2D2D7;vertical-align:middle;margin-left:5px">' + esc(e.contractType) + '</span>' : ''}${e.reportingTo ? `<span style="font-size:10px;font-weight:400;font-style:italic;color:#6E6E73;margin-left:8px;vertical-align:middle">Rattaché directement au ${esc(e.reportingTo)}</span>` : ''}</div>
         ${e.company ? `<div class="cv-erow"><div class="cv-eco">${esc(e.company)}${e.sector ? ' · ' + esc(e.sector) : ''}${e.location ? ' · ' + esc(e.location) : ''}</div><div class="cv-edates">${esc(e.duration)}</div></div>` : ''}
@@ -583,7 +639,13 @@ window._addFromPicker = function(key) {
 function _syncSplitCV() {
   const split = document.getElementById('cv-doc-split');
   const main  = document.getElementById('cv-doc');
-  if (split && main) split.innerHTML = main.innerHTML;
+  if (!split || !main) return;
+  split.innerHTML = main.innerHTML;
+  // Strip les spans d'emphase statiques (renderBulletHtml) pour que
+  // _applyEmphases puisse reposer des spans interactifs proprement
+  split.querySelectorAll('span[data-cv-em]').forEach(span => {
+    span.replaceWith(document.createTextNode(span.textContent));
+  });
 }
 
 function printCV() {
