@@ -2130,7 +2130,7 @@ function _renderCareerOpsResult(d, candId, provider, el) {
       <div style="display:flex;flex-wrap:wrap;gap:6px">
         ${amettre.map(c => {
           const alreadyIn = existing.includes(c.toLowerCase());
-          if (alreadyIn) return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0">✓ ${esc(c)}</span>`;
+          if (alreadyIn) return `<span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0">${esc(c)}</span>`;
           return `<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f5f3ff;color:#4f46e5;border:1.5px solid #c7d2fe;cursor:pointer">
             <input type="checkbox" data-skill="${esc(c)}" style="width:12px;height:12px;accent-color:#6366f1;cursor:pointer;flex-shrink:0"/>
             ${esc(c)}
@@ -2169,7 +2169,7 @@ function _renderCareerOpsResult(d, candId, provider, el) {
     el.querySelectorAll('input[data-skill]:checked').forEach(cb => {
       const label = cb.closest('label');
       if (label) {
-        label.outerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0">✓ ${esc(cb.dataset.skill)}</span>`;
+        label.outerHTML = `<span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0">${esc(cb.dataset.skill)}</span>`;
       }
     });
     toast(added + ' compétence' + (added>1?'s':'') + ' ajoutée' + (added>1?'s':'') + ' au profil');
