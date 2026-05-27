@@ -2176,6 +2176,168 @@ function _renderCareerOpsResult(d, candId, provider, el) {
   };
 }
 
+// ── CALCULATEUR SALAIRE NET FR ──────────────────────────────────────────────
+
+function _detectSalary(text) {
+  if (!text) return null;
+  const t = text.replace(/[  ]/g, ' ');
+
+  // Fourchette K€ : "40 à 50K€" / "40-50K"
+  const rFK = t.match(/(\d{2,3})\s*[kK]?\s*(?:€|EUR)?\s*(?:à|-)\s*(\d{2,3})\s*[kK]\s*(?:€|EUR)/i);
+  if (rFK) {
+    const avg = (parseInt(rFK[1]) + parseInt(rFK[2])) / 2 * 1000;
+    return { brut_annuel: avg, raw: `~${rFK[1]}-${rFK[2]}K€ brut/an` };
+  }
+
+  // Fourchette littérale : "entre 40 000 et 50 000€"
+  const rFE = t.match(/entre\s*([\d\s]{4,9})\s*(?:€|EUR)?\s*(?:et|à)\s*([\d\s]{4,9})\s*(?:€|EUR)/i);
+  if (rFE) {
+    const v1 = parseInt(rFE[1].replace(/\s/g, ''));
+    const v2 = parseInt(rFE[2].replace(/\s/g, ''));
+    if (v1 > 1000 && v2 > 1000) {
+      const avg = (v1 + v2) / 2;
+      return { brut_annuel: avg, raw: `~${Math.round(avg / 1000)}K€ brut/an` };
+    }
+  }
+
+  // Montant K€ seul : "45K€", "45 k€ brut"
+  const rK = t.match(/(\d{2,3})\s*[kK]\s*(?:€|EUR)/i);
+  if (rK) {
+    const v = parseInt(rK[1]) * 1000;
+    return { brut_annuel: v, raw: `${rK[1]}K€ brut/an` };
+  }
+
+  // Montant annuel en € : "45 000 € / an"
+  const rAnn = t.match(/([\d][\d\s]{3,7})\s*(?:€|EUR)\s*(?:brut\s*)?(?:\/\s*an|par\s*an|annuels?)/i);
+  if (rAnn) {
+    const v = parseInt(rAnn[1].replace(/\s/g, ''));
+    if (v > 10000) return { brut_annuel: v, raw: `${v.toLocaleString('fr-FR')}€ brut/an` };
+  }
+
+  // Mensuel en € : "3 500 € / mois"
+  const rMois = t.match(/([\d][\d\s]{2,6})\s*(?:€|EUR)\s*(?:brut\s*)?(?:\/\s*mois|par\s*mois|mensuel)/i);
+  if (rMois) {
+    const v = parseInt(rMois[1].replace(/\s/g, ''));
+    if (v > 1000 && v < 30000) return { brut_annuel: v * 12, raw: `${v.toLocaleString('fr-FR')}€/mois brut` };
+  }
+
+  return null;
+}
+
+function _calcSalaryFR(brutAnnuel) {
+  const CHARGES = 0.22; // cotisations salariales moyennes cadre
+  const netAnnuel = Math.round(brutAnnuel * (1 - CHARGES));
+
+  // Abattement 10% (min 472€, max 13 522€)
+  const abattement = Math.min(Math.max(netAnnuel * 0.10, 472), 13522);
+  const imposable  = netAnnuel - abattement;
+
+  // Barème IR 2026 (revenus 2025) — 1 part, célibataire
+  const tranches = [
+    { max: 11600,   taux: 0    },
+    { max: 29579,   taux: 0.11 },
+    { max: 84577,   taux: 0.30 },
+    { max: 181917,  taux: 0.41 },
+    { max: Infinity, taux: 0.45 },
+  ];
+  let ir = 0, prev = 0;
+  for (const { max, taux } of tranches) {
+    const slice = Math.min(imposable, max) - prev;
+    if (slice <= 0) break;
+    ir += slice * taux;
+    prev = max;
+  }
+  ir = Math.round(ir);
+
+  const tauxMoyen = netAnnuel > 0 ? (ir / netAnnuel * 100) : 0;
+  return {
+    brut_mensuel:        Math.round(brutAnnuel / 12),
+    net_mensuel:         Math.round(netAnnuel / 12),
+    net_annuel:          netAnnuel,
+    charges_pct:         Math.round(CHARGES * 100),
+    ir_taux_moyen:       Math.round(tauxMoyen * 10) / 10,
+    net_apres_ir_mensuel: Math.round((netAnnuel - ir) / 12),
+  };
+}
+
+function _salaryResultHtml(calc) {
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px">
+      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;text-align:center">
+        <div style="font-size:10px;color:var(--ink3);margin-bottom:4px;font-weight:600;letter-spacing:.04em">NET / MOIS</div>
+        <div style="font-size:20px;font-weight:800;color:var(--ink)">${calc.net_mensuel.toLocaleString('fr-FR')} €</div>
+        <div style="font-size:10px;color:var(--ink3);margin-top:2px">après cotisations (−${calc.charges_pct}%)</div>
+      </div>
+      <div style="background:#fffbeb;border-radius:8px;padding:10px 12px;text-align:center">
+        <div style="font-size:10px;color:#92400e;margin-bottom:4px;font-weight:600;letter-spacing:.04em">IMPÔT</div>
+        <div style="font-size:20px;font-weight:800;color:#d97706">${calc.ir_taux_moyen}%</div>
+        <div style="font-size:10px;color:#92400e;margin-top:2px">taux moyen IR</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;text-align:center">
+        <div style="font-size:10px;color:#166534;margin-bottom:4px;font-weight:600;letter-spacing:.04em">EN POCHE</div>
+        <div style="font-size:20px;font-weight:800;color:#16a34a">${calc.net_apres_ir_mensuel.toLocaleString('fr-FR')} €</div>
+        <div style="font-size:10px;color:#166534;margin-top:2px">/mois net d'impôt</div>
+      </div>
+    </div>
+    <div style="font-size:10.5px;color:var(--ink3);margin-top:8px;text-align:center;line-height:1.5">
+      Estimations — Cadre, célibataire, 1 part fiscale · Barème IR 2026 (revenus 2025)
+    </div>`;
+}
+
+function _renderSalaryBlock(offerText, candId) {
+  const detected = _detectSalary(offerText);
+  const cands    = ls('sc_cands', []);
+  const c        = (cands.find(x => x.id === candId)) || {};
+  const savedK   = c.salary_brut_k || null;
+
+  const brutAnnuel = savedK ? savedK * 1000 : (detected ? detected.brut_annuel : null);
+  const calc       = brutAnnuel ? _calcSalaryFR(brutAnnuel) : null;
+  const inputVal   = brutAnnuel ? Math.round(brutAnnuel / 1000) : '';
+  const placeholder = detected ? Math.round(detected.brut_annuel / 1000) : '45';
+
+  return `
+    <div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px">
+      <div style="background:var(--bg2);padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <span style="font-size:14px">💰</span>
+        <span style="font-size:12.5px;font-weight:700;color:var(--ink)">Salaire net estimé</span>
+        ${detected && !savedK ? `<span style="font-size:11px;color:var(--ink3);margin-left:auto;font-style:italic">Détecté : ${detected.raw}</span>` : ''}
+      </div>
+      <div style="padding:12px 16px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--ink3);white-space:nowrap">Brut annuel :</span>
+          <input id="salary-input-${candId}" type="number" value="${inputVal}" placeholder="${placeholder}"
+            min="10" max="500" step="1"
+            style="width:64px;padding:4px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);text-align:center"
+            onkeydown="if(event.key==='Enter') window._recalcSalary('${candId}')"
+          />
+          <span style="font-size:12.5px;color:var(--ink)">K€</span>
+          <button onclick="window._recalcSalary('${candId}')"
+            style="background:#6366f1;color:white;border:none;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s"
+            onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            Calculer
+          </button>
+        </div>
+        <div id="salary-result-${candId}">${calc ? _salaryResultHtml(calc) : `<div style="font-size:12px;color:var(--ink3);margin-top:10px;text-align:center;padding:8px 0">Entre un salaire brut annuel pour voir ton net</div>`}</div>
+      </div>
+    </div>`;
+}
+
+window._recalcSalary = function(candId) {
+  const input = document.getElementById('salary-input-' + candId);
+  if (!input) return;
+  const kval = parseFloat(input.value);
+  if (!kval || kval < 10 || kval > 500) { toast('⚠ Entre un montant entre 10K et 500K€'); return; }
+
+  // Persiste dans la candidature
+  const cands = ls('sc_cands', []);
+  const idx   = cands.findIndex(x => x.id === candId);
+  if (idx !== -1) { cands[idx].salary_brut_k = kval; ss('sc_cands', cands); }
+
+  const calc = _calcSalaryFR(kval * 1000);
+  const el   = document.getElementById('salary-result-' + candId);
+  if (el) el.innerHTML = _salaryResultHtml(calc);
+};
+
 async function openSplitView(candId) {
   const c = ls('sc_cands', []).find(x => x.id === candId);
   if (!c) return;
@@ -2257,6 +2419,9 @@ async function openSplitView(candId) {
         <span class="sp" style="width:13px;height:13px;flex-shrink:0"></span>
         <span style="font-size:12.5px;color:var(--ink3)">Chargement des infos du poste et du trajet...</span>
       </div>
+    </div>
+    <div id="split-salary-block">
+      ${_renderSalaryBlock(rawText, candId)}
     </div>
     <div id="split-decode-panel" style="margin-bottom:20px">
       ${_renderDecodePanelHtml(cachedDecode, false, cachedProvider, null, rawText)}
