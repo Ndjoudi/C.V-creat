@@ -1080,6 +1080,7 @@ function _enterCVEditMode() {
     exp.querySelectorAll('.cv-bullet-item').forEach(item => {
       const textSpan = item.querySelector('span:not(.cv-bullet-dot)');
       if (textSpan) {
+        textSpan.classList.add('cv-bullet-text');
         textSpan.contentEditable = 'true';
         textSpan.style.cssText += ';outline:1px dashed #6366f1;border-radius:3px;padding:0 2px';
       }
@@ -1307,17 +1308,11 @@ function _showBulletPicker(expEl, triggerBtn) {
 // Ajoute un bullet au DOM de l'expérience (éditable + bouton ×)
 function _initBulletDragSort(ul) {
   if (!ul) return;
-  // Réinitialise les anciens listeners pour éviter les doublons
+  // N'initialise que les items pas encore traités (évite cloneNode qui casse les onclick)
   ul.querySelectorAll('.cv-bullet-item').forEach(li => {
-    li.draggable = false;
-    const clone = li.cloneNode(true);
-    li.parentNode.replaceChild(clone, li);
-  });
+    if (li.dataset.dragInit) return;
+    li.dataset.dragInit = '1';
 
-  let dragSrc = null;
-
-  ul.querySelectorAll('.cv-bullet-item').forEach(li => {
-    // Le handle ⠿ active le drag
     const handle = li.querySelector('span[style*="grab"]');
     if (handle) {
       handle.addEventListener('mousedown', () => { li.draggable = true; });
@@ -1325,10 +1320,10 @@ function _initBulletDragSort(ul) {
     }
 
     li.addEventListener('dragstart', e => {
-      dragSrc = li;
+      ul._dragSrc = li;
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', '');
-      setTimeout(() => li.style.opacity = '0.4', 0);
+      setTimeout(() => { li.style.opacity = '0.4'; }, 0);
     });
 
     li.addEventListener('dragend', () => {
@@ -1338,21 +1333,17 @@ function _initBulletDragSort(ul) {
         el.style.borderTop = '';
         el.style.borderBottom = '';
       });
-      dragSrc = null;
     });
 
     li.addEventListener('dragover', e => {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (!dragSrc || li === dragSrc) return;
-      // Indicateur visuel
+      if (!ul._dragSrc || li === ul._dragSrc) return;
       ul.querySelectorAll('.cv-bullet-item').forEach(el => {
         el.style.borderTop = '';
         el.style.borderBottom = '';
       });
       const rect = li.getBoundingClientRect();
-      const mid  = rect.top + rect.height / 2;
-      if (e.clientY < mid) {
+      if (e.clientY < rect.top + rect.height / 2) {
         li.style.borderTop = '2px solid #6366f1';
       } else {
         li.style.borderBottom = '2px solid #6366f1';
@@ -1361,13 +1352,12 @@ function _initBulletDragSort(ul) {
 
     li.addEventListener('drop', e => {
       e.preventDefault();
-      if (!dragSrc || li === dragSrc) return;
+      if (!ul._dragSrc || li === ul._dragSrc) return;
       const rect = li.getBoundingClientRect();
-      const mid  = rect.top + rect.height / 2;
-      if (e.clientY < mid) {
-        ul.insertBefore(dragSrc, li);
+      if (e.clientY < rect.top + rect.height / 2) {
+        ul.insertBefore(ul._dragSrc, li);
       } else {
-        ul.insertBefore(dragSrc, li.nextSibling);
+        ul.insertBefore(ul._dragSrc, li.nextSibling);
       }
     });
   });
@@ -1396,6 +1386,7 @@ function _commitEditBullet(expEl, text) {
   dot.textContent = '▸';
 
   const textSpan = document.createElement('span');
+  textSpan.className = 'cv-bullet-text';
   textSpan.contentEditable = 'true';
   textSpan.style.cssText = 'outline:1px dashed #6366f1;border-radius:3px;padding:0 2px;flex:1';
   textSpan.textContent = text;
@@ -1451,7 +1442,7 @@ function _saveCVEditsFromDOM(candId) {
     // Bullets : sauvegarde de TOUS les bullets visibles (set complet)
     const bulletTexts = [];
     exp.querySelectorAll('.cv-bullet-item').forEach(item => {
-      const textSpan = item.querySelector('span:not(.cv-bullet-dot)');
+      const textSpan = item.querySelector('.cv-bullet-text') || item.querySelector('span:not(.cv-bullet-dot):not([style*="grab"])');
       if (!textSpan) return;
       const txt = textSpan.textContent.trim();
       if (txt && txt !== 'Saisir la mission...') bulletTexts.push(txt);
