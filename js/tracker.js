@@ -2262,24 +2262,24 @@ function _calcSalaryFR(brutAnnuel) {
 
 function _salaryResultHtml(calc) {
   return `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px">
-      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;text-align:center">
-        <div style="font-size:10px;color:var(--ink3);margin-bottom:4px;font-weight:600;letter-spacing:.04em">NET / MOIS</div>
-        <div style="font-size:20px;font-weight:800;color:var(--ink)">${calc.net_mensuel.toLocaleString('fr-FR')} €</div>
-        <div style="font-size:10px;color:var(--ink3);margin-top:2px">après cotisations (−${calc.charges_pct}%)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px">
+      <div style="background:var(--bg2);border-radius:7px;padding:7px 10px;text-align:center">
+        <div style="font-size:9.5px;color:var(--ink3);margin-bottom:3px;font-weight:600;letter-spacing:.04em">NET / MOIS</div>
+        <div style="font-size:16px;font-weight:800;color:var(--ink)">${calc.net_mensuel.toLocaleString('fr-FR')} €</div>
+        <div style="font-size:9.5px;color:var(--ink3);margin-top:1px">après cotisations (−${calc.charges_pct}%)</div>
       </div>
-      <div style="background:#fffbeb;border-radius:8px;padding:10px 12px;text-align:center">
-        <div style="font-size:10px;color:#92400e;margin-bottom:4px;font-weight:600;letter-spacing:.04em">IMPÔT</div>
-        <div style="font-size:20px;font-weight:800;color:#d97706">${calc.ir_taux_moyen}%</div>
-        <div style="font-size:10px;color:#92400e;margin-top:2px">taux moyen IR</div>
+      <div style="background:#fffbeb;border-radius:7px;padding:7px 10px;text-align:center">
+        <div style="font-size:9.5px;color:#92400e;margin-bottom:3px;font-weight:600;letter-spacing:.04em">IMPÔT</div>
+        <div style="font-size:16px;font-weight:800;color:#d97706">${calc.ir_taux_moyen}%</div>
+        <div style="font-size:9.5px;color:#92400e;margin-top:1px">taux moyen IR</div>
       </div>
-      <div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;text-align:center">
-        <div style="font-size:10px;color:#166534;margin-bottom:4px;font-weight:600;letter-spacing:.04em">EN POCHE</div>
-        <div style="font-size:20px;font-weight:800;color:#16a34a">${calc.net_apres_ir_mensuel.toLocaleString('fr-FR')} €</div>
-        <div style="font-size:10px;color:#166534;margin-top:2px">/mois net d'impôt</div>
+      <div style="background:#f0fdf4;border-radius:7px;padding:7px 10px;text-align:center">
+        <div style="font-size:9.5px;color:#166534;margin-bottom:3px;font-weight:600;letter-spacing:.04em">EN POCHE</div>
+        <div style="font-size:16px;font-weight:800;color:#16a34a">${calc.net_apres_ir_mensuel.toLocaleString('fr-FR')} €</div>
+        <div style="font-size:9.5px;color:#166534;margin-top:1px">/mois net d'impôt</div>
       </div>
     </div>
-    <div style="font-size:10.5px;color:var(--ink3);margin-top:8px;text-align:center;line-height:1.5">
+    <div style="font-size:10px;color:var(--ink3);margin-top:6px;text-align:center">
       Estimations — Cadre, célibataire, 1 part fiscale · Barème IR 2026 (revenus 2025)
     </div>`;
 }
@@ -2297,12 +2297,12 @@ function _renderSalaryBlock(offerText, candId) {
 
   return `
     <div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px">
-      <div style="background:var(--bg2);padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
-        <span style="font-size:14px">💰</span>
-        <span style="font-size:12.5px;font-weight:700;color:var(--ink)">Salaire net estimé</span>
-        ${detected && !savedK ? `<span style="font-size:11px;color:var(--ink3);margin-left:auto;font-style:italic">Détecté : ${detected.raw}</span>` : ''}
+      <div style="background:var(--bg2);padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px">
+        <span style="font-size:13px">💰</span>
+        <span style="font-size:12px;font-weight:700;color:var(--ink)">Salaire net estimé</span>
+        ${detected && !savedK ? `<span style="font-size:10.5px;color:var(--ink3);margin-left:auto;font-style:italic">Détecté : ${detected.raw}</span>` : ''}
       </div>
-      <div style="padding:12px 16px">
+      <div style="padding:10px 14px">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:12px;color:var(--ink3);white-space:nowrap">Brut annuel :</span>
           <input id="salary-input-${candId}" type="number" value="${inputVal}" placeholder="${placeholder}"
