@@ -76,9 +76,10 @@
       <div class="ni"     data-sc="profile">  <i data-lucide="circle-user"      class="ni-icon"></i><span class="ni-label">Mon Profil</span></div>
       <div class="ni"     data-sc="cv">       <i data-lucide="file-text"        class="ni-icon"></i><span class="ni-label">Mon CV</span></div>
       <div class="nav-section" style="margin-top:8px">IA</div>
-      <div class="ni"     data-sc="tracker">  <i data-lucide="briefcase"        class="ni-icon"></i><span class="ni-label">Candidatures</span> <span class="ni-badge" id="badge-cands" style="display:none"></span></div>
       <div class="ni"     data-sc="interview"><i data-lucide="mic"              class="ni-icon"></i><span class="ni-label">Simulation entretien</span> <span class="ni-badge" id="badge-new">Nouveau</span></div>
-      <div class="ni"     data-sc="history">  <i data-lucide="history"          class="ni-icon"></i><span class="ni-label">Mes analyses</span> <span class="ni-badge" id="badge-hist" style="display:none"></span></div>
+      <!-- Badges fantômes — nécessaires pour refreshBadges() -->
+      <span id="badge-cands" style="display:none"></span>
+      <span id="badge-hist"  style="display:none"></span>
     </nav>
 
     <!-- Footer -->
@@ -732,6 +733,57 @@
   </div>
 </div>
 
+<!-- ── LINKEDIN MSG MODAL ──────────────────────────────── -->
+<div id="li-msg-overlay" class="overlay hidden" style="z-index:1400">
+  <div class="modal" style="max-width:780px;max-height:88vh">
+    <div class="mhd">
+      <div>
+        <div class="mtitle">💬 Message LinkedIn</div>
+        <div class="msub" id="li-msg-sub">Choisis une IA</div>
+      </div>
+      <button class="mclose" onclick="document.getElementById('li-msg-overlay').classList.add('hidden')">×</button>
+    </div>
+    <div class="mbody" style="padding:0">
+      <!-- Choix IA -->
+      <div id="li-msg-pick" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:24px 16px">
+        <div style="font-size:13px;color:var(--ink3)">Choisis l'IA pour générer le message :</div>
+        <div style="display:flex;gap:10px">
+          <button onclick="genLinkedInMsg('groq')"
+            style="background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;border-radius:9px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer">
+            🟠 Groq</button>
+          <button onclick="genLinkedInMsg('gemini')"
+            style="background:#f5f3ff;color:#7c3aed;border:1.5px solid #ddd6fe;border-radius:9px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer">
+            🟣 Gemini</button>
+        </div>
+      </div>
+      <!-- Résultat : gauche = propositions, droite = message -->
+      <div id="li-msg-result" style="display:none;height:100%;overflow:hidden;flex:1">
+        <div style="display:flex;height:100%;gap:0">
+          <!-- Colonne gauche : propositions PHRASE_PERSONNALISEE -->
+          <div style="width:44%;border-right:1.5px solid var(--border);padding:14px 12px;overflow-y:auto;background:#fafafa">
+            <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:8px">Choisis une phrase</div>
+            <div id="li-msg-proposals" style="display:flex;flex-direction:column;gap:7px"></div>
+          </div>
+          <!-- Colonne droite : message assemblé -->
+          <div style="flex:1;padding:14px 12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto">
+            <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Message final</div>
+            <textarea id="li-msg-text" class="inp" style="font-size:12.5px;line-height:1.65;resize:none;flex:1;min-height:200px"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mfoot" id="li-msg-foot" style="display:none">
+      <button class="btn btn-p" onclick="
+        navigator.clipboard.writeText(document.getElementById('li-msg-text').value);
+        this.textContent='✓ Copié !';this.style.background='#16a34a';
+        setTimeout(()=>{this.textContent='Copier';this.style.background=''},1500)"
+        style="flex:1;justify-content:center">Copier</button>
+      <button class="btn btn-g" onclick="liMsgReset()">🔄 Changer d'IA</button>
+      <button class="btn btn-g" onclick="document.getElementById('li-msg-overlay').classList.add('hidden')">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── SPLIT VIEW MODAL (offre + CV côte à côte) ────────── -->
 <div id="split-modal-overlay" class="hidden" style="position:fixed;inset:0;z-index:1200;display:flex;flex-direction:column;background:var(--bg)">
   <!-- Top bar -->
@@ -741,7 +793,9 @@
       <div style="font-size:14px;font-weight:800;color:var(--ink)" id="split-modal-title"></div>
       <div style="font-size:11.5px;color:var(--ink3)" id="split-modal-sub"></div>
     </div>
+    <div id="split-status-letters"></div>
     <div id="split-job-link"></div>
+    <button onclick="genLinkedInMsg()" style="background:#0a66c2;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12.5px;padding:5px 14px;font-weight:600;white-space:nowrap">💬 Message LinkedIn</button>
     <button id="cv-edit-btn" onclick="toggleCVEditMode()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">✏️ Modifier le CV</button>
     <button onclick="loadCVForCand(window._splitCandId, true)" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">⬇ PDF</button>
   </div>
@@ -761,14 +815,14 @@
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
 <script src="js/api.js?v=36"></script>
-<script src="js/app.js?v=61"></script>
+<script src="js/app.js?v=62"></script>
 <script src="js/profile.js?v=53"></script>
 <script src="js/import-cv.js?v=35"></script>
 <script src="js/cv.js?v=46"></script>
-<script src="js/analyze.js?v=35"></script>
+<script src="js/analyze.js?v=38"></script>
 <script src="js/interview.js?v=36"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=109"></script>
+<script src="js/tracker.js?v=130"></script>
 <script src="js/modal.js?v=36"></script>
 
 </body>

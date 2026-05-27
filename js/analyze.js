@@ -554,3 +554,4 @@ function confirmBulletMatch() {
 }
 
 function closeBulletMatch() { document.getElementById('bullet-match-overlay').classList.add('hidden'); }
+

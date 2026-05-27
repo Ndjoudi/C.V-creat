@@ -318,15 +318,7 @@ function goTo(id) {
 }
 
 function refreshBadges() {
-  const cands = ls('sc_cands', []);
-  const badge = document.getElementById('badge-cands');
-  if (cands.length > 0) { badge.textContent = cands.length; badge.style.display = ''; }
-  else badge.style.display = 'none';
-
-  const hist = ls('sc_history', []);
-  const bh = document.getElementById('badge-hist');
-  if (hist.length > 0) { bh.textContent = hist.length; bh.style.display = ''; }
-  else bh.style.display = 'none';
+  // badges désactivés (nav Candidatures + Mes analyses supprimés)
 }
 
 // ── TABS ───────────────────────────────────────────────────

@@ -577,6 +577,21 @@ function updCandAndRefresh(id, k, v) {
   refreshDash();
 }
 
+function updCandAndRefreshSplit(id, k, v) {
+  updCand(id, k, v);
+  refreshDash();
+  // Met à jour les lettres dans le header de la split view
+  const statusEl = document.getElementById('split-status-letters');
+  if (statusEl) {
+    const cands = ls('sc_cands', []);
+    const c = cands.find(x => x.id === id);
+    if (c) {
+      statusEl.innerHTML = renderStatusLetters(c.id, c.status, 'updCandAndRefreshSplit');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  }
+}
+
 // ── NOTE MODAL ─────────────────────────────────────────────
 function openNoteModal(company, poste, notes) {
   if (!notes) return;
@@ -636,6 +651,8 @@ function _stripJobHeader(rawText) {
     /^\s*correspondance entre ce poste et votre profil\.?\s*$/i,
     /^\s*extraits de la description (complète|complete) du poste\s*$/i,
     /^\s*(salaire|lieu|horaires|formation|langues|permis|avantages?)\s*$/i,
+    /^\s*rémunération\s*:.*$/i,
+    /^\s*salaire\s*:.*$/i,
     /^\s*(postuler|enregistrer|signaler|partager)\s*$/i,
     /^\s*\d[\d\s,\.]*\s*€.*$/i,
     /^\s*(cdi|cdd|intérim|interim|stage|alternance|temps plein|temps partiel|freelance)\s*$/i,
@@ -1059,13 +1076,20 @@ function _enterCVEditMode() {
       descEl.style.cssText += ';outline:2px dashed #6366f1;border-radius:4px;padding:3px;min-height:24px';
     }
 
-    // Bullets éditables + bouton supprimer
+    // Bullets éditables + handle drag + bouton supprimer
     exp.querySelectorAll('.cv-bullet-item').forEach(item => {
       const textSpan = item.querySelector('span:not(.cv-bullet-dot)');
       if (textSpan) {
         textSpan.contentEditable = 'true';
         textSpan.style.cssText += ';outline:1px dashed #6366f1;border-radius:3px;padding:0 2px';
       }
+      // Handle drag
+      const handle = document.createElement('span');
+      handle.textContent = '⠿';
+      handle.style.cssText = 'cursor:grab;color:#94a3b8;font-size:14px;padding:0 5px 0 0;flex-shrink:0;user-select:none;line-height:1';
+      handle.title = 'Glisser pour réordonner';
+      item.insertBefore(handle, item.firstChild);
+      // Bouton supprimer
       const rm = document.createElement('button');
       rm.textContent = '×';
       rm.style.cssText = 'background:none;border:none;color:#dc2626;cursor:pointer;font-weight:700;font-size:14px;padding:0 0 0 5px;line-height:1;vertical-align:middle;flex-shrink:0';
@@ -1074,6 +1098,8 @@ function _enterCVEditMode() {
       item.style.alignItems = 'baseline';
       item.appendChild(rm);
     });
+    // Activer le drag sort sur chaque liste de bullets
+    exp.querySelectorAll('.cv-bullets').forEach(ul => _initBulletDragSort(ul));
 
     // Bouton "＋ Ajouter une mission"
     const addBtn = document.createElement('button');
@@ -1279,6 +1305,74 @@ function _showBulletPicker(expEl, triggerBtn) {
 }
 
 // Ajoute un bullet au DOM de l'expérience (éditable + bouton ×)
+function _initBulletDragSort(ul) {
+  if (!ul) return;
+  // Réinitialise les anciens listeners pour éviter les doublons
+  ul.querySelectorAll('.cv-bullet-item').forEach(li => {
+    li.draggable = false;
+    const clone = li.cloneNode(true);
+    li.parentNode.replaceChild(clone, li);
+  });
+
+  let dragSrc = null;
+
+  ul.querySelectorAll('.cv-bullet-item').forEach(li => {
+    // Le handle ⠿ active le drag
+    const handle = li.querySelector('span[style*="grab"]');
+    if (handle) {
+      handle.addEventListener('mousedown', () => { li.draggable = true; });
+      handle.addEventListener('mouseup',   () => { li.draggable = false; });
+    }
+
+    li.addEventListener('dragstart', e => {
+      dragSrc = li;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', '');
+      setTimeout(() => li.style.opacity = '0.4', 0);
+    });
+
+    li.addEventListener('dragend', () => {
+      li.style.opacity = '';
+      li.draggable = false;
+      ul.querySelectorAll('.cv-bullet-item').forEach(el => {
+        el.style.borderTop = '';
+        el.style.borderBottom = '';
+      });
+      dragSrc = null;
+    });
+
+    li.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (!dragSrc || li === dragSrc) return;
+      // Indicateur visuel
+      ul.querySelectorAll('.cv-bullet-item').forEach(el => {
+        el.style.borderTop = '';
+        el.style.borderBottom = '';
+      });
+      const rect = li.getBoundingClientRect();
+      const mid  = rect.top + rect.height / 2;
+      if (e.clientY < mid) {
+        li.style.borderTop = '2px solid #6366f1';
+      } else {
+        li.style.borderBottom = '2px solid #6366f1';
+      }
+    });
+
+    li.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!dragSrc || li === dragSrc) return;
+      const rect = li.getBoundingClientRect();
+      const mid  = rect.top + rect.height / 2;
+      if (e.clientY < mid) {
+        ul.insertBefore(dragSrc, li);
+      } else {
+        ul.insertBefore(dragSrc, li.nextSibling);
+      }
+    });
+  });
+}
+
 function _commitEditBullet(expEl, text) {
   let ul = expEl.querySelector('.cv-bullets');
   if (!ul) {
@@ -1292,6 +1386,10 @@ function _commitEditBullet(expEl, text) {
   li.dataset.new = 'true';
   li.style.display = 'flex';
   li.style.alignItems = 'baseline';
+
+  const handle = document.createElement('span');
+  handle.textContent = '⠿';
+  handle.style.cssText = 'cursor:grab;color:#94a3b8;font-size:14px;padding:0 5px 0 0;flex-shrink:0;user-select:none;line-height:1';
 
   const dot = document.createElement('span');
   dot.className = 'cv-bullet-dot';
@@ -1307,10 +1405,12 @@ function _commitEditBullet(expEl, text) {
   rm.style.cssText = 'background:none;border:none;color:#dc2626;cursor:pointer;font-weight:700;font-size:14px;padding:0 0 0 5px;line-height:1;vertical-align:middle;flex-shrink:0';
   rm.onclick = e => { e.stopPropagation(); li.remove(); };
 
+  li.appendChild(handle);
   li.appendChild(dot);
   li.appendChild(textSpan);
   li.appendChild(rm);
   ul.appendChild(li);
+  _initBulletDragSort(ul);
 }
 
 function _saveCVEditsFromDOM(candId) {
@@ -1526,14 +1626,6 @@ function _renderDecodePanelHtml(data, isLoading, provider, model, offerText) {
           <div style="font-size:13px;font-weight:700;color:#1e293b">${esc(cand?.poste || '')}</div>
           <div style="font-size:12px;color:#0a66c2;font-weight:600">${esc(cand?.company || '')}</div>
         </div>
-        ${showBtn ? `<div style="display:flex;gap:6px;flex-shrink:0">
-          <button onclick="window._retryDecode('${candId}','groq')"
-            style="background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
-            🟠 Groq</button>
-          <button onclick="window._retryDecode('${candId}','gemini')"
-            style="background:#f5f3ff;color:#7c3aed;border:1.5px solid #ddd6fe;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
-            🟣 Gemini</button>
-        </div>` : ''}
       </div>
       <div style="padding:14px 16px;max-height:400px;overflow-y:auto;border-top:1px solid #bfdbfe">
         <div style="font-size:12.5px;color:#334155;line-height:1.75;white-space:pre-line">${esc(descText)}</div>
@@ -1565,17 +1657,7 @@ function _renderDecodePanelHtml(data, isLoading, provider, model, offerText) {
     return `<span style="background:${bgC};color:${dot};border:1px solid ${bdC};border-radius:100px;padding:2px 9px;font-size:10.5px;font-weight:700">${label}</span>`;
   })() : '';
 
-  html += `<div style="border-top:2px solid var(--border);padding-top:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)">Analyse IA</div>
-      <div style="display:flex;align-items:center;gap:6px">
-        ${providerBadge}
-        <button onclick="window._retryDecode(window._splitCandId,'groq')"
-          style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;font-size:10.5px;padding:2px 8px;cursor:pointer;font-weight:700" title="Relancer avec Groq">🟠</button>
-        <button onclick="window._retryDecode(window._splitCandId,'gemini')"
-          style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;font-size:10.5px;padding:2px 8px;cursor:pointer;font-weight:700" title="Relancer avec Gemini">🟣</button>
-      </div>
-    </div>`;
+  html += `<div style="border-top:2px solid var(--border);padding-top:14px">`;
 
   // ── Helpers ──────────────────────────────────────────────
   const renderTextLines = (lines) => {
@@ -1642,55 +1724,6 @@ function _renderDecodePanelHtml(data, isLoading, provider, model, offerText) {
     });
     return b + `</div></div>`;
   };
-
-  // Blocs décodés directement (le texte brut est déjà affiché au-dessus)
-  html += renderMissionsBlock(data.missions);
-  html += renderProfilBlock(data.profil_recherche);
-
-  // ── Compétences clés à mettre en avant ───────────────────
-  if (data.competences_cles?.length) {
-    const existing = (P.customSkills || []).map(s => s.toLowerCase());
-
-    html += `
-    <div style="border-top:1.5px solid var(--border);padding-top:10px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#6366f1">À mettre en avant</div>
-        <button onclick="window._addSelectedSkills()"
-          style="background:#6366f1;color:white;border:none;border-radius:6px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer">
-          ➕ Ajouter la sélection
-        </button>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${data.competences_cles.map((c) => {
-          const alreadyIn = existing.includes(c.toLowerCase());
-          const safeVal   = esc(c);
-          if (alreadyIn) {
-            return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0">
-              ✓ ${safeVal}
-            </span>`;
-          }
-          return `<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f5f3ff;color:#4f46e5;border:1.5px solid #c7d2fe;cursor:pointer;user-select:none"
-            onmousedown="this.style.background=this.querySelector('input').checked?'#f5f3ff':'#ede9fe'"
-            onmouseup="this.style.background=this.querySelector('input').checked?'#ede9fe':'#f5f3ff'">
-            <input type="checkbox" data-skill="${safeVal}"
-              style="width:12px;height:12px;accent-color:#6366f1;cursor:pointer;flex-shrink:0" />
-            ${safeVal}
-          </label>`;
-        }).join('')}
-      </div>
-    </div>`;
-  }
-
-  // ── Mots-clés littéraux ───────────────────────────────────
-  if (data.keywords?.length) {
-    html += `
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;border-top:1.5px solid var(--border);padding-top:10px">
-      <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#6366f1;margin-right:4px;white-space:nowrap">Mots-clés</span>
-      ${data.keywords.map(k =>
-        `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:100px;padding:2px 9px;font-size:11.5px;font-weight:600">${esc(k)}</span>`
-      ).join('')}
-    </div>`;
-  }
 
   // ── Phrase profil à compléter ─────────────────────────────
   const _phrasePoste = window._splitCandId
@@ -1857,6 +1890,301 @@ window._retryDecode = function(candId, forceProvider) {
   });
 };
 
+// ── RENDU INITIAL DU BLOC ANALYSE (cache ou picker) ─────────
+function _renderAIAnalysisBlock(candId, cachedData) {
+  const header = `
+    <div style="background:var(--bg);padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3)">Analyse IA</div>
+      <div style="display:flex;gap:6px">
+        <button onclick="launchCareerOpsAnalysis('${candId}','groq')"
+          style="padding:5px 14px;background:#f6f3ff;color:#5b21b6;border:1.5px solid #c4b5fd;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700">⚡ Groq</button>
+        <button onclick="launchCareerOpsAnalysis('${candId}','gemini')"
+          style="padding:5px 14px;background:#f0fdf4;color:#166534;border:1.5px solid #86efac;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700">✦ Gemini</button>
+      </div>
+    </div>`;
+
+  if (!cachedData) {
+    return `<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden">
+      ${header}
+      <div style="padding:14px 16px;font-size:12.5px;color:var(--ink3);text-align:center">
+        Choisis un modèle pour analyser ta compatibilité avec cette offre
+      </div>
+    </div>`;
+  }
+
+  // Résultats en cache — on les réaffiche directement
+  const resultsDiv = document.createElement('div');
+  resultsDiv.style.cssText = 'padding:16px 18px';
+  // On retourne un placeholder et on le remplit après insertion dans le DOM
+  const uid = 'ai-cached-' + candId;
+  setTimeout(() => {
+    const el = document.getElementById(uid);
+    if (el) _renderCareerOpsResult(cachedData, candId, null, el);
+  }, 0);
+
+  return `<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden">
+    ${header}
+    <div id="${uid}" style="padding:16px 18px"></div>
+  </div>`;
+}
+
+// ── BUILD CV TEXT pour le prompt IA ────────────────────────
+function _buildCVText() {
+  const lines = [];
+  if (P.title)    lines.push(`Titre : ${P.title}`);
+  if (P.yearsExp) lines.push(`Expérience : ${P.yearsExp} ans`);
+  if (P.summary)  lines.push(`\nRésumé : ${P.summary}`);
+
+  if (P.experiences?.length) {
+    lines.push('\nEXPÉRIENCES :');
+    P.experiences.forEach(e => {
+      lines.push(`• ${e.title || ''} chez ${e.company || ''} (${e.duration || ''})`);
+      if (e.description) lines.push(`  ${e.description}`);
+      (e.bullets || []).forEach(b => { if (b.text) lines.push(`  – ${b.text}`); });
+    });
+  }
+
+  const skills = [
+    ...(P.technicalSkills||[]), ...(P.softSkills||[]),
+    ...(P.tools||[]),           ...(P.subdomains||[]),
+    ...(P.customSkills||[])
+  ].filter(Boolean);
+  if (skills.length) lines.push(`\nCompétences : ${skills.join(', ')}`);
+
+  if (P.education?.length) {
+    lines.push('\nFormation :');
+    P.education.forEach(e => lines.push(`• ${e.degree || ''} — ${e.school || ''} (${e.year || ''})`));
+  }
+  return lines.join('\n');
+}
+
+// ── ANALYSE IA CAREER-OPS STYLE ─────────────────────────────
+async function launchCareerOpsAnalysis(candId, provider) {
+  const c = ls('sc_cands', []).find(x => x.id === candId);
+  if (!c) return;
+  const offerText = (c.jobDescription || '').replace(/&nbsp;/g, ' ').replace(/[ \t]{3,}/g, ' ').trim();
+  if (!offerText) { toast('Aucun texte d\'offre enregistré'); return; }
+
+  const block = document.getElementById('split-ai-analysis');
+  if (!block) return;
+
+  block.innerHTML = `
+    <div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px">
+      ${_analysisHeader(candId, provider)}
+      <div id="split-ai-results" style="padding:16px 18px">
+        <div class="ldg"><div class="sp"></div>
+          <span style="font-size:13px;color:var(--ink3)">
+            ${provider === 'groq' ? '⚡ Groq' : '✦ Gemini'} analyse l'offre et ton CV…
+          </span>
+        </div>
+      </div>
+    </div>`;
+
+  const cvText   = _buildCVText();
+  const resultsEl = document.getElementById('split-ai-results');
+
+  const prompt = `Tu es un expert RH supply chain. Analyse cette offre pour ce candidat. Réponds UNIQUEMENT en JSON valide, sans markdown, sans commentaires.
+
+CV DU CANDIDAT :
+${cvText}
+
+OFFRE D'EMPLOI :
+${offerText.slice(0, 3000)}
+
+Réponds avec ce JSON exact :
+{
+  "poste": "titre du poste détecté",
+  "entreprise": "nom entreprise",
+  "seniorite": "Junior|Confirmé|Senior|Manager",
+  "remote": "Remote|Hybride|Présentiel|Non précisé",
+  "tldr": "1 phrase résumant le poste et ce qu'ils cherchent (max 20 mots)",
+  "score": 1-5,
+  "points_forts": ["max 3 forces du candidat pour CE poste, phrase courte qui cite le CV"],
+  "match": [
+    {"exigence": "texte exact de l'exigence de l'offre", "ligne_cv": "ligne exacte du CV qui couvre ça, vide si absent", "niveau": "ok|partial|gap"}
+  ],
+  "lacunes": [
+    {"lacune": "ce qui manque", "bloqueur": true, "mitigation": "comment compenser en 1 phrase courte"}
+  ],
+  "competences_cles": ["5-8 compétences clés de l'offre NON présentes dans les compétences du CV — à ajouter au profil"],
+  "keywords": ["10-15 mots-clés ATS importants de l'offre"],
+  "recommandations_cv": ["max 3 modifications concrètes à faire sur le CV pour cette offre"]
+}
+
+RÈGLES :
+- "match" : max 8 exigences, les plus importantes de l'offre
+- "lacunes" : uniquement les vraies absences (pas ce qui est partiellement couvert)
+- "ligne_cv" : cite mot pour mot une ligne du CV ci-dessus, ou laisse vide
+- "competences_cles" : uniquement celles ABSENTES du CV, pertinentes pour ce poste
+- "recommandations_cv" : actions concrètes ("Ajouter X dans le résumé", "Mentionner Y dans l'expérience Z")`;
+
+  try {
+    const callFn = provider === 'gemini' ? callGemini : callGroq;
+    const raw    = await callFn(prompt, { maxTokens: 1800, temperature: 0.1 });
+    const data   = safeParseJSON(raw);
+    if (!data || !data.score) throw new Error('Réponse invalide');
+    _renderCareerOpsResult(data, candId, provider, resultsEl);
+
+    // Sauvegarder dans la candidature
+    const cands = ls('sc_cands', []);
+    const idx   = cands.findIndex(x => x.id === candId);
+    if (idx !== -1) {
+      if (!cands[idx].analysis) cands[idx].analysis = {};
+      cands[idx].analysis.career_ops = data;
+      cands[idx].analysis.poste      = data.poste || cands[idx].analysis.poste;
+      cands[idx].analysis.entreprise = data.entreprise || cands[idx].analysis.entreprise;
+      ss('sc_cands', cands);
+    }
+  } catch(e) {
+    resultsEl.innerHTML = `
+      <div style="color:var(--red);font-size:13px;padding:4px 0">⚠ ${esc(e.message || 'Erreur — vérifie ta clé API')}</div>`;
+  }
+}
+
+function _analysisHeader(candId, activeProvider) {
+  return `
+    <div style="background:var(--bg);padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3)">Analyse IA</div>
+      <div style="display:flex;gap:6px">
+        <button onclick="launchCareerOpsAnalysis('${candId}','groq')"
+          style="padding:4px 12px;background:${activeProvider==='groq'?'#5b21b6':'#f6f3ff'};color:${activeProvider==='groq'?'#fff':'#5b21b6'};border:1.5px solid #c4b5fd;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:700">⚡ Groq</button>
+        <button onclick="launchCareerOpsAnalysis('${candId}','gemini')"
+          style="padding:4px 12px;background:${activeProvider==='gemini'?'#166534':'#f0fdf4'};color:${activeProvider==='gemini'?'#fff':'#166534'};border:1.5px solid #86efac;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:700">✦ Gemini</button>
+      </div>
+    </div>`;
+}
+
+function _renderCareerOpsResult(d, candId, provider, el) {
+  // Score → couleur
+  const sc  = Math.round((d.score / 5) * 100);
+  const col = sc >= 70 ? 'var(--teal)' : sc >= 50 ? '#D97706' : 'var(--red)';
+  const lbl = sc >= 70 ? 'Bonne compatibilité' : sc >= 50 ? 'Compatibilité moyenne' : 'Faible compatibilité';
+
+  // TL;DR + meta
+  const metaHtml = `
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <span style="font-size:24px;font-weight:900;color:${col}">${d.score}/5</span>
+        <span style="padding:3px 10px;background:${sc>=70?'var(--teal-bg)':sc>=50?'#FFFBEB':'var(--red-bg)'};color:${col};border:1.5px solid ${col};border-radius:100px;font-size:11.5px;font-weight:700">${lbl}</span>
+        ${d.seniorite ? `<span style="padding:3px 9px;background:#F3E8FF;color:#7C3AED;border:1px solid #DDD6FE;border-radius:100px;font-size:11px;font-weight:600">${esc(d.seniorite)}</span>` : ''}
+        ${d.remote ? `<span style="padding:3px 9px;background:#F0F9FF;color:#0369A1;border:1px solid #BAE6FD;border-radius:100px;font-size:11px;font-weight:600">${esc(d.remote)}</span>` : ''}
+      </div>
+      ${d.tldr ? `<div style="font-size:12.5px;color:var(--ink2);line-height:1.6;font-style:italic;padding:8px 12px;background:var(--bg);border-radius:8px;border-left:3px solid var(--border)">${esc(d.tldr)}</div>` : ''}
+    </div>`;
+
+  // Points forts
+  const fortsHtml = (d.points_forts||[]).length ? `
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--teal);margin-bottom:6px">✦ Tes points forts</div>
+      ${(d.points_forts||[]).map(f => `
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border2);font-size:12.5px;color:var(--ink);align-items:flex-start">
+          <span style="color:var(--teal);flex-shrink:0;font-weight:700;margin-top:1px">✓</span>${esc(f)}
+        </div>`).join('')}
+    </div>` : '';
+
+  // Match tableau
+  const matchHtml = (d.match||[]).length ? `
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:6px">Exigences de l'offre</div>
+      ${(d.match||[]).map(m => {
+        const ic = m.niveau==='ok' ? '✓' : m.niveau==='partial' ? '◑' : '✗';
+        const mc = m.niveau==='ok' ? 'var(--teal)' : m.niveau==='partial' ? '#D97706' : 'var(--red)';
+        const mb = m.niveau==='ok' ? 'var(--teal-bg)' : m.niveau==='partial' ? '#FFFBEB' : 'var(--red-bg)';
+        return `<div style="display:flex;gap:9px;padding:7px 0;border-bottom:1px solid var(--border2);align-items:flex-start">
+          <span style="color:${mc};font-weight:900;flex-shrink:0;font-size:13px;margin-top:1px">${ic}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12.5px;font-weight:600;color:var(--ink)">${esc(m.exigence)}</div>
+            ${m.ligne_cv ? `<div style="font-size:11.5px;color:var(--ink3);margin-top:2px">→ ${esc(m.ligne_cv)}</div>` : ''}
+          </div>
+          <span style="flex-shrink:0;padding:2px 7px;border-radius:100px;font-size:10px;font-weight:700;color:${mc};background:${mb};border:1px solid ${mc};white-space:nowrap">${
+            m.niveau==='ok'?'Couvert':m.niveau==='partial'?'Partiel':'Gap'}</span>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+  // Lacunes
+  const lacunesHtml = (d.lacunes||[]).length ? `
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--red);margin-bottom:6px">Lacunes</div>
+      ${(d.lacunes||[]).map(l => `
+        <div style="padding:8px 10px;background:${l.bloqueur?'var(--red-bg)':'#FFFBEB'};border:1px solid ${l.bloqueur?'var(--red-border)':'#FDE68A'};border-radius:8px;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+            ${l.bloqueur ? `<span style="font-size:9.5px;font-weight:700;color:#fff;background:var(--red);padding:1px 6px;border-radius:3px">BLOQUANT</span>` : `<span style="font-size:9.5px;font-weight:700;color:#92400E;background:#FDE68A;padding:1px 6px;border-radius:3px">NICE TO HAVE</span>`}
+            <span style="font-size:12.5px;font-weight:600;color:var(--ink)">${esc(l.lacune)}</span>
+          </div>
+          ${l.mitigation ? `<div style="font-size:11.5px;color:var(--ink3);font-style:italic">💡 ${esc(l.mitigation)}</div>` : ''}
+        </div>`).join('')}
+    </div>` : '';
+
+  // Recommandations CV
+  const recoHtml = (d.recommandations_cv||[]).length ? `
+    <div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#7C3AED;margin-bottom:6px">Actions sur le CV</div>
+      ${(d.recommandations_cv||[]).map(r => `
+        <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border2);font-size:12.5px;color:var(--ink2)">
+          <span style="color:#7C3AED;flex-shrink:0;font-weight:700">→</span>${esc(r)}
+        </div>`).join('')}
+    </div>` : '';
+
+  // À mettre en avant (checkboxes pour ajouter au profil)
+  const existing = (P.customSkills || []).map(s => s.toLowerCase());
+  const amettre = (d.competences_cles || []);
+  const amettreHtml = amettre.length ? `
+    <div style="margin-bottom:14px;padding-top:12px;border-top:1.5px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#6366f1">À ajouter au profil</div>
+        <button onclick="window._addSelectedSkillsFromAnalysis()"
+          style="background:#6366f1;color:white;border:none;border-radius:6px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer">➕ Ajouter la sélection</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${amettre.map(c => {
+          const alreadyIn = existing.includes(c.toLowerCase());
+          if (alreadyIn) return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0">✓ ${esc(c)}</span>`;
+          return `<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f5f3ff;color:#4f46e5;border:1.5px solid #c7d2fe;cursor:pointer">
+            <input type="checkbox" data-skill="${esc(c)}" style="width:12px;height:12px;accent-color:#6366f1;cursor:pointer;flex-shrink:0"/>
+            ${esc(c)}
+          </label>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  // Mots-clés ATS
+  const kwHtml = (d.keywords||[]).length ? `
+    <div style="padding-top:10px;border-top:1.5px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#1d4ed8;margin-bottom:7px">Mots-clés ATS</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${(d.keywords||[]).map(k => `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:100px;padding:2px 9px;font-size:11.5px;font-weight:600">${esc(k)}</span>`).join('')}
+      </div>
+    </div>` : '';
+
+  el.innerHTML = metaHtml + fortsHtml + matchHtml + lacunesHtml + recoHtml + amettreHtml + kwHtml;
+
+  // Enregistre la fonction d'ajout dans window pour les checkboxes
+  window._addSelectedSkillsFromAnalysis = () => {
+    const checks = el.querySelectorAll('input[data-skill]:checked');
+    if (!checks.length) { toast('Sélectionne au moins une compétence'); return; }
+    if (!P.customSkills) P.customSkills = [];
+    let added = 0;
+    checks.forEach(cb => {
+      const val = cb.dataset.skill;
+      if (!P.customSkills.map(s=>s.toLowerCase()).includes(val.toLowerCase())) {
+        P.customSkills.push(val); added++;
+      }
+    });
+    ss('sc_profile', P);
+    renderCV();
+    if (typeof _syncSplitCV === 'function') _syncSplitCV();
+    // Mettre à jour les labels → ✓ pour les compétences ajoutées
+    el.querySelectorAll('input[data-skill]:checked').forEach(cb => {
+      const label = cb.closest('label');
+      if (label) {
+        label.outerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:100px;font-size:12px;font-weight:600;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0">✓ ${esc(cb.dataset.skill)}</span>`;
+      }
+    });
+    toast(added + ' compétence' + (added>1?'s':'') + ' ajoutée' + (added>1?'s':'') + ' au profil');
+  };
+}
+
 async function openSplitView(candId) {
   const c = ls('sc_cands', []).find(x => x.id === candId);
   if (!c) return;
@@ -1885,6 +2213,13 @@ async function openSplitView(candId) {
   // ── Barre du haut ──
   document.getElementById('split-modal-title').textContent = c.poste + ' · ' + c.company;
   document.getElementById('split-modal-sub').textContent   = c.date || '';
+
+  // ── Statut letters dans le header ──
+  const statusEl = document.getElementById('split-status-letters');
+  if (statusEl) {
+    statusEl.innerHTML = renderStatusLetters(c.id, c.status, 'updCandAndRefreshSplit');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
 
   // Bouton "Voir l'annonce" avec badge source
   const jobLinkEl = document.getElementById('split-job-link');
@@ -1932,8 +2267,11 @@ async function openSplitView(candId) {
         <span style="font-size:12.5px;color:var(--ink3)">Chargement des infos du poste et du trajet...</span>
       </div>
     </div>
-    <div id="split-decode-panel" style="margin-bottom:28px">
+    <div id="split-decode-panel" style="margin-bottom:20px">
       ${_renderDecodePanelHtml(cachedDecode, false, cachedProvider, null, rawText)}
+    </div>
+    <div id="split-ai-analysis" style="margin-bottom:28px">
+      ${_renderAIAnalysisBlock(candId, a.career_ops || null)}
     </div>`;
 
   // Déclenchement auto uniquement si déjà en cache (pas de spinner au chargement)
@@ -2072,4 +2410,137 @@ function toggleLiDesc() {
     if (fadeEl) fadeEl.style.display = 'none';
     togEl.textContent = '▲ Réduire';
   }
+}
+
+// ── GÉNÉRATEUR MESSAGE LINKEDIN ────────────────────────────
+async function genLinkedInMsg(provider) {
+  const overlay  = document.getElementById('li-msg-overlay');
+  const textarea = document.getElementById('li-msg-text');
+  const pickEl   = document.getElementById('li-msg-pick');
+  const footEl   = document.getElementById('li-msg-foot');
+  const subEl    = document.getElementById('li-msg-sub');
+
+  overlay.classList.remove('hidden');
+
+  // Si pas de provider → affiche le sélecteur
+  if (!provider) {
+    pickEl.style.display  = 'flex';
+    textarea.style.display = 'none';
+    footEl.style.display   = 'none';
+    subEl.textContent      = 'Choisis une IA';
+    return;
+  }
+
+  // Cache le sélecteur, affiche le spinner
+  pickEl.style.display   = 'none';
+  textarea.style.display = 'block';
+  footEl.style.display   = 'flex';
+  textarea.value         = '';
+  subEl.textContent      = `Génération via ${provider === 'gemini' ? 'Gemini 🟣' : 'Groq 🟠'}…`;
+
+  const candId = window._splitCandId;
+  const cands  = ls('sc_cands', []);
+  const c      = cands.find(x => x.id === candId);
+  const offer  = (c?.jobDescription || '').slice(0, 3000);
+  const poste  = c?.poste || 'ce poste';
+
+  const nom = [P.firstName, P.lastName?.toUpperCase()].filter(Boolean).join(' ') || 'Prénom NOM';
+  const TEMPLATE = `Bonjour,\nvotre poste de [POSTE] m'a interpellé, notamment pour [1_ELEMENT_OFFRE]. [PHRASE_PERSONNALISEE]\n\nJe me permets de joindre mon CV. Seriez-vous disponible pour en échanger ?\n\nBonne journée,\n${nom}`;
+
+  const realisations = [
+    P.yearsExp ? `${P.yearsExp} en logistique e-commerce` : '',
+    ...(P.experiences || []).flatMap(e =>
+      (e.bullets || []).filter(b => b.required || b.selected).map(b => b.text)
+    ).slice(0, 8)
+  ].filter(Boolean).join(' | ') || '5 ans logistique e-commerce, management 10-15 personnes, optimisation dépôt +40%, 2M€/mois supervisés, Master Supply Chain en cours';
+
+  // Données déjà extraites par l'analyse IA
+  const analysis = c?.analysis || {};
+  const missionTags     = (analysis.missions       || []).flatMap(m => m.tags   || [m.attente || '']).filter(Boolean);
+  const profilTags      = (analysis.profil_recherche|| []).flatMap(p => p.tags  || [p.attente || '']).filter(Boolean);
+  const competencesCles = (analysis.competences_cles|| []);
+  const keywords        = (analysis.keywords        || []);
+
+  const besoinsOffre = [
+    missionTags.length    ? `Missions : ${missionTags.join(', ')}`         : '',
+    profilTags.length     ? `Profil recherché : ${profilTags.join(', ')}`  : '',
+    competencesCles.length? `À mettre en avant : ${competencesCles.join(', ')}` : '',
+    keywords.length       ? `Mots-clés : ${keywords.join(', ')}`           : '',
+  ].filter(Boolean).join('\n');
+
+  const prompt = `À partir des données de l'offre ci-dessous, extrais :
+
+1. [POSTE] : titre exact du poste
+2. [1_ELEMENT_OFFRE] : une mission clé du poste en 4-6 mots maximum
+3. [PHRASES] : un tableau JSON de 5 strings (chaînes de caractères uniquement, pas d'objets). Pour construire chaque phrase, suis mentalement ces étapes SANS les inclure dans le JSON :
+   - Étape 1 : Identifie le besoin LE PLUS IMPORTANT parmi [BESOINS_OFFRE] (compétence, qualité ou mission indispensable)
+   - Étape 2 : Parmi [REALISATIONS], sélectionne 2 ou 3 réalisations qui ensemble répondent le mieux à ce besoin
+   - Étape 3 : Synthétise en une seule phrase courte (20 mots max) à la PREMIÈRE PERSONNE qui montre une compétence globale en lien direct avec le besoin identifié. Reformule, ne copie pas. La phrase se termine par un seul point. NE JAMAIS commencer par "Votre".
+   Exemple : ["Ma phrase 1.", "Ma phrase 2.", "Ma phrase 3.", "Ma phrase 4.", "Ma phrase 5."]
+
+[BESOINS_OFFRE] :
+${besoinsOffre || `Poste : ${poste}`}
+
+[REALISATIONS] : ${realisations}
+
+Réponds UNIQUEMENT en JSON, sans texte avant ou après :
+{"POSTE": "...", "1_ELEMENT_OFFRE": "...", "PHRASES": ["...", "...", "...", "...", "..."]}
+
+Offre (contexte) : ${offer.slice(0, 1000)}`;
+
+  try {
+    const raw = provider === 'gemini'
+      ? await callGemini(prompt, { maxTokens: 500, temperature: 0.6 })
+      : await callGroq(prompt,   { maxTokens: 500, temperature: 0.6 });
+
+    const data = safeParseJSON(raw);
+    const rawPhrases = Array.isArray(data.PHRASES) ? data.PHRASES : [data.PHRASE_PERSONNALISEE || '…'];
+    // Défense : si l'IA retourne des objets, on extrait la dernière valeur string
+    const phrases = rawPhrases.map(p => {
+      if (typeof p === 'string') return p;
+      if (typeof p === 'object' && p !== null) {
+        const vals = Object.values(p).filter(v => typeof v === 'string');
+        return vals[vals.length - 1] || '…';
+      }
+      return String(p);
+    });
+    const posteVal   = data.POSTE            || poste;
+    const elementVal = data['1_ELEMENT_OFFRE'] || '…';
+
+    // Affiche les propositions à gauche
+    const propEl = document.getElementById('li-msg-proposals');
+    propEl.innerHTML = '';
+    phrases.forEach((p, i) => {
+      const btn = document.createElement('div');
+      btn.textContent = p;
+      btn.style.cssText = 'font-size:12px;line-height:1.5;padding:9px 11px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;color:var(--ink);background:white;transition:border-color .12s,background .12s';
+      btn.onclick = () => {
+        propEl.querySelectorAll('div').forEach(d => { d.style.background='white'; d.style.borderColor='var(--border)'; d.style.fontWeight=''; });
+        btn.style.background   = '#eff6ff';
+        btn.style.borderColor  = '#3b82f6';
+        btn.style.fontWeight   = '600';
+        document.getElementById('li-msg-text').value = TEMPLATE
+          .replace('[POSTE]',               posteVal)
+          .replace('[1_ELEMENT_OFFRE]',     elementVal)
+          .replace('[PHRASE_PERSONNALISEE]', p);
+      };
+      propEl.appendChild(btn);
+      // Sélectionne la première par défaut
+      if (i === 0) btn.click();
+    });
+
+    document.getElementById('li-msg-result').style.display = 'flex';
+    document.getElementById('li-msg-foot').style.display   = 'flex';
+    subEl.textContent = 'Choisis une phrase →';
+  } catch(e) {
+    textarea.value    = '';
+    subEl.textContent = '⚠ Erreur : ' + e.message;
+  }
+}
+
+function liMsgReset() {
+  document.getElementById('li-msg-pick').style.display   = 'flex';
+  document.getElementById('li-msg-result').style.display = 'none';
+  document.getElementById('li-msg-foot').style.display   = 'none';
+  document.getElementById('li-msg-sub').textContent      = 'Choisis une IA';
 }
