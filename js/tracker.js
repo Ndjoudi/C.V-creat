@@ -2344,6 +2344,185 @@ window._recalcSalary = function(candId) {
   if (el) el.innerHTML = _salaryResultHtml(calc);
 };
 
+// ── LINKEDIN OUTREACH ───────────────────────────────────────────────────────
+
+function _renderLinkedInBlock(candId, cached) {
+  const types = [
+    { id:'recruiter',   label:'Recruteur',       emoji:'🔍' },
+    { id:'hiring_mgr',  label:'Hiring Manager',  emoji:'👔' },
+    { id:'peer',        label:'Collègue',        emoji:'🤝' },
+    { id:'interviewer', label:'Intervieweur',    emoji:'🎯' },
+  ];
+
+  const hasGroq   = !!(localStorage.getItem('sc_key') || '');
+  const hasGemini = !!(localStorage.getItem('sc_gemini_key') || '');
+
+  // Boutons IA (comme l'analyse career-ops)
+  const aiButtons = `
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      ${hasGroq ? `<button id="li-ai-groq" onclick="window._liSetProvider('${candId}','groq')"
+        style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--ink2);transition:all .15s">
+        ⚡ Groq</button>` : ''}
+      ${hasGemini ? `<button id="li-ai-gemini" onclick="window._liSetProvider('${candId}','gemini')"
+        style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--ink2);transition:all .15s">
+        ✦ Gemini</button>` : ''}
+    </div>`;
+
+  const btnRow = types.map(t => `
+    <button onclick="window._genLinkedIn('${candId}','${t.id}')"
+      id="li-btn-${t.id}"
+      style="display:flex;align-items:center;gap:5px;padding:5px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--ink2);font-size:11.5px;font-weight:600;cursor:pointer;transition:all .15s"
+      onmouseover="this.style.borderColor='#0077b5';this.style.color='#0077b5'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--ink2)'">
+      ${t.emoji} ${t.label}
+    </button>`).join('');
+
+  let cachedHtml = '';
+  if (cached) {
+    cachedHtml = `<div id="li-result-${candId}">${_renderLinkedInResult(cached)}</div>`;
+  } else {
+    cachedHtml = `<div id="li-result-${candId}" style="font-size:12px;color:var(--ink3);text-align:center;padding:8px 0">
+      Choisis le type de contact pour générer le message
+    </div>`;
+  }
+
+  return `
+    <div style="border:1.5px solid #0077b5;border-radius:12px;overflow:hidden;margin-bottom:20px">
+      <div style="background:#EFF6FF;padding:8px 12px;border-bottom:1px solid #BFDBFE;display:flex;align-items:center;gap:7px">
+        <span style="font-size:14px">💼</span>
+        <span style="font-size:12px;font-weight:700;color:#1e40af">Message LinkedIn</span>
+        <span style="font-size:10.5px;color:#3b82f6;margin-left:auto">max 300 caractères</span>
+      </div>
+      <div style="padding:10px 14px">
+        ${aiButtons}
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${btnRow}</div>
+        ${cachedHtml}
+      </div>
+    </div>`;
+}
+
+function _renderLinkedInResult(data) {
+  // data = { type, message, type_label }
+  const charCount = (data.message||'').length;
+  const over = charCount > 300;
+  return `
+    <div style="background:#F0F9FF;border:1.5px solid #BAE6FD;border-radius:8px;padding:10px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0369a1">${esc(data.type_label||'')}</span>
+        <span style="font-size:10.5px;font-weight:600;color:${over?'#dc2626':'#0369a1'}">${charCount}/300</span>
+      </div>
+      <div id="li-msg-text" style="font-size:12.5px;color:#0c4a6e;line-height:1.6;white-space:pre-wrap">${esc(data.message||'')}</div>
+      <div style="display:flex;gap:7px;margin-top:8px">
+        <button onclick="window._copyLinkedIn()"
+          style="background:#0077b5;color:white;border:none;border-radius:6px;padding:4px 12px;font-size:11.5px;font-weight:600;cursor:pointer;flex:1">
+          📋 Copier
+        </button>
+        <button onclick="window._regenLinkedIn()"
+          style="background:none;border:1.5px solid #0077b5;color:#0077b5;border-radius:6px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer">
+          ↺
+        </button>
+      </div>
+    </div>`;
+}
+
+// Provider LinkedIn (groq par défaut si dispo, sinon gemini)
+window._liProvider = localStorage.getItem('sc_key') ? 'groq' : 'gemini';
+
+window._liSetProvider = function(candId, provider) {
+  window._liProvider = provider;
+  // Highlight bouton actif
+  ['groq','gemini'].forEach(p => {
+    const b = document.getElementById('li-ai-' + p);
+    if (!b) return;
+    const active = p === provider;
+    b.style.background   = active ? '#0077b5' : 'var(--bg)';
+    b.style.color        = active ? 'white'   : 'var(--ink2)';
+    b.style.borderColor  = active ? '#0077b5' : 'var(--border)';
+  });
+};
+
+window._genLinkedIn = async function(candId, contactType) {
+  const typeLabels = { recruiter:'Recruteur', hiring_mgr:'Hiring Manager', peer:'Collègue', interviewer:'Intervieweur' };
+  const el = document.getElementById('li-result-' + candId);
+  if (!el) return;
+
+  // Highlight bouton contact actif
+  document.querySelectorAll('[id^="li-btn-"]').forEach(b => {
+    const active = b.id === 'li-btn-' + contactType;
+    b.style.background  = active ? '#EFF6FF'      : 'var(--bg)';
+    b.style.borderColor = active ? '#0077b5'      : 'var(--border)';
+    b.style.color       = active ? '#0077b5'      : 'var(--ink2)';
+  });
+  el.innerHTML = `<div style="text-align:center;padding:14px;font-size:12px;color:var(--ink3)">
+    <div class="sp" style="width:18px;height:18px;margin:0 auto 6px"></div>Génération en cours...
+  </div>`;
+
+  const cands = ls('sc_cands', []);
+  const c = cands.find(x => x.id === candId) || {};
+  const a = c.analysis || {};
+  const cvText = _buildCVText();
+  const offerSnippet = (c.rawOffer || c.description || '').slice(0, 1200);
+
+  const frameworks = {
+    recruiter:   `3 phrases max : 1) Fit direct (rôle, expérience clé, dispo) 2) Preuve chiffrée qui répond aux questions de screening avant qu'elles soient posées 3) CTA "Ravi de partager mon CV si ça correspond"`,
+    hiring_mgr:  `3 phrases max : 1) Challenge spécifique de leur équipe extrait de l'offre 2) Ta meilleure réalisation chiffrée prouvant que tu as résolu des problèmes similaires 3) CTA curiosité sur leur approche — PAS de demande d'emploi directe`,
+    peer:        `3 phrases max : 1) Référence sincère à leur poste/secteur 2) Ce que tu fais dans le même domaine (PAS un pitch d'emploi) 3) CTA conversation sur un sujet commun — Ne JAMAIS demander un emploi`,
+    interviewer: `3 phrases légères : 1) Référence à leur parcours ou secteur 2) Lien léger avec ton expérience 3) "Hâte de notre échange" — Ton détendu, pas désespéré`,
+  };
+
+  const prompt = `Tu génères un message LinkedIn de prise de contact pour une candidature supply chain.
+
+PROFIL (extrait CV) :
+${cvText.slice(0, 800)}
+
+OFFRE :
+Poste : ${c.poste || a.poste || ''}
+Entreprise : ${c.entreprise || a.entreprise || ''}
+Extrait : ${offerSnippet}
+
+TYPE DE CONTACT : ${typeLabels[contactType]}
+FRAMEWORK : ${frameworks[contactType]}
+
+RÈGLES ABSOLUES :
+- Maximum 300 caractères
+- En français
+- Zéro langue corporate ("passionné par", "profil idéal", "n'hésitez pas")
+- Concret, direct, humain
+
+Réponds UNIQUEMENT avec le message, sans guillemets, sans intro.`;
+
+  try {
+    const provider = window._liProvider || 'groq';
+    const callFn   = provider === 'gemini' ? callGemini : callGroq;
+    const text     = await callFn(prompt, { maxTokens: 200, temperature: 0.7 });
+    const msg      = (text || '').trim().replace(/^["«»]|["«»]$/g, '');
+
+    // Sauvegarde par candidature
+    const cands2 = ls('sc_cands', []);
+    const idx2   = cands2.findIndex(x => x.id === candId);
+    if (idx2 !== -1) {
+      if (!cands2[idx2].linkedin_msgs) cands2[idx2].linkedin_msgs = {};
+      cands2[idx2].linkedin_msgs[contactType] = { type: contactType, type_label: typeLabels[contactType], message: msg };
+      ss('sc_cands', cands2);
+    }
+
+    window._lastLinkedInData = { candId, contactType };
+    el.innerHTML = _renderLinkedInResult({ type: contactType, type_label: typeLabels[contactType], message: msg });
+  } catch(err) {
+    el.innerHTML = `<div style="color:#dc2626;font-size:12px;padding:8px">⚠ Erreur : ${esc(err.message||String(err))}</div>`;
+  }
+};
+
+window._copyLinkedIn = function() {
+  const txt = document.getElementById('li-msg-text')?.textContent || '';
+  navigator.clipboard.writeText(txt).then(() => toast('📋 Message copié !'));
+};
+
+window._regenLinkedIn = function() {
+  const d = window._lastLinkedInData;
+  if (d) window._genLinkedIn(d.candId, d.contactType);
+};
+
 async function openSplitView(candId) {
   const c = ls('sc_cands', []).find(x => x.id === candId);
   if (!c) return;
@@ -2440,8 +2619,11 @@ async function openSplitView(candId) {
     <div id="split-decode-panel" style="margin-bottom:20px">
       ${_renderDecodePanelHtml(cachedDecode, false, cachedProvider, null, rawText)}
     </div>
-    <div id="split-ai-analysis" style="margin-bottom:28px">
+    <div id="split-ai-analysis" style="margin-bottom:20px">
       ${_renderAIAnalysisBlock(candId, a.career_ops || null)}
+    </div>
+    <div id="split-linkedin-block">
+      ${_renderLinkedInBlock(candId, (() => { const msgs = a.linkedin_msgs || c.linkedin_msgs; return msgs ? Object.values(msgs).slice(-1)[0] : null; })())}
     </div>`;
 
   // Déclenchement auto uniquement si déjà en cache (pas de spinner au chargement)
