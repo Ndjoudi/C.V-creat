@@ -128,13 +128,11 @@ function isMatchedSkill(skill) {
 function toggleSkillMatch(skill) {
   const sl = skill.toLowerCase().trim();
   if (isMatchedSkill(skill)) {
-    // Actuellement vert → désélectionner : ajouter à la blacklist
     if (!_deselectedSkills.map(d=>d.toLowerCase()).includes(sl)) {
       _deselectedSkills.push(sl);
     }
     localStorage.setItem('sc_deselected_skills', JSON.stringify(_deselectedSkills));
   } else {
-    // Actuellement gris → sélectionner : retirer de la blacklist + ajouter aux matchés
     _deselectedSkills = _deselectedSkills.filter(d => d.toLowerCase() !== sl);
     localStorage.setItem('sc_deselected_skills', JSON.stringify(_deselectedSkills));
     if (!_matchedSkills.map(k=>(k||'').toLowerCase()).includes(sl)) {
@@ -142,6 +140,24 @@ function toggleSkillMatch(skill) {
       localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
     }
   }
+
+  // Persiste les sélections manuelles dans la candidature courante
+  const candId = window._splitCandId;
+  if (candId) {
+    try {
+      const cands = JSON.parse(localStorage.getItem('sc_cands') || '[]');
+      const idx   = cands.findIndex(x => x.id === candId);
+      if (idx !== -1) {
+        const a = cands[idx].analysis || {};
+        const aiBase = [...(a.keywords_present||[]),...(a.must_have||[]),...(a.nice_to_have||[])].map(s=>s.toLowerCase());
+        // Seulement les skills ajoutés manuellement (pas dans la base IA)
+        cands[idx].manual_matched_skills   = _matchedSkills.filter(s => !aiBase.includes(s.toLowerCase()));
+        cands[idx].manual_deselected_skills = [..._deselectedSkills];
+        localStorage.setItem('sc_cands', JSON.stringify(cands));
+      }
+    } catch(e) {}
+  }
+
   renderCV();
   if (typeof _refreshSplitCV === 'function' &&
       !document.getElementById('split-modal-overlay')?.classList.contains('hidden')) {
@@ -340,7 +356,7 @@ function renderCV() {
       return `<span class="cv-skill-tag${matched ? ' cv-skill-tag--match' : ''} cv-skill-tag--toggle"
         onclick="toggleSkillMatch('${sk}')"
         title="${matched ? 'Désélectionner' : 'Sélectionner pour cette offre'}"
-        style="cursor:pointer">${esc(s)}${matched ? ' <span style="font-size:9px;opacity:.7">✓</span>' : ''}</span>`;
+        style="cursor:pointer">${esc(s)}</span>`;
     };
 
     // Helper : label de catégorie avec bouton +

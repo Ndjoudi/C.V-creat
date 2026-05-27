@@ -844,8 +844,8 @@ function _setupEmphasisSelection() {
       const sel = window.getSelection();
       const text = (sel?.toString() || '').trim();
 
-      // Retire le toolbar si sélection vide
-      if (!text || text.length < 2) {
+      // Retire le toolbar si sélection trop courte (min 5 chars pour éviter les clics accidentels)
+      if (!text || text.length < 5) {
         document.getElementById('emphasis-toolbar')?.remove();
         return;
       }
@@ -900,6 +900,12 @@ function _showEmphasisToolbar(text, range) {
       title="Retirer la mise en avant sur ce texte">✕</button>`;
 
   document.body.appendChild(toolbar);
+
+  // Fermeture au clic en dehors du toolbar
+  const _closeOnOutside = e => {
+    if (!toolbar.contains(e.target)) { toolbar.remove(); document.removeEventListener('mousedown', _closeOnOutside); }
+  };
+  setTimeout(() => document.addEventListener('mousedown', _closeOnOutside), 50);
 
   // Clic sur une option
   toolbar.querySelectorAll('button[data-em]').forEach(btn => {
@@ -2347,10 +2353,18 @@ async function openSplitView(candId) {
   const a = c.analysis || {};
   _cvTarget = a.poste || c.poste;
   localStorage.setItem('sc_cv_target', _cvTarget);
-  _matchedSkills = [...(a.keywords_present||[]),...(a.must_have||[]),...(a.nice_to_have||[])].filter(Boolean);
+  // Base IA + sélections manuelles persistées par candidature
+  const _aiBase = [...(a.keywords_present||[]),...(a.must_have||[]),...(a.nice_to_have||[])].filter(Boolean);
+  const _manualAdded    = c.manual_matched_skills   || [];
+  const _manualDeselect = c.manual_deselected_skills || [];
+  _matchedSkills = [...new Set([..._aiBase, ..._manualAdded])];
   localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
-  // Reset des désélections manuelles au changement d'offre
-  if (typeof _deselectedSkills !== 'undefined') { _deselectedSkills = []; localStorage.removeItem('sc_deselected_skills'); }
+  if (typeof _deselectedSkills !== 'undefined') {
+    _deselectedSkills = [..._manualDeselect];
+    _deselectedSkills.length
+      ? localStorage.setItem('sc_deselected_skills', JSON.stringify(_deselectedSkills))
+      : localStorage.removeItem('sc_deselected_skills');
+  }
 
   // Applique les overrides per-offre pour le rendu initial
   const openOverrides = _getCVOverrides(candId);
