@@ -2324,6 +2324,7 @@ function _renderSalaryBlock(offerText, candId) {
           </button>
         </div>
         <div id="salary-result-${candId}">${calc ? _salaryResultHtml(calc) : `<div style="font-size:12px;color:var(--ink3);margin-top:10px;text-align:center;padding:8px 0">Entre un salaire brut annuel pour voir ton net</div>`}</div>
+        ${_renderMarketSalaryBlock(candId, c.market_salary || null)}
       </div>
     </div>`;
 }
@@ -2334,7 +2335,6 @@ window._recalcSalary = function(candId) {
   const kval = parseFloat(input.value);
   if (!kval || kval < 10 || kval > 500) { toast('⚠ Entre un montant entre 10K et 500K€'); return; }
 
-  // Persiste dans la candidature
   const cands = ls('sc_cands', []);
   const idx   = cands.findIndex(x => x.id === candId);
   if (idx !== -1) { cands[idx].salary_brut_k = kval; ss('sc_cands', cands); }
@@ -2342,6 +2342,627 @@ window._recalcSalary = function(candId) {
   const calc = _calcSalaryFR(kval * 1000);
   const el   = document.getElementById('salary-result-' + candId);
   if (el) el.innerHTML = _salaryResultHtml(calc);
+};
+
+// ── LETTRE DE MOTIVATION & RÉPONSES FORMULAIRE ──────────────────────────────
+
+function _renderCoverLetterBlock(candId, cached) {
+  const hasGroq   = !!(localStorage.getItem('sc_key'));
+  const hasGemini = !!(localStorage.getItem('sc_gemini_key'));
+
+  const header = `
+    <div style="background:var(--bg2);padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+      <span style="font-size:13px">✉️</span>
+      <span style="font-size:12px;font-weight:700;color:var(--ink)">Lettre de motivation</span>
+      <div style="display:flex;gap:5px;margin-left:auto">
+        ${hasGroq   ? `<button id="lm-ai-groq" onclick="window._lmSetProvider('groq')"
+          style="padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--ink2)">⚡ Groq</button>` : ''}
+        ${hasGemini ? `<button id="lm-ai-gemini" onclick="window._lmSetProvider('gemini')"
+          style="padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--ink2)">✦ Gemini</button>` : ''}
+        <button onclick="window._genCoverLetter('${candId}')"
+          style="background:#0891b2;color:white;border:none;border-radius:6px;padding:3px 12px;font-size:11.5px;font-weight:700;cursor:pointer">
+          Générer
+        </button>
+      </div>
+    </div>`;
+
+  if (!cached) {
+    return `<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px">
+      ${header}
+      <div style="padding:14px 16px;font-size:12px;color:var(--ink3);text-align:center">
+        Génère ta lettre de motivation + réponses aux questions fréquentes des formulaires
+      </div>
+    </div>`;
+  }
+
+  const uid = 'lm-cached-' + candId;
+  setTimeout(() => {
+    const el = document.getElementById(uid);
+    if (el) el.innerHTML = _renderCoverLetterResult(cached);
+  }, 0);
+
+  return `<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px">
+    ${header}
+    <div id="${uid}" style="padding:14px 16px"></div>
+  </div>`;
+}
+
+function _renderCoverLetterResult(d) {
+  const tabs = [
+    { id:'lettre',   label:'✉️ Lettre' },
+    { id:'formules', label:'📋 Formulaire' },
+  ];
+
+  const tabBar = `<div style="display:flex;gap:0;border-bottom:1.5px solid var(--border);margin-bottom:14px">
+    ${tabs.map((t,i) => `<button onclick="window._lmTab('${t.id}')"
+      id="lm-tab-${t.id}"
+      style="padding:6px 14px;font-size:11.5px;font-weight:600;border:none;background:none;cursor:pointer;color:${i===0?'#0891b2':'var(--ink3)'};border-bottom:${i===0?'2.5px solid #0891b2':'2.5px solid transparent'}">
+      ${t.label}
+    </button>`).join('')}
+  </div>`;
+
+  // ── Lettre ──
+  const lettreHtml = `
+    <div style="position:relative">
+      <div id="lm-letter-text" style="font-size:12.5px;line-height:1.75;color:var(--ink);white-space:pre-wrap;background:var(--bg2);border-radius:8px;padding:14px 16px;border:1px solid var(--border)">${esc(d.lettre||'')}</div>
+      <div style="display:flex;gap:7px;margin-top:8px">
+        <button onclick="window._copyLM('lm-letter-text')"
+          style="background:#0891b2;color:white;border:none;border-radius:6px;padding:4px 14px;font-size:11.5px;font-weight:600;cursor:pointer;flex:1">
+          📋 Copier la lettre
+        </button>
+        <button onclick="window._genCoverLetter('${d._candId||''}')"
+          style="background:none;border:1.5px solid #0891b2;color:#0891b2;border-radius:6px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer">
+          ↺
+        </button>
+      </div>
+    </div>`;
+
+  // ── Réponses formulaire ──
+  const formItems = [
+    { key:'pourquoi_poste',     label:'Pourquoi ce poste ?' },
+    { key:'pourquoi_entreprise',label:'Pourquoi cette entreprise ?' },
+    { key:'pitch_60s',          label:'Parlez-nous de vous (60s)' },
+    { key:'pretentions',        label:'Prétentions salariales' },
+    { key:'disponibilite',      label:'Disponibilité' },
+  ];
+
+  const formulaireHtml = formItems.map(item => {
+    const val = (d.formulaire||{})[item.key];
+    if (!val) return '';
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0891b2;margin-bottom:5px">${item.label}</div>
+      <div style="position:relative">
+        <div id="lm-form-${item.key}" style="font-size:12px;line-height:1.6;color:var(--ink);background:var(--bg2);border-radius:7px;padding:9px 11px;border:1px solid var(--border);white-space:pre-wrap">${esc(val)}</div>
+        <button onclick="window._copyLM('lm-form-${item.key}')"
+          style="position:absolute;top:6px;right:7px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:10px;color:var(--ink3);cursor:pointer">
+          copier
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+    ${tabBar}
+    <div id="lm-panel-lettre">${lettreHtml}</div>
+    <div id="lm-panel-formules" style="display:none">${formulaireHtml}</div>`;
+}
+
+window._lmProvider = localStorage.getItem('sc_key') ? 'groq' : 'gemini';
+window._lmSetProvider = function(p) {
+  window._lmProvider = p;
+  ['groq','gemini'].forEach(id => {
+    const b = document.getElementById('lm-ai-' + id);
+    if (!b) return;
+    const active = id === p;
+    b.style.background  = active ? '#0891b2' : 'var(--bg)';
+    b.style.color       = active ? 'white'   : 'var(--ink2)';
+    b.style.borderColor = active ? '#0891b2' : 'var(--border)';
+  });
+};
+
+window._lmTab = function(tab) {
+  ['lettre','formules'].forEach(t => {
+    const panel = document.getElementById('lm-panel-' + t);
+    const btn   = document.getElementById('lm-tab-'   + t);
+    if (!panel || !btn) return;
+    const active = t === tab;
+    panel.style.display    = active ? 'block' : 'none';
+    btn.style.color        = active ? '#0891b2' : 'var(--ink3)';
+    btn.style.borderBottom = active ? '2.5px solid #0891b2' : '2.5px solid transparent';
+  });
+};
+
+window._copyLM = function(elId) {
+  const txt = document.getElementById(elId)?.textContent || '';
+  navigator.clipboard.writeText(txt).then(() => toast('📋 Copié !'));
+};
+
+window._genCoverLetter = async function(candId) {
+  const block = document.getElementById('split-coverletter-block');
+  if (!block) return;
+
+  const contentEl = block.querySelector('[id^="lm-cached-"], div[style*="text-align:center"]');
+  if (contentEl) contentEl.innerHTML = `<div style="text-align:center;padding:20px;font-size:12px;color:var(--ink3)">
+    <div class="sp" style="width:20px;height:20px;margin:0 auto 8px"></div>Rédaction en cours...
+  </div>`;
+
+  const cands  = ls('sc_cands', []);
+  const c      = cands.find(x => x.id === candId) || {};
+  const a      = c.analysis || {};
+  const cvText = _buildCVText();
+  const offer  = (c.rawOffer || c.description || '').slice(0, 2000);
+  const nom    = [P.firstName, P.lastName ? P.lastName.toUpperCase() : ''].filter(Boolean).join(' ') || '';
+  const salK   = c.salary_brut_k ? c.salary_brut_k + 'K€ brut/an' : 'à définir selon le package';
+
+  const prompt = `Tu es un expert en recrutement France. Génère une lettre de motivation + réponses formulaire.
+
+PROFIL :
+${cvText.slice(0, 1000)}
+Nom : ${nom}
+
+OFFRE :
+Poste : ${c.poste || a.poste || ''}
+Entreprise : ${c.entreprise || a.entreprise || ''}
+${offer ? `Extrait :\n${offer.slice(0,800)}` : ''}
+Points forts matchés : ${(a.points_forts||[]).slice(0,3).join(', ')}
+
+Réponds UNIQUEMENT en JSON valide :
+{
+  "lettre": "lettre complète prête à envoyer (200-250 mots, ton confiant 'Je vous choisis' pas suppliant, intro accroche → match → preuve concrète du CV → CTA, PAS de 'passionné par' ni langue corporate, en français)",
+  "formulaire": {
+    "pourquoi_poste": "3-4 phrases spécifiques au poste (pas générique)",
+    "pourquoi_entreprise": "2-3 phrases avec un élément concret sur l'entreprise",
+    "pitch_60s": "pitch de 60 secondes parlé, naturel, basé sur le CV réel",
+    "pretentions": "réponse courte et professionnelle incluant ${salK}",
+    "disponibilite": "réponse courte (préavis typique 1-3 mois)"
+  }
+}`;
+
+  try {
+    const provider = window._lmProvider || 'groq';
+    const text     = await (provider === 'gemini' ? callGemini : callGroq)(prompt, { maxTokens: 1800, temperature: 0.5 });
+    const d        = safeParseJSON(text);
+    if (!d || !d.lettre) throw new Error('Réponse invalide');
+
+    d._candId = candId;
+
+    // Sauvegarde
+    const cands2 = ls('sc_cands', []);
+    const idx2   = cands2.findIndex(x => x.id === candId);
+    if (idx2 !== -1) {
+      if (!cands2[idx2].analysis) cands2[idx2].analysis = {};
+      cands2[idx2].analysis.cover_letter = d;
+      ss('sc_cands', cands2);
+    }
+
+    if (contentEl) {
+      contentEl.id = 'lm-cached-' + candId;
+      contentEl.innerHTML = _renderCoverLetterResult(d);
+    }
+    toast('✓ Lettre générée !');
+  } catch(err) {
+    if (contentEl) contentEl.innerHTML = `<div style="color:#dc2626;font-size:12px;padding:12px">⚠ Erreur : ${esc(err.message||String(err))}</div>`;
+  }
+};
+
+// ── PRÉPARATION ENTRETIEN — BLOC F ──────────────────────────────────────────
+
+function _renderInterviewBlock(candId, cached) {
+  const hasGroq   = !!(localStorage.getItem('sc_key'));
+  const hasGemini = !!(localStorage.getItem('sc_gemini_key'));
+
+  const header = `
+    <div style="background:var(--bg2);padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+      <span style="font-size:13px">🎯</span>
+      <span style="font-size:12px;font-weight:700;color:var(--ink)">Préparation entretien</span>
+      <div style="display:flex;gap:5px;margin-left:auto">
+        ${hasGroq   ? `<button id="itw-ai-groq" onclick="window._itwSetProvider('groq')"
+          style="padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--ink2)">⚡ Groq</button>` : ''}
+        ${hasGemini ? `<button id="itw-ai-gemini" onclick="window._itwSetProvider('gemini')"
+          style="padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--ink2)">✦ Gemini</button>` : ''}
+        <button onclick="window._launchInterviewPrep('${candId}')"
+          style="background:#7c3aed;color:white;border:none;border-radius:6px;padding:3px 12px;font-size:11.5px;font-weight:700;cursor:pointer">
+          Générer
+        </button>
+      </div>
+    </div>`;
+
+  if (!cached) {
+    return `<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px">
+      ${header}
+      <div style="padding:14px 16px;font-size:12px;color:var(--ink3);text-align:center">
+        Génère ta préparation complète : stories STAR+R, questions probables, points de vigilance
+      </div>
+    </div>`;
+  }
+
+  const uid = 'itw-cached-' + candId;
+  setTimeout(() => {
+    const el = document.getElementById(uid);
+    if (el) el.innerHTML = _renderInterviewResult(cached);
+  }, 0);
+
+  return `<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px">
+    ${header}
+    <div id="${uid}" style="padding:14px 16px"></div>
+  </div>`;
+}
+
+function _renderInterviewResult(d) {
+  // ── 1. Tabs navigation ──
+  const tabs = [
+    { id:'stories',    label:'📖 Stories STAR+R' },
+    { id:'questions',  label:'❓ Questions' },
+    { id:'ask',        label:'💬 À poser' },
+    { id:'vigilance',  label:'⚠ Vigilance' },
+  ];
+
+  const tabBar = `<div style="display:flex;gap:0;border-bottom:1.5px solid var(--border);margin-bottom:14px">
+    ${tabs.map((t,i) => `<button onclick="window._itwTab('${t.id}')"
+      id="itw-tab-${t.id}"
+      style="padding:6px 12px;font-size:11.5px;font-weight:600;border:none;background:none;cursor:pointer;color:${i===0?'#7c3aed':'var(--ink3)'};border-bottom:${i===0?'2.5px solid #7c3aed':'2.5px solid transparent'};white-space:nowrap">
+      ${t.label}
+    </button>`).join('')}
+  </div>`;
+
+  // ── 2. Stories STAR+R ──
+  const storiesHtml = (d.stories||[]).map((s,i) => `
+    <div style="border:1.5px solid var(--border);border-radius:9px;overflow:hidden;margin-bottom:10px">
+      <div style="background:#faf5ff;padding:7px 12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer"
+        onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+        <div>
+          <span style="font-size:12px;font-weight:700;color:#6d28d9">${esc(s.titre||'')}</span>
+          <span style="font-size:10.5px;color:#7c3aed;margin-left:8px;background:#ede9fe;padding:1px 7px;border-radius:100px">${esc(s.couvre||'')}</span>
+        </div>
+        <span style="font-size:11px;color:var(--ink3)">▾</span>
+      </div>
+      <div style="padding:10px 13px;font-size:12px;line-height:1.6;display:block">
+        ${[
+          ['S — Situation', s.S],
+          ['T — Tâche',     s.T],
+          ['A — Action',    s.A],
+          ['R — Résultat',  s.R],
+          ['✦ Réflexion',   s.reflexion],
+        ].map(([lbl,val]) => val ? `<div style="margin-bottom:6px">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#7c3aed">${lbl}</span>
+          <div style="color:var(--ink);margin-top:2px">${esc(val)}</div>
+        </div>` : '').join('')}
+      </div>
+    </div>`).join('') || '<div style="color:var(--ink3);font-size:12px">Aucune story générée</div>';
+
+  // ── 3. Questions ──
+  const qTypes = [
+    { key:'recruteur',      label:'🔍 Recruteur / RH',    col:'#1d4ed8', bg:'#eff6ff' },
+    { key:'hiring_manager', label:'👔 Hiring Manager',    col:'#7c3aed', bg:'#faf5ff' },
+    { key:'technique',      label:'⚙ Technique / Métier', col:'#0f766e', bg:'#f0fdf4' },
+  ];
+  const questionsHtml = qTypes.map(qt => {
+    const qs = (d.questions||{})[qt.key] || [];
+    if (!qs.length) return '';
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:6px;background:${qt.bg};color:${qt.col};display:inline-block;margin-bottom:7px">${qt.label}</div>
+      ${qs.map(q => `<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;padding:7px 10px;background:var(--bg2);border-radius:7px;font-size:12px;color:var(--ink)">
+        <span style="color:${qt.col};font-weight:700;flex-shrink:0">Q</span>
+        <span style="line-height:1.5">${esc(q)}</span>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+
+  // ── 4. Questions à poser ──
+  const askHtml = (d.questions_a_poser||[]).map(q => `
+    <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:7px;padding:8px 10px;background:#f5f3ff;border-radius:7px;border-left:3px solid #7c3aed">
+      <span style="font-size:12px;color:#7c3aed;font-weight:700;flex-shrink:0">→</span>
+      <span style="font-size:12px;color:var(--ink);line-height:1.5">${esc(q)}</span>
+    </div>`).join('') || '<div style="color:var(--ink3);font-size:12px">Aucune question générée</div>';
+
+  // ── 5. Points de vigilance ──
+  const vigilHtml = (d.points_vigilance||[]).map(p => `
+    <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:7px;padding:8px 10px;background:#fef3c7;border-radius:7px;border-left:3px solid #f59e0b">
+      <span style="font-size:12px;color:#b45309;font-weight:700;flex-shrink:0">⚠</span>
+      <span style="font-size:12px;color:var(--ink);line-height:1.5">${esc(p)}</span>
+    </div>`).join('') || '<div style="color:var(--ink3);font-size:12px">Aucun point identifié</div>';
+
+  return `
+    ${tabBar}
+    <div id="itw-panel-stories"   style="display:block">${storiesHtml}</div>
+    <div id="itw-panel-questions" style="display:none">${questionsHtml}</div>
+    <div id="itw-panel-ask"       style="display:none">${askHtml}</div>
+    <div id="itw-panel-vigilance" style="display:none">${vigilHtml}</div>`;
+}
+
+window._itwProvider = localStorage.getItem('sc_key') ? 'groq' : 'gemini';
+window._itwSetProvider = function(p) {
+  window._itwProvider = p;
+  ['groq','gemini'].forEach(id => {
+    const b = document.getElementById('itw-ai-' + id);
+    if (!b) return;
+    const active = id === p;
+    b.style.background  = active ? '#7c3aed' : 'var(--bg)';
+    b.style.color       = active ? 'white'   : 'var(--ink2)';
+    b.style.borderColor = active ? '#7c3aed' : 'var(--border)';
+  });
+};
+
+window._itwTab = function(tab) {
+  ['stories','questions','ask','vigilance'].forEach(t => {
+    const panel = document.getElementById('itw-panel-' + t);
+    const btn   = document.getElementById('itw-tab-'   + t);
+    if (!panel || !btn) return;
+    const active = t === tab;
+    panel.style.display    = active ? 'block' : 'none';
+    btn.style.color        = active ? '#7c3aed'                  : 'var(--ink3)';
+    btn.style.borderBottom = active ? '2.5px solid #7c3aed'      : '2.5px solid transparent';
+  });
+};
+
+window._launchInterviewPrep = async function(candId) {
+  const overlay = document.querySelector(`#itw-cached-${candId}, [id^="itw-cached-"]`);
+  // Cherche le conteneur du bloc entretien
+  const block = document.getElementById('split-interview-block');
+  if (!block) return;
+
+  // Met à jour le contenu du bloc avec spinner
+  const inner = block.querySelector('[id^="itw-cached-"], div[style*="padding:14px"]');
+  const spinTarget = inner || block.querySelector('div:last-child');
+  if (spinTarget) spinTarget.innerHTML = `<div style="text-align:center;padding:20px;font-size:12px;color:var(--ink3)">
+    <div class="sp" style="width:20px;height:20px;margin:0 auto 8px"></div>Analyse en cours — génération des stories STAR+R...
+  </div>`;
+
+  const cands = ls('sc_cands', []);
+  const c     = cands.find(x => x.id === candId) || {};
+  const a     = c.analysis || {};
+  const cvText    = _buildCVText();
+  const offerText = (c.rawOffer || c.description || '').slice(0, 2000);
+
+  const prompt = `Tu es un coach carrière expert France. Génère une préparation d'entretien complète et personnalisée.
+
+CV DU CANDIDAT :
+${cvText.slice(0, 1200)}
+
+OFFRE CIBLÉE :
+Poste : ${c.poste || a.poste || ''}
+Entreprise : ${c.entreprise || a.entreprise || ''}
+Séniorité : ${a.seniorite || ''}
+${offerText ? `Extrait offre :\n${offerText}` : ''}
+${(a.lacunes||[]).length ? `Lacunes identifiées : ${a.lacunes.map(l=>l.competence||l).join(', ')}` : ''}
+
+Réponds UNIQUEMENT en JSON valide :
+{
+  "stories": [
+    {
+      "titre": "titre court de la story",
+      "couvre": "exigence de l'offre couverte",
+      "S": "Situation en 1-2 phrases",
+      "T": "Tâche / objectif en 1 phrase",
+      "A": "Actions concrètes en 2-3 phrases",
+      "R": "Résultat chiffré si possible",
+      "reflexion": "Ce que j'en ai appris / ce que je ferais différemment (signal séniorité)"
+    }
+  ],
+  "questions": {
+    "recruteur": ["question 1", "question 2", "question 3"],
+    "hiring_manager": ["question 1", "question 2", "question 3"],
+    "technique": ["question 1", "question 2", "question 3"]
+  },
+  "questions_a_poser": [
+    "question intelligente à poser à l'interviewer 1",
+    "question intelligente à poser à l'interviewer 2",
+    "question intelligente à poser à l'interviewer 3"
+  ],
+  "points_vigilance": [
+    "lacune ou point difficile à préparer avec stratégie de réponse",
+    "point 2"
+  ]
+}
+
+Règles :
+- 5 stories STAR+R minimum, chacune couvrant une exigence différente de l'offre
+- Stories basées sur les VRAIES expériences du CV — pas inventées
+- La Réflexion est obligatoire : c'est ce qui distingue un junior d'un senior
+- Questions en français, réalistes pour le secteur supply chain
+- Questions à poser : spécifiques à l'entreprise/poste, pas génériques
+- Points de vigilance : honnêtes, avec suggestion de mitigation concrète`;
+
+  try {
+    const provider = window._itwProvider || 'groq';
+    const text     = await (provider === 'gemini' ? callGemini : callGroq)(prompt, { maxTokens: 2500, temperature: 0.4 });
+    const d        = safeParseJSON(text);
+    if (!d || !d.stories) throw new Error('Réponse invalide de l\'IA');
+
+    // Sauvegarde
+    const cands2 = ls('sc_cands', []);
+    const idx2   = cands2.findIndex(x => x.id === candId);
+    if (idx2 !== -1) {
+      if (!cands2[idx2].analysis) cands2[idx2].analysis = {};
+      cands2[idx2].analysis.interview_prep = d;
+      ss('sc_cands', cands2);
+    }
+
+    // Re-render le bloc complet
+    const headerEl = block.querySelector('[style*="background:var(--bg2)"]');
+    const contentEl = block.querySelector('[id^="itw-cached-"], div[style*="padding:14px"]');
+    if (contentEl) {
+      contentEl.id = 'itw-cached-' + candId;
+      contentEl.innerHTML = _renderInterviewResult(d);
+    }
+    toast('✓ Préparation entretien générée !');
+  } catch(err) {
+    if (spinTarget) spinTarget.innerHTML = `<div style="color:#dc2626;font-size:12px;padding:12px">⚠ Erreur : ${esc(err.message||String(err))}</div>`;
+  }
+};
+
+// ── SALAIRE MARCHÉ (Bloc D) ──────────────────────────────────────────────────
+
+function _renderMarketSalaryBlock(candId, cached) {
+  const hasGroq   = !!(localStorage.getItem('sc_key'));
+  const hasGemini = !!(localStorage.getItem('sc_gemini_key'));
+
+  const aiPicker = `
+    <div style="display:flex;align-items:center;gap:5px;margin-bottom:7px">
+      <span style="font-size:10.5px;color:var(--ink3);font-weight:600">IA :</span>
+      ${hasGroq   ? `<button id="mkt-ai-groq" onclick="window._mktSetProvider('groq')"
+        style="padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--ink2)">⚡ Groq</button>` : ''}
+      ${hasGemini ? `<button id="mkt-ai-gemini" onclick="window._mktSetProvider('gemini')"
+        style="padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--ink2)">✦ Gemini</button>` : ''}
+      <button onclick="window._fetchMarketSalary('${candId}')"
+        style="margin-left:auto;background:#0f766e;color:white;border:none;border-radius:6px;padding:3px 11px;font-size:11px;font-weight:700;cursor:pointer">
+        📊 Analyser le marché
+      </button>
+    </div>`;
+
+  let resultHtml = cached
+    ? _renderMarketResult(cached, candId)
+    : `<div style="font-size:11.5px;color:var(--ink3);text-align:center;padding:5px 0">Lance l'analyse pour voir la fourchette marché</div>`;
+
+  return `
+    <div style="border-top:1.5px dashed var(--border);margin-top:10px;padding-top:10px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#0f766e;margin-bottom:7px">📊 Salaire marché</div>
+      ${aiPicker}
+      <div id="market-result-${candId}">${resultHtml}</div>
+    </div>`;
+}
+
+function _renderMarketResult(d, candId) {
+  const offre = (() => {
+    const c = ls('sc_cands', []).find(x => x.id === candId) || {};
+    return c.salary_brut_k ? c.salary_brut_k * 1000 : null;
+  })();
+
+  // Positionnement de l'offre vs marché
+  let posHtml = '';
+  if (offre && d.median) {
+    const pct = Math.round((offre - d.median) / d.median * 100);
+    const { label, col, bg } =
+      offre < d.fourchette_min * 0.95  ? { label:'⚠ Sous le marché',      col:'#dc2626', bg:'#fef2f2' } :
+      offre > d.fourchette_max * 1.05  ? { label:'✦ Au-dessus du marché', col:'#7c3aed', bg:'#f5f3ff' } :
+                                          { label:'✓ Dans la fourchette',  col:'#16a34a', bg:'#f0fdf4' };
+    posHtml = `<div style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;background:${bg};color:${col};font-size:11.5px;font-weight:700;margin-bottom:8px">
+      ${label} (${pct > 0 ? '+' : ''}${pct}% vs médiane)
+    </div>`;
+  }
+
+  // Barre visuelle min-médiane-max
+  const min = d.fourchette_min || 0;
+  const max = d.fourchette_max || 0;
+  const med = d.median || (min + max) / 2;
+  const medPct = max > min ? Math.round((med - min) / (max - min) * 100) : 50;
+  const offrePct = (offre && max > min) ? Math.min(100, Math.max(0, Math.round((offre - min) / (max - min) * 100))) : null;
+
+  const barHtml = max > 0 ? `
+    <div style="margin:10px 0 6px">
+      <div style="position:relative;height:8px;background:#e2e8f0;border-radius:100px">
+        <div style="position:absolute;left:0;top:0;height:100%;width:100%;background:linear-gradient(90deg,#d1fae5,#6ee7b7,#34d399);border-radius:100px;opacity:.7"></div>
+        <!-- Médiane -->
+        <div style="position:absolute;top:-3px;height:14px;width:2px;background:#0f766e;border-radius:2px;left:${medPct}%"></div>
+        ${offrePct !== null ? `<div title="Ton offre" style="position:absolute;top:-4px;width:10px;height:16px;background:#6366f1;border-radius:3px;left:calc(${offrePct}% - 5px)"></div>` : ''}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--ink3);margin-top:4px">
+        <span>${Math.round(min/1000)}K€</span>
+        <span style="color:#0f766e;font-weight:700">médiane ${Math.round(med/1000)}K€</span>
+        <span>${Math.round(max/1000)}K€</span>
+      </div>
+    </div>` : '';
+
+  // Légende
+  const legendHtml = offrePct !== null ? `<div style="display:flex;gap:12px;font-size:10px;color:var(--ink3);margin-bottom:8px">
+    <span><span style="display:inline-block;width:8px;height:8px;background:#0f766e;border-radius:2px;margin-right:3px"></span>Médiane marché</span>
+    <span><span style="display:inline-block;width:8px;height:8px;background:#6366f1;border-radius:2px;margin-right:3px"></span>Ton offre</span>
+  </div>` : '';
+
+  // Notes françaises
+  const notesHtml = (d.notes||[]).length ? `
+    <div style="margin-top:7px;display:flex;flex-direction:column;gap:3px">
+      ${d.notes.map(n => `<div style="font-size:11px;color:var(--ink2);line-height:1.4">• ${esc(n)}</div>`).join('')}
+    </div>` : '';
+
+  // Demande du poste
+  const demandeCol = d.demande === 'forte' ? '#16a34a' : d.demande === 'moyenne' ? '#d97706' : '#dc2626';
+  const demandHtml = d.demande ? `<span style="padding:2px 8px;border-radius:100px;font-size:10.5px;font-weight:600;background:${demandeCol}18;color:${demandeCol};border:1px solid ${demandeCol}44">Demande ${d.demande}</span>` : '';
+
+  return `
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:7px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;flex-wrap:wrap">
+        <span style="font-size:11.5px;font-weight:700;color:#166534">${esc(d.poste_label||'')}</span>
+        ${demandHtml}
+        <button onclick="window._fetchMarketSalary('${candId}')" title="Relancer" style="margin-left:auto;background:none;border:none;color:#0f766e;cursor:pointer;font-size:12px;padding:0">↺</button>
+      </div>
+      ${posHtml}
+      ${barHtml}
+      ${legendHtml}
+      ${notesHtml}
+      <div style="font-size:9px;color:var(--ink3);margin-top:6px">Sources estimées : WTTJ, APEC, Glassdoor, Talent.io · Données IA</div>
+    </div>`;
+}
+
+window._mktProvider = localStorage.getItem('sc_key') ? 'groq' : 'gemini';
+window._mktSetProvider = function(provider) {
+  window._mktProvider = provider;
+  ['groq','gemini'].forEach(p => {
+    const b = document.getElementById('mkt-ai-' + p);
+    if (!b) return;
+    const active = p === provider;
+    b.style.background  = active ? '#0f766e' : 'var(--bg)';
+    b.style.color       = active ? 'white'   : 'var(--ink2)';
+    b.style.borderColor = active ? '#0f766e' : 'var(--border)';
+  });
+};
+
+window._fetchMarketSalary = async function(candId) {
+  const el = document.getElementById('market-result-' + candId);
+  if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:12px;font-size:12px;color:var(--ink3)">
+    <div class="sp" style="width:16px;height:16px;margin:0 auto 6px"></div>Recherche en cours...
+  </div>`;
+
+  const cands = ls('sc_cands', []);
+  const c     = cands.find(x => x.id === candId) || {};
+  const a     = c.analysis || {};
+  const offer = (c.rawOffer || c.description || '').slice(0, 1500);
+
+  const prompt = `Tu es un expert RH France. Analyse le marché salarial pour ce poste.
+
+POSTE : ${c.poste || a.poste || ''}
+ENTREPRISE : ${c.entreprise || a.entreprise || ''}
+SECTEUR : ${a.domaine || ''}
+SÉNIORITÉ : ${a.seniorite || ''}
+EXTRAIT OFFRE : ${offer.slice(0, 800)}
+
+Réponds UNIQUEMENT en JSON valide :
+{
+  "poste_label": "titre normalisé du poste",
+  "fourchette_min": <entier en €>,
+  "fourchette_max": <entier en €>,
+  "median": <entier en €>,
+  "demande": "forte|moyenne|faible",
+  "notes": [
+    "note courte sur 13e mois / variable / intéressement si courant dans ce secteur",
+    "note sur convention collective applicable si pertinent (ex: SYNTEC, Métallurgie...)",
+    "note sur CDI/CDD fréquence",
+    "note sur télétravail / avantages courants"
+  ]
+}
+
+Règles :
+- Fourchette réaliste France 2025 (sources WTTJ, APEC, Glassdoor, Talent.io)
+- Adapter à la région si mentionnée dans l'offre (Paris > province ~15%)
+- Maximum 4 notes, concises (1 phrase chacune)
+- Si pas assez d'info, donne quand même une estimation raisonnable`;
+
+  try {
+    const provider = window._mktProvider || 'groq';
+    const text     = await (provider === 'gemini' ? callGemini : callGroq)(prompt, { maxTokens: 400, temperature: 0.3 });
+    const d        = safeParseJSON(text);
+    if (!d || !d.fourchette_min) throw new Error('Données incomplètes');
+
+    // Persiste
+    const cands2 = ls('sc_cands', []);
+    const idx2   = cands2.findIndex(x => x.id === candId);
+    if (idx2 !== -1) { cands2[idx2].market_salary = d; ss('sc_cands', cands2); }
+
+    el.innerHTML = _renderMarketResult(d, candId);
+  } catch(err) {
+    el.innerHTML = `<div style="color:#dc2626;font-size:12px;padding:8px">⚠ ${esc(err.message||String(err))}</div>`;
+  }
 };
 
 // ── LINKEDIN OUTREACH ───────────────────────────────────────────────────────
@@ -2613,18 +3234,25 @@ async function openSplitView(candId) {
         <span style="font-size:12.5px;color:var(--ink3)">Chargement des infos du poste et du trajet...</span>
       </div>
     </div>
-    <div id="split-salary-block">
-      ${_renderSalaryBlock(rawText, candId)}
-    </div>
     <div id="split-decode-panel" style="margin-bottom:20px">
       ${_renderDecodePanelHtml(cachedDecode, false, cachedProvider, null, rawText)}
     </div>
     <div id="split-ai-analysis" style="margin-bottom:20px">
       ${_renderAIAnalysisBlock(candId, a.career_ops || null)}
     </div>
-    <div id="split-linkedin-block">
+    <div id="split-coverletter-block" style="margin-bottom:20px">
+      ${_renderCoverLetterBlock(candId, a.cover_letter || null)}
+    </div>
+    <div id="split-linkedin-block" style="margin-bottom:20px">
       ${_renderLinkedInBlock(candId, (() => { const msgs = a.linkedin_msgs || c.linkedin_msgs; return msgs ? Object.values(msgs).slice(-1)[0] : null; })())}
-    </div>`;
+    </div>
+    <div id="split-salary-block" style="margin-bottom:20px">
+      ${_renderSalaryBlock(rawText, candId)}
+    </div>
+    <div id="split-interview-block">
+      ${_renderInterviewBlock(candId, a.interview_prep || null)}
+    </div>
+`;
 
   // Déclenchement auto uniquement si déjà en cache (pas de spinner au chargement)
   if (false) {
@@ -2765,134 +3393,3 @@ function toggleLiDesc() {
 }
 
 // ── GÉNÉRATEUR MESSAGE LINKEDIN ────────────────────────────
-async function genLinkedInMsg(provider) {
-  const overlay  = document.getElementById('li-msg-overlay');
-  const textarea = document.getElementById('li-msg-text');
-  const pickEl   = document.getElementById('li-msg-pick');
-  const footEl   = document.getElementById('li-msg-foot');
-  const subEl    = document.getElementById('li-msg-sub');
-
-  overlay.classList.remove('hidden');
-
-  // Si pas de provider → affiche le sélecteur
-  if (!provider) {
-    pickEl.style.display  = 'flex';
-    textarea.style.display = 'none';
-    footEl.style.display   = 'none';
-    subEl.textContent      = 'Choisis une IA';
-    return;
-  }
-
-  // Cache le sélecteur, affiche le spinner
-  pickEl.style.display   = 'none';
-  textarea.style.display = 'block';
-  footEl.style.display   = 'flex';
-  textarea.value         = '';
-  subEl.textContent      = `Génération via ${provider === 'gemini' ? 'Gemini 🟣' : 'Groq 🟠'}…`;
-
-  const candId = window._splitCandId;
-  const cands  = ls('sc_cands', []);
-  const c      = cands.find(x => x.id === candId);
-  const offer  = (c?.jobDescription || '').slice(0, 3000);
-  const poste  = c?.poste || 'ce poste';
-
-  const nom = [P.firstName, P.lastName?.toUpperCase()].filter(Boolean).join(' ') || 'Prénom NOM';
-  const TEMPLATE = `Bonjour,\nvotre poste de [POSTE] m'a interpellé, notamment pour [1_ELEMENT_OFFRE]. [PHRASE_PERSONNALISEE]\n\nJe me permets de joindre mon CV. Seriez-vous disponible pour en échanger ?\n\nBonne journée,\n${nom}`;
-
-  const realisations = [
-    P.yearsExp ? `${P.yearsExp} en logistique e-commerce` : '',
-    ...(P.experiences || []).flatMap(e =>
-      (e.bullets || []).filter(b => b.required || b.selected).map(b => b.text)
-    ).slice(0, 8)
-  ].filter(Boolean).join(' | ') || '5 ans logistique e-commerce, management 10-15 personnes, optimisation dépôt +40%, 2M€/mois supervisés, Master Supply Chain en cours';
-
-  // Données déjà extraites par l'analyse IA
-  const analysis = c?.analysis || {};
-  const missionTags     = (analysis.missions       || []).flatMap(m => m.tags   || [m.attente || '']).filter(Boolean);
-  const profilTags      = (analysis.profil_recherche|| []).flatMap(p => p.tags  || [p.attente || '']).filter(Boolean);
-  const competencesCles = (analysis.competences_cles|| []);
-  const keywords        = (analysis.keywords        || []);
-
-  const besoinsOffre = [
-    missionTags.length    ? `Missions : ${missionTags.join(', ')}`         : '',
-    profilTags.length     ? `Profil recherché : ${profilTags.join(', ')}`  : '',
-    competencesCles.length? `À mettre en avant : ${competencesCles.join(', ')}` : '',
-    keywords.length       ? `Mots-clés : ${keywords.join(', ')}`           : '',
-  ].filter(Boolean).join('\n');
-
-  const prompt = `À partir des données de l'offre ci-dessous, extrais :
-
-1. [POSTE] : titre exact du poste
-2. [1_ELEMENT_OFFRE] : une mission clé du poste en 4-6 mots maximum
-3. [PHRASES] : un tableau JSON de 5 strings (chaînes de caractères uniquement, pas d'objets). Pour construire chaque phrase, suis mentalement ces étapes SANS les inclure dans le JSON :
-   - Étape 1 : Identifie le besoin LE PLUS IMPORTANT parmi [BESOINS_OFFRE] (compétence, qualité ou mission indispensable)
-   - Étape 2 : Parmi [REALISATIONS], sélectionne 2 ou 3 réalisations qui ensemble répondent le mieux à ce besoin
-   - Étape 3 : Synthétise en une seule phrase courte (20 mots max) à la PREMIÈRE PERSONNE qui montre une compétence globale en lien direct avec le besoin identifié. Reformule, ne copie pas. La phrase se termine par un seul point. NE JAMAIS commencer par "Votre".
-   Exemple : ["Ma phrase 1.", "Ma phrase 2.", "Ma phrase 3.", "Ma phrase 4.", "Ma phrase 5."]
-
-[BESOINS_OFFRE] :
-${besoinsOffre || `Poste : ${poste}`}
-
-[REALISATIONS] : ${realisations}
-
-Réponds UNIQUEMENT en JSON, sans texte avant ou après :
-{"POSTE": "...", "1_ELEMENT_OFFRE": "...", "PHRASES": ["...", "...", "...", "...", "..."]}
-
-Offre (contexte) : ${offer.slice(0, 1000)}`;
-
-  try {
-    const raw = provider === 'gemini'
-      ? await callGemini(prompt, { maxTokens: 500, temperature: 0.6 })
-      : await callGroq(prompt,   { maxTokens: 500, temperature: 0.6 });
-
-    const data = safeParseJSON(raw);
-    const rawPhrases = Array.isArray(data.PHRASES) ? data.PHRASES : [data.PHRASE_PERSONNALISEE || '…'];
-    // Défense : si l'IA retourne des objets, on extrait la dernière valeur string
-    const phrases = rawPhrases.map(p => {
-      if (typeof p === 'string') return p;
-      if (typeof p === 'object' && p !== null) {
-        const vals = Object.values(p).filter(v => typeof v === 'string');
-        return vals[vals.length - 1] || '…';
-      }
-      return String(p);
-    });
-    const posteVal   = data.POSTE            || poste;
-    const elementVal = data['1_ELEMENT_OFFRE'] || '…';
-
-    // Affiche les propositions à gauche
-    const propEl = document.getElementById('li-msg-proposals');
-    propEl.innerHTML = '';
-    phrases.forEach((p, i) => {
-      const btn = document.createElement('div');
-      btn.textContent = p;
-      btn.style.cssText = 'font-size:12px;line-height:1.5;padding:9px 11px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;color:var(--ink);background:white;transition:border-color .12s,background .12s';
-      btn.onclick = () => {
-        propEl.querySelectorAll('div').forEach(d => { d.style.background='white'; d.style.borderColor='var(--border)'; d.style.fontWeight=''; });
-        btn.style.background   = '#eff6ff';
-        btn.style.borderColor  = '#3b82f6';
-        btn.style.fontWeight   = '600';
-        document.getElementById('li-msg-text').value = TEMPLATE
-          .replace('[POSTE]',               posteVal)
-          .replace('[1_ELEMENT_OFFRE]',     elementVal)
-          .replace('[PHRASE_PERSONNALISEE]', p);
-      };
-      propEl.appendChild(btn);
-      // Sélectionne la première par défaut
-      if (i === 0) btn.click();
-    });
-
-    document.getElementById('li-msg-result').style.display = 'flex';
-    document.getElementById('li-msg-foot').style.display   = 'flex';
-    subEl.textContent = 'Choisis une phrase →';
-  } catch(e) {
-    textarea.value    = '';
-    subEl.textContent = '⚠ Erreur : ' + e.message;
-  }
-}
-
-function liMsgReset() {
-  document.getElementById('li-msg-pick').style.display   = 'flex';
-  document.getElementById('li-msg-result').style.display = 'none';
-  document.getElementById('li-msg-foot').style.display   = 'none';
-  document.getElementById('li-msg-sub').textContent      = 'Choisis une IA';
-}
