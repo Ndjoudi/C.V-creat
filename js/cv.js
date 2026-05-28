@@ -88,10 +88,6 @@ function buildProfileHighlight() {
   if (P.permis)           pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
   if (pills.length) segments.push(pills.join(''));
 
-  // Ligne 3 : Phrase d'accroche (champ libre domainesProfile)
-  if (P.domainesProfile) {
-    segments.push(`<span class="cv-phi-plain">${esc(P.domainesProfile)}</span>`);
-  }
 
   if (!segments.length) return '';
   return `<div class="cv-profile-highlight">${segments.map(s => `<div class="cv-phi-line">${s}</div>`).join('')}</div>`;
@@ -243,6 +239,64 @@ function renderDescription(text) {
   return `<div class="cv-edesc">${esc(text)}</div>`;
 }
 
+// ── HELPER — construit la phrase d'accroche complète ───────
+function _buildAccrocheText() {
+  const poste = (typeof _cvTarget !== 'undefined' ? _cvTarget : '') || P.title || '[poste ciblé]';
+  // 1. Champ accrocheIntro (nouveau, prioritaire)
+  const intro = (P.accrocheIntro || '').trim();
+  if (intro) {
+    const clean = intro.replace(/[,.\s]+$/, ''); // enlève virgule/point final
+    return `${clean}, je vise un poste de ${poste}.`;
+  }
+  // 2. Fallback auto depuis yearsExp + domainesProfile
+  const y = P.yearsExp || '', d = P.domainesProfile || '';
+  if (y || d) {
+    let t = '';
+    if (y) t += `Fort(e) de ${y}`;
+    if (d) t += (y ? ' en ' : 'En ') + d;
+    t += `, je vise un poste de ${poste}.`;
+    return t;
+  }
+  // 3. Fallback : summaryTarget legacy
+  return stripHTML(P.summaryTarget) || '';
+}
+
+// ── PRÉ-REMPLIR LA PARTIE LIBRE DE L'ACCROCHE ─────────────
+function prefillAccroche() {
+  const years  = P.yearsExp        || '';
+  const domain = P.domainesProfile || '';
+  let t = '';
+  if (years)  t += `Fort de ${years}`;
+  if (domain) t += (years ? ' en ' : 'En ') + domain;
+  if (!t)     t  = 'Fort de [X ans] en [domaine]';
+  const el = document.getElementById('p-accrocheIntro');
+  if (el) {
+    el.value = t;
+    el.focus();
+    el.setSelectionRange(t.length, t.length);
+    saveProfile();
+    renderCV();
+    if (typeof _syncSplitCV === 'function') _syncSplitCV();
+  }
+}
+
+// ── MISE À JOUR APERÇU ACCROCHE (profil form) ─────────────
+function _updateAccrochePreview() {
+  const intro = (P.accrocheIntro || '').trim();
+  const poste = (typeof _cvTarget !== 'undefined' ? _cvTarget : '') || P.title || '[poste ciblé]';
+  const prev  = document.getElementById('accroche-preview-text');
+  const prevP = document.getElementById('accroche-preview-poste');
+  if (!prev || !prevP) return;
+  if (intro) {
+    const clean = intro.replace(/[,.\s]+$/, '');
+    prev.textContent  = clean + ', je vise un poste de ';
+    prevP.textContent = poste + '.';
+  } else {
+    prev.textContent  = '[ta phrase], je vise un poste de ';
+    prevP.textContent = poste + '.';
+  }
+}
+
 // ── CV TARGET ──────────────────────────────────────────────
 function setCVTarget(val) {
   _cvTarget = val.trim();
@@ -307,9 +361,9 @@ function renderCV() {
   </div>
   <div class="cv-div"></div>`;
 
-  // ── Profil : bloc highlight auto + texte "Pour ce poste" ──
+  // ── Profil : bloc highlight + phrase d'accroche ───────────
   const highlightBlock = buildProfileHighlight();
-  const targetText     = stripHTML(P.summaryTarget);
+  const targetText     = _buildAccrocheText();
   if (highlightBlock || targetText) {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>
@@ -865,7 +919,7 @@ function _buildModerneCV() {
 
   // Profil
   const highlightBlock = buildProfileHighlight();
-  const targetText     = stripHTML(P.summaryTarget);
+  const targetText     = _buildAccrocheText();
   if (highlightBlock || targetText) {
     mc += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>

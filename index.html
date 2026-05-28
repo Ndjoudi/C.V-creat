@@ -279,13 +279,6 @@
         <div class="card" style="margin-bottom:16px">
           <div class="section-hdg"><i data-lucide="type" style="width:13px;height:13px"></i>Titre & Accroche CV</div>
 
-          <!-- Titre général -->
-          <div class="fg">
-            <label class="lb">Titre professionnel général</label>
-            <input class="inp" id="p-title" placeholder="Ex: Supply Chain Manager · Assistant Marketing · Chargé RH" oninput="saveProfile()"/>
-            <div style="font-size:11px;color:var(--ink3);margin-top:4px">Ton titre par défaut — il sera remplacé par le <strong>Poste ciblé</strong> dans l'écran CV lors d'une candidature</div>
-          </div>
-
           <!-- Séparateur -->
           <div style="border-top:1px solid var(--border);margin:16px 0 14px"></div>
 
@@ -295,10 +288,6 @@
             <div class="fg" style="grid-column:1/-1">
               <label class="lb">Formation <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink3)">— depuis l'onglet Formation</span></label>
               <div class="inp" id="p-formation-display" style="color:var(--ink3);background:var(--bg);min-height:38px;display:flex;align-items:center">—</div>
-            </div>
-            <div class="fg" style="grid-column:1/-1">
-              <label class="lb">Domaines</label>
-              <input class="inp" id="p-domainesProfile" placeholder="Ex : Gestion des stocks · Approvisionnement · Amélioration continue" oninput="saveProfile()"/>
             </div>
             <div class="fg"><label class="lb">Contrat recherché</label><input class="inp" id="p-contratRecherche" placeholder="Ex : CDI temps complet" oninput="saveProfile()"/></div>
             <div class="fg"><label class="lb">Disponibilité</label><input class="inp" id="p-disponibilite" placeholder="Ex : Octobre 2026" oninput="saveProfile()"/></div>
@@ -314,14 +303,19 @@
           <!-- Séparateur -->
           <div style="border-top:1px solid var(--border);margin:16px 0 14px"></div>
 
-          <!-- Pour ce poste (dynamique) -->
+          <!-- Phrase d'accroche (dynamique) -->
           <div class="fg" style="margin-bottom:0">
             <div class="fg-row">
-              <label class="lb">Pour ce poste <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--teal)">— à adapter par candidature</span></label>
-              <button class="btn-ai" onclick="openModal('target')"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l'IA</button>
+              <label class="lb">Phrase d'accroche <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--teal)">— partie libre</span></label>
+              <button class="btn-ai" onclick="prefillAccroche()">⚡ Pré-remplir</button>
             </div>
-            <div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.55">Faits concrets uniquement — outils maîtrisés, expériences clés, langue si requise.</div>
-            <textarea class="inp" id="p-summaryTarget" rows="2" placeholder="Ex : 2 stages en environnement logistique, WMS et Excel maîtrisés. Anglais B2." oninput="saveProfile()"></textarea>
+            <textarea class="inp" id="p-accrocheIntro" rows="2"
+              placeholder="Fort de 5 ans en logistique e-commerce, coordination opérationnelle et suivi de performance"
+              oninput="saveProfile();renderCV();_updateAccrochePreview()"></textarea>
+            <div style="margin-top:6px;padding:8px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border);font-size:11.5px;color:var(--ink2);line-height:1.6">
+              <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3)">Aperçu CV :</span><br>
+              <em id="accroche-preview-text" style="color:var(--ink)"></em><span style="color:var(--teal-d);font-weight:600" id="accroche-preview-poste"></span>
+            </div>
           </div>
         </div>
 
@@ -335,12 +329,6 @@
             <div class="fg"><label class="lb">Téléphone</label><input class="inp" id="p-phone" placeholder="+33 6 12 34 56 78"              oninput="saveProfile()"/></div>
             <div class="fg"><label class="lb">Localisation</label><input class="inp" id="p-loc" placeholder="Paris, Île-de-France"          oninput="saveProfile()"/></div>
             <div class="fg"><label class="lb">LinkedIn</label><input class="inp" id="p-linkedin" placeholder="linkedin.com/in/jean-dupont"  oninput="saveProfile()"/></div>
-            <div class="fg"><label class="lb">Années d'expérience</label>
-              <select class="inp" id="p-yexp" onchange="saveProfile()">
-                <option value="">Sélectionner...</option>
-                <option>Moins d'1 an</option><option>1-2 ans</option><option>3-5 ans</option><option>5-10 ans</option><option>10-15 ans</option><option>15+ ans</option>
-              </select>
-            </div>
           </div>
           <div style="padding:10px 14px;background:var(--teal-bg);border-radius:var(--radius-sm);font-size:12.5px;color:var(--teal-d);font-weight:600;border:1px solid var(--teal-border)"><i data-lucide="check" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"></i>Sauvegardé automatiquement</div>
         </div>
@@ -733,7 +721,7 @@
 <script src="js/app.js?v=62"></script>
 <script src="js/profile.js?v=53"></script>
 <script src="js/import-cv.js?v=35"></script>
-<script src="js/cv.js?v=50"></script>
+<script src="js/cv.js?v=56"></script>
 <script src="js/analyze.js?v=38"></script>
 <script src="js/history.js?v=35"></script>
 <script src="js/tracker.js?v=147"></script>

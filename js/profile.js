@@ -4,7 +4,8 @@ const FIELD_MAP = {
   loc:'location', linkedin:'linkedin', title:'title',
   yexp:'yearsExp', mobility:'mobility', summaryTarget:'summaryTarget',
   permis:'permis', disponibilite:'disponibilite', contratRecherche:'contratRecherche',
-  domainesProfile:'domainesProfile', hobbies:'hobbies'
+  domainesProfile:'domainesProfile', hobbies:'hobbies',
+  accrocheIntro:'accrocheIntro'
 };
 
 // Supprime les balises HTML résiduelles (phase rich-editor)
@@ -21,6 +22,7 @@ function loadProfileToForm() {
   });
   renderFormationDisplay();
   renderPhotoPreview();
+  if (typeof _updateAccrochePreview === 'function') _updateAccrochePreview();
 }
 
 // ── FORMATION DISPLAY (read-only from education[0]) ────────
