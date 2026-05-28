@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
 <link rel="stylesheet" href="css/components.css?v=37"/>
-<link rel="stylesheet" href="css/cv.css?v=38"/>
+<link rel="stylesheet" href="css/cv.css?v=39"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -474,6 +474,12 @@
           <input class="inp" id="cv-target-input" placeholder="Ex: CDI - Assistant Marketing (remplace le titre sur le CV)" style="flex:1;padding:8px 12px;font-size:13px;min-width:200px" oninput="setCVTarget(this.value)"/>
           <div style="font-size:11px;color:var(--ink3);white-space:nowrap">Auto-rempli après analyse d'offre</div>
         </div>
+        <!-- Sélecteur de template -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+          <span style="font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;flex-shrink:0">Template</span>
+          <button class="tpl-btn active" data-tpl="classique" onclick="setCVTemplate('classique')">📄 Classique</button>
+          <button class="tpl-btn"        data-tpl="moderne"   onclick="setCVTemplate('moderne')">🎨 Moderne</button>
+        </div>
         <div style="font-size:11.5px;color:var(--ink3);margin-bottom:14px;display:flex;align-items:center;gap:6px"><i data-lucide="info" style="width:13px;height:13px;flex-shrink:0"></i>Dans la boîte d'impression : choisir <strong>"Enregistrer en PDF"</strong>, désactiver les en-têtes/pieds de page</div>
         <div id="cv-analysis-result" style="margin-bottom:16px"></div>
         <div class="cv-doc" id="cv-doc"></div>
@@ -727,10 +733,10 @@
 <script src="js/app.js?v=62"></script>
 <script src="js/profile.js?v=53"></script>
 <script src="js/import-cv.js?v=35"></script>
-<script src="js/cv.js?v=48"></script>
+<script src="js/cv.js?v=50"></script>
 <script src="js/analyze.js?v=38"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=146"></script>
+<script src="js/tracker.js?v=147"></script>
 <script src="js/modal.js?v=36"></script>
 
 </body>

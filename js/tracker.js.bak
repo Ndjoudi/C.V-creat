@@ -3287,14 +3287,6 @@ async function openSplitView(candId) {
   // ── Emphases manuelles ──
   setTimeout(() => {
     _setupEmphasisSelection();
-    // Strip les spans statiques de renderBulletHtml (data-cv-em) AVANT de
-    // reposer les interactifs (data-emphasis) — évite le badge en double
-    const _splitEl = document.getElementById('cv-doc-split');
-    if (_splitEl) {
-      _splitEl.querySelectorAll('span[data-cv-em]').forEach(s =>
-        s.replaceWith(document.createTextNode(s.textContent))
-      );
-    }
     _applyEmphases(candId);
   }, 200);
 

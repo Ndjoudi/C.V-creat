@@ -262,17 +262,6 @@ function renderCV() {
   const targetInput = document.getElementById('cv-target-input');
   if (targetInput && !targetInput.value && _cvTarget) targetInput.value = _cvTarget;
 
-  // ── Template branch ──────────────────────────────────────
-  const cvDoc = document.getElementById('cv-doc');
-  const _tpl  = P.cvTemplate || 'classique';
-  _updateTplPicker(_tpl);
-  if (_tpl === 'moderne') {
-    cvDoc.className  = 'cv-doc cv-doc--moderne';
-    cvDoc.innerHTML  = _buildModerneCV();
-    return;
-  }
-  cvDoc.className = 'cv-doc';
-
   // ── Header ──
   const displayTitle = _cvTarget || P.title;
 
@@ -435,7 +424,7 @@ function renderCV() {
     </div>`;
   }
 
-  cvDoc.innerHTML = html;
+  document.getElementById('cv-doc').innerHTML = html;
 }
 
 // ── ANALYSE DU CV ──────────────────────────────────────────
@@ -688,9 +677,7 @@ function printCV() {
     wrapper.id = 'cv-print-wrapper';
     document.body.appendChild(wrapper);
   }
-  const _printTpl   = P.cvTemplate || 'classique';
-  const _printClass = _printTpl === 'moderne' ? 'cv-doc cv-doc--moderne' : 'cv-doc';
-  wrapper.innerHTML = `<div class="${_printClass}">${srcEl.innerHTML}</div>`;
+  wrapper.innerHTML = `<div class="cv-doc">${srcEl.innerHTML}</div>`;
 
   // Supprime les éléments interactifs (boutons +, toolbars) de la version imprimée
   wrapper.querySelectorAll('button, #emphasis-toolbar, [id$="-picker"]').forEach(el => el.remove());
@@ -724,196 +711,5 @@ function printCV() {
     // Restaure le titre original après l'impression
     setTimeout(() => { document.title = originalTitle; }, 1000);
   }, 80);
-}
-
-// ── TEMPLATE PICKER — met à jour les boutons actifs ────────
-function _updateTplPicker(tpl) {
-  document.querySelectorAll('.tpl-btn').forEach(btn => {
-    const t = btn.dataset.tpl;
-    if (!t) return;
-    btn.classList.toggle('active', t === tpl);
-  });
-}
-
-// ── CHANGER LE TEMPLATE ────────────────────────────────────
-function setCVTemplate(tpl) {
-  P.cvTemplate = tpl;
-  ss('sc_profile', P);
-  renderCV();
-  if (typeof _syncSplitCV === 'function') _syncSplitCV();
-}
-
-// ── SUPPRIMER UNE COMPÉTENCE DU PROFIL (sidebar Moderne) ──
-window._removeSkillFromProfile = function(key, val) {
-  // key = 'auto' → cherche dans tous les tableaux
-  let target = key;
-  if (key === 'auto') {
-    target = ['subdomains','tools','informatique','certifs','customSkills']
-      .find(k => (P[k]||[]).some(s => s.toLowerCase() === val.toLowerCase())) || '';
-  }
-  if (!target || !P[target]) return;
-  P[target] = P[target].filter(s => s.toLowerCase() !== val.toLowerCase());
-  ss('sc_profile', P);
-  renderCV();
-  if (typeof _syncSplitCV === 'function') _syncSplitCV();
-};
-
-// ── RENDU TEMPLATE MODERNE (sidebar sombre) ────────────────
-function _buildModerneCV() {
-  const displayTitle = _cvTarget || P.title;
-  const liUrl = P.linkedin
-    ? (P.linkedin.startsWith('http') ? P.linkedin : 'https://' + P.linkedin)
-    : '';
-
-  // ─── SIDEBAR ─────────────────────────────────────────────
-  let sb = '';
-
-  // Photo ou initiales
-  if (P.photo) {
-    sb += `<img src="${P.photo}" class="cv-sb-photo"/>`;
-  } else {
-    const ini = (((P.firstName||'')[0]||'') + ((P.lastName||'')[0]||'')).toUpperCase();
-    sb += `<div style="width:82px;height:82px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:rgba(255,255,255,.6);margin:0 auto 12px;flex-shrink:0">${ini||'?'}</div>`;
-  }
-
-  sb += `<div class="cv-sb-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>`;
-  if (displayTitle) sb += `<div class="cv-sb-ti">${esc(displayTitle)}</div>`;
-
-  // Contact
-  const ci = [
-    P.email    && `<div class="cv-sb-ci"><span class="cv-sb-ci-icon">✉</span><span>${esc(P.email)}</span></div>`,
-    P.phone    && `<div class="cv-sb-ci"><span class="cv-sb-ci-icon">☎</span><span>${esc(P.phone)}</span></div>`,
-    P.location && `<div class="cv-sb-ci"><span class="cv-sb-ci-icon">⌖</span><span>${esc(P.location)}</span></div>`,
-    liUrl      && `<div class="cv-sb-ci"><span class="cv-sb-ci-icon" style="font-weight:900;font-size:8px">in</span><a href="${liUrl}" style="color:rgba(255,255,255,.72);text-decoration:none;word-break:break-all;font-size:9.5px">${esc((P.linkedin||'').replace(/^https?:\/\/(www\.)?linkedin\.com\//,'linkedin.com/'))}</a></div>`,
-  ].filter(Boolean);
-  if (ci.length) sb += `<div class="cv-sb-stitle">Contact</div>${ci.join('')}`;
-
-  // ── Helpers sidebar ──────────────────────────────────────
-  // Tag cliquable (toggle match) + × pour supprimer
-  const sbTag = (s, key) => {
-    const matched = isMatchedSkill(s);
-    const sk  = s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    const k   = (key||'auto').replace(/'/g,"\\'");
-    return `<span class="cv-sb-tag${matched ? ' cv-sb-tag--match' : ''}"
-      onclick="toggleSkillMatch('${sk}')"
-      title="${matched ? 'Désélectionner' : 'Sélectionner'}"
-      style="position:relative;padding-right:18px;cursor:pointer">
-        ${esc(s)}
-        <span onclick="event.stopPropagation();window._removeSkillFromProfile('${k}','${sk}')"
-          title="Supprimer"
-          style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:10px;opacity:.4;line-height:1;cursor:pointer;font-weight:700">×</span>
-      </span>`;
-  };
-
-  // Titre de section + bouton +
-  const sbSec = (label, key) => {
-    const k = (key||'').replace(/'/g,"\\'");
-    return `<div class="cv-sb-stitle" style="display:flex;align-items:center;justify-content:space-between">
-      <span>${label}</span>
-      <button onclick="event.stopPropagation();window._openSkillPicker('${k}',this)"
-        style="background:rgba(255,255,255,.14);color:rgba(255,255,255,.75);border:none;border-radius:50%;width:14px;height:14px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-weight:800;flex-shrink:0;line-height:1">+</button>
-    </div>`;
-  };
-
-  // Compétences (subdomains + tools + informatique) — key 'auto' pour la suppression
-  const allSkillsWithKey = [
-    ...P.subdomains.map(s  => ({s, k:'subdomains'})),
-    ...P.tools.map(s       => ({s, k:'tools'})),
-    ...P.informatique.map(s=> ({s, k:'informatique'})),
-  ].filter(x => x.s);
-
-  if (allSkillsWithKey.length || true) {
-    sb += sbSec('Compétences','tools');
-    sb += `<div>${allSkillsWithKey.map(x => sbTag(x.s, x.k)).join('')}</div>`;
-  }
-  if (P.certifs.length || true) {
-    sb += sbSec('Certifications','certifs');
-    sb += `<div>${P.certifs.map(s => sbTag(s,'certifs')).join('')}</div>`;
-  }
-  if (P.customSkills.length || true) {
-    sb += sbSec('Autres','customSkills');
-    sb += `<div>${P.customSkills.map(s => sbTag(s,'customSkills')).join('')}</div>`;
-  }
-
-  // Langues
-  if (P.languages.length) {
-    sb += `<div class="cv-sb-stitle">Langues</div>`;
-    P.languages.forEach(l => {
-      sb += `<div class="cv-sb-lang">
-        <span style="font-weight:700">${esc(l.name)}</span>
-        <span class="cv-sb-lang-lv">${esc(l.level)}</span>
-      </div>`;
-    });
-  }
-
-  // Formation
-  if (P.education.length) {
-    sb += `<div class="cv-sb-stitle">Formation</div>`;
-    P.education.forEach(e => {
-      const endYear = e.year ? e.year.trim().split(/\s*[-–—]\s*/).pop() : '';
-      sb += `<div class="cv-sb-edu">
-        <div class="cv-sb-edu-deg">${esc(e.degree)}</div>
-        ${e.school   ? `<div class="cv-sb-edu-sc">${esc(e.school)}</div>` : ''}
-        ${e.mention  ? `<div class="cv-sb-edu-sc" style="font-style:italic">${esc(e.mention)}</div>` : ''}
-        ${endYear    ? `<div class="cv-sb-edu-yr">${esc(endYear)}</div>` : ''}
-      </div>`;
-    });
-  }
-
-  // ─── COLONNE PRINCIPALE ───────────────────────────────────
-  let mc = '';
-
-  // Profil
-  const highlightBlock = buildProfileHighlight();
-  const targetText     = stripHTML(P.summaryTarget);
-  if (highlightBlock || targetText) {
-    mc += `<div class="cv-sec">
-      <div class="cv-stitle">Profil</div>
-      ${highlightBlock}
-      ${targetText ? `<div class="cv-summary-text"${highlightBlock ? ' style="margin-top:9px"' : ''}>${esc(targetText)}</div>` : ''}
-    </div>`;
-  }
-
-  // Expériences
-  if (P.experiences.length) {
-    mc += `<div class="cv-sec"><div class="cv-stitle">Expériences professionnelles</div>`;
-    P.experiences.forEach((e, i) => {
-      const activeBullets = (e.bullets || []).filter(b => b.required || b.selected);
-      const expIdx = (typeof e._origIdx === 'number') ? e._origIdx : i;
-      const bodyHtml = activeBullets.length
-        ? `<ul class="cv-bullets">${activeBullets.map(b =>
-            `<li class="cv-bullet-item"><span class="cv-bullet-dot">▸</span><span>${renderBulletHtml(b.text, expIdx)}</span></li>`
-          ).join('')}</ul>`
-        : renderDescription(e.description);
-      mc += `<div class="cv-exp" data-exp-idx="${expIdx}">
-        <div class="cv-etitle">${esc(e.title)}${e.contractType
-          ? ` <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px;background:#F2F2F2;color:#6E6E73;border:1px solid #D2D2D7;vertical-align:middle;margin-left:5px">${esc(e.contractType)}</span>`
-          : ''}${e.reportingTo
-          ? `<span style="font-size:10px;font-weight:400;font-style:italic;color:#6E6E73;margin-left:8px;vertical-align:middle">Rattaché directement au ${esc(e.reportingTo)}</span>`
-          : ''}</div>
-        ${e.company ? `<div class="cv-erow"><div class="cv-eco">${esc(e.company)}${e.sector ? ' · ' + esc(e.sector) : ''}${e.location ? ' · ' + esc(e.location) : ''}</div><div class="cv-edates">${esc(e.duration)}</div></div>` : ''}
-        ${bodyHtml}
-      </div>`;
-    });
-    mc += `</div>`;
-  }
-
-  // Secteurs
-  if (P.sectors.length) {
-    mc += `<div class="cv-sec">
-      <div class="cv-stitle">Secteurs</div>
-      <div class="cv-skill-tags">${P.sectors.map(s => `<span class="cv-skill-tag">${esc(s)}</span>`).join('')}</div>
-    </div>`;
-  }
-
-  // Centres d'intérêt
-  if (P.hobbies) {
-    mc += `<div class="cv-sec">
-      <div class="cv-stitle">Centres d'intérêt</div>
-      <div class="cv-summary-text">${esc(P.hobbies)}</div>
-    </div>`;
-  }
-
-  return `<div class="cv-sb">${sb}</div><div class="cv-mc">${mc}</div>`;
 }
 
