@@ -2410,6 +2410,10 @@ function _renderCoverLetterResult(d) {
           style="background:#0891b2;color:white;border:none;border-radius:6px;padding:4px 14px;font-size:11.5px;font-weight:600;cursor:pointer;flex:1">
           📋 Copier la lettre
         </button>
+        <button onclick="window._downloadLMPdf('${d._candId||''}')"
+          style="background:#0f172a;color:white;border:none;border-radius:6px;padding:4px 14px;font-size:11.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px">
+          ⬇ PDF
+        </button>
         <button onclick="window._genCoverLetter('${d._candId||''}')"
           style="background:none;border:1.5px solid #0891b2;color:#0891b2;border-radius:6px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer">
           ↺
@@ -2447,6 +2451,52 @@ function _renderCoverLetterResult(d) {
     <div id="lm-panel-formules" style="display:none">${formulaireHtml}</div>`;
 }
 
+// ── TÉLÉCHARGER LA LETTRE EN PDF ────────────────────────────
+window._downloadLMPdf = function(candId) {
+  const el = document.getElementById('lm-letter-text');
+  if (!el || !el.textContent.trim()) { toast('Génère d\'abord la lettre'); return; }
+
+  const text = el.textContent.trim();
+
+  // Infos candidature pour le nom du fichier et l'en-tête
+  const cands = ls('sc_cands', []);
+  const c     = cands.find(x => x.id === candId) || {};
+  const poste = c.poste   || '';
+  const co    = c.company || '';
+
+  // En-tête expéditeur depuis le profil
+  const sender = [
+    (P.firstName || '') + ' ' + (P.lastName || ''),
+    P.email || '',
+    P.phone || '',
+    P.location || '',
+  ].filter(Boolean).join('  ·  ');
+
+  // Wrapper d'impression
+  let wrapper = document.getElementById('cv-print-wrapper');
+  if (!wrapper) {
+    wrapper = document.createElement('div');
+    wrapper.id = 'cv-print-wrapper';
+    document.body.appendChild(wrapper);
+  }
+
+  wrapper.innerHTML = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;max-width:680px;margin:0 auto;padding:20mm 18mm;color:#1D1D1F;font-size:12pt;line-height:1.75">
+      ${sender ? `<div style="font-size:9.5pt;color:#6E6E73;margin-bottom:28px;padding-bottom:12px;border-bottom:1px solid #E5E5EA">${sender}</div>` : ''}
+      ${(poste || co) ? `<div style="font-size:9.5pt;color:#6E6E73;margin-bottom:24px"><strong style="color:#1D1D1F">${poste}</strong>${poste && co ? ' — ' : ''}${co}</div>` : ''}
+      <div style="white-space:pre-wrap">${text}</div>
+    </div>`;
+
+  const originalTitle = document.title;
+  const parts = [poste, co].filter(Boolean);
+  if (parts.length) document.title = 'Lettre - ' + parts.join(' - ');
+
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => { document.title = originalTitle; }, 1000);
+  }, 80);
+};
+
 window._lmProvider = localStorage.getItem('sc_key') ? 'groq' : 'gemini';
 window._lmSetProvider = function(p) {
   window._lmProvider = p;
@@ -2470,6 +2520,121 @@ window._lmTab = function(tab) {
     btn.style.color        = active ? '#0891b2' : 'var(--ink3)';
     btn.style.borderBottom = active ? '2.5px solid #0891b2' : '2.5px solid transparent';
   });
+};
+
+// ── BLOC FICHE ENTREPRISE ───────────────────────────────────
+function _renderCompanyBlock(candId, c) {
+  const d = c.companyIntel || null;
+  const company = esc(c.company || 'cette entreprise');
+
+  const header = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);display:flex;align-items:center;gap:6px">
+        🏢 Fiche Entreprise
+      </div>
+      <button onclick="window._genCompanyIntel('${candId}')"
+        style="background:#1D1D1F;color:white;border:none;border-radius:7px;padding:5px 13px;font-size:11.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px">
+        <span>🔍</span> ${d ? 'Actualiser' : 'Rechercher'}
+      </button>
+    </div>`;
+
+  if (!d) {
+    return header + `<div style="font-size:12px;color:var(--ink3);padding:14px;background:var(--bg);border-radius:10px;border:1px dashed var(--border);text-align:center;line-height:1.6">
+      Clique sur <strong>🔍 Rechercher</strong> pour générer automatiquement<br>
+      <span style="font-size:11px">secteur · concurrents · marché · actualité · enjeux</span>
+    </div>`;
+  }
+
+  const row = (icon, label, val) => val ? `
+    <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2)">
+      <span style="font-size:13px;flex-shrink:0">${icon}</span>
+      <div style="flex:1">
+        <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:2px">${label}</div>
+        <div style="font-size:12px;color:var(--ink);line-height:1.6">${esc(val)}</div>
+      </div>
+    </div>` : '';
+
+  const tags = (icon, label, arr) => arr?.length ? `
+    <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2)">
+      <span style="font-size:13px;flex-shrink:0">${icon}</span>
+      <div style="flex:1">
+        <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:5px">${label}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">${arr.map(t =>
+          `<span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 9px;font-size:11.5px;font-weight:600;color:var(--ink2)">${esc(t)}</span>`
+        ).join('')}</div>
+      </div>
+    </div>` : '';
+
+  return header + `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0 12px 4px">
+      ${row('🏭','Secteur & activité', d.secteur)}
+      ${row('📊','Taille & chiffres clés', d.chiffres)}
+      ${tags('⚔️','Concurrents directs', d.concurrents)}
+      ${row('📈','Marché & tendances', d.marche)}
+      ${row('📰','Actualité récente', d.actualite)}
+      ${row('🎯','Enjeux stratégiques', d.enjeux)}
+      ${row('💡','Angle pour se démarquer', d.angle)}
+    </div>
+    <div style="font-size:10px;color:var(--ink3);margin-top:6px;text-align:right">Basé sur les données IA — vérifier l'actualité récente</div>`;
+}
+
+window._genCompanyIntel = async function(candId) {
+  const block = document.getElementById('split-company-notes-block');
+  if (!block) return;
+
+  const cands = ls('sc_cands', []);
+  const idx   = cands.findIndex(x => x.id === candId);
+  if (idx === -1) return;
+  const c = cands[idx];
+
+  block.innerHTML = `<div style="text-align:center;padding:20px;font-size:12px;color:var(--ink3)">
+    <div class="sp" style="width:20px;height:20px;margin:0 auto 8px"></div>
+    Recherche en cours sur ${esc(c.company||'l\'entreprise')}…
+  </div>`;
+
+  const offerSnippet = (c.offerText||c.rawText||'').slice(0,800);
+  const prompt = `Tu es un expert en intelligence économique et recrutement. Génère une fiche entreprise complète et précise.
+
+ENTREPRISE : ${c.company || 'inconnue'}
+POSTE : ${c.poste || ''}
+EXTRAIT OFFRE : ${offerSnippet}
+
+Réponds UNIQUEMENT en JSON valide sans markdown :
+{
+  "secteur": "Secteur d'activité, modèle économique, positionnement marché (2-3 phrases)",
+  "chiffres": "CA estimé, effectifs, année de création, implantations (si connus)",
+  "concurrents": ["Concurrent 1", "Concurrent 2", "Concurrent 3", "Concurrent 4"],
+  "marche": "Taille du marché, tendances actuelles, croissance, défis du secteur (2-3 phrases)",
+  "actualite": "Derniers événements connus : levées de fonds, acquisitions, partenariats, expansions, difficultés (si connu)",
+  "enjeux": "Principaux enjeux stratégiques de l'entreprise en lien avec ce poste (2 phrases)",
+  "angle": "Comment se démarquer en entretien en montrant qu'on connaît ces enjeux (1 phrase actionnable)"
+}`;
+
+  try {
+    const raw  = await callGroq(prompt, { maxTokens: 900, temperature: 0.3 });
+    const data = safeParseJSON(raw);
+    if (!data || !data.secteur) throw new Error('réponse invalide');
+
+    cands[idx].companyIntel = data;
+    ss('sc_cands', cands);
+
+    block.innerHTML = _renderCompanyBlock(candId, cands[idx]);
+  } catch(e) {
+    block.innerHTML = `<div style="padding:12px;background:var(--red-bg);border-radius:8px;color:var(--red);font-size:12px">
+      Erreur : ${esc(e.message)} — <button onclick="window._genCompanyIntel('${candId}')"
+        style="background:none;border:none;color:var(--red);font-weight:700;cursor:pointer;text-decoration:underline">Réessayer</button>
+    </div>`;
+  }
+};
+
+// ── SAUVEGARDE NOTES ENTREPRISE (legacy) ───────────────────
+window._saveCompanyNotes = function(candId, val) {
+  if (!candId) return;
+  const cands = ls('sc_cands', []);
+  const idx   = cands.findIndex(x => x.id === candId);
+  if (idx === -1) return;
+  cands[idx].companyNotes = val;
+  ss('sc_cands', cands);
 };
 
 window._copyLM = function(elId) {
@@ -3249,8 +3414,12 @@ async function openSplitView(candId) {
     <div id="split-salary-block" style="margin-bottom:20px">
       ${_renderSalaryBlock(rawText, candId)}
     </div>
-    <div id="split-interview-block">
+    <div id="split-interview-block" style="margin-bottom:20px">
       ${_renderInterviewBlock(candId, a.interview_prep || null)}
+    </div>
+
+    <div id="split-company-notes-block" style="margin-bottom:8px">
+      ${_renderCompanyBlock(candId, c)}
     </div>
 `;
 
