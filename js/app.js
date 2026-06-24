@@ -112,6 +112,13 @@ if (!P.emphases) P.emphases = [];
 ['linkedin','mobility','permis','disponibilite','contratRecherche','domainesProfile','hobbies','photo','summaryTarget'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
 // Migration v3 : domainesProfile est désormais généré automatiquement par offre (split view)
 if (!P._v3_hookMigrated) { P.domainesProfile = ''; P._v3_hookMigrated = true; ss('sc_profile', P); }
+// Migration v4 : renommage statut "Analysé" → "À traiter"
+(function _migrateAnalyse() {
+  const cands = ls('sc_cands', []);
+  let changed = false;
+  cands.forEach(c => { if (c.status === 'Analysé') { c.status = 'À traiter'; changed = true; } });
+  if (changed) ss('sc_cands', cands);
+})();
 if (!P.highlightConfig) P.highlightConfig = { formation:true, contrat:true, dispo:true, mobility:true, permis:false };
 if (P.highlightConfig.contrat === undefined) P.highlightConfig.contrat = true;
 // Migrate experience objects to include new fields
@@ -230,40 +237,69 @@ function setProvider(p) {
   refreshProviderUI();
 }
 
-function saveGeminiKey() {
-  const k = document.getElementById('gemini-key-input')?.value.trim();
-  if (!k) { toast('Entre ta clé Gemini (AIza...)'); return; }
-  localStorage.setItem('sc_gemini_key', k);
-  document.getElementById('gemini-key-input').value = '';
-  refreshProviderUI();
-  toast('✓ Clé Gemini sauvegardée');
-}
-
 function refreshProviderUI() {
   const p = localStorage.getItem('sc_ai_provider') || 'groq';
-  const hasGemini = !!localStorage.getItem('sc_gemini_key');
+  const groqKey      = localStorage.getItem('sc_key');
+  const geminiKey    = localStorage.getItem('sc_gemini_key');
+  const geminiProKey = localStorage.getItem('sc_gemini_pro_key');
+  const hasGroq      = !!groqKey && groqKey !== 'gemini';
+  const hasGemini    = !!geminiKey;
+  const hasGeminiPro = !!geminiProKey;
 
-  const gBtn = document.getElementById('provider-groq-btn');
-  const mBtn = document.getElementById('provider-gemini-btn');
-  const row  = document.getElementById('gemini-key-row');
-  const saved= document.getElementById('gemini-key-saved');
-  if (!gBtn) return;
+  _renderKeyRow('api-key-groq',       'Groq',       'groq',       hasGroq,      hasGroq ? groqKey : '',           p === 'groq');
+  _renderKeyRow('api-key-gemini',     'Gemini',     'gemini',     hasGemini,    hasGemini ? geminiKey : '',       p === 'gemini');
+  _renderKeyRow('api-key-gemini-pro', 'Gemini Pro', 'gemini-pro', hasGeminiPro, hasGeminiPro ? geminiProKey : '', p === 'gemini-pro');
+}
 
-  // Style boutons actif/inactif
-  [gBtn, mBtn].forEach(b => {
-    b.style.background = 'none'; b.style.color = 'var(--ink3)'; b.style.borderColor = 'var(--border)';
-  });
-  const active = p === 'gemini' ? mBtn : gBtn;
-  active.style.background = '#6366f1'; active.style.color = 'white'; active.style.borderColor = '#6366f1';
+function _renderKeyRow(elId, label, provider, hasKey, rawKey, isActive) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const masked = hasKey ? rawKey.slice(0, 4) + '•••' + rawKey.slice(-4) : '—';
+  el.className = 'api-key-row' + (isActive ? ' active' : '');
+  el.innerHTML = `
+    <span class="api-key-dot ${hasKey ? 'on' : 'off'}"></span>
+    <span class="api-key-name">${label}</span>
+    <span class="api-key-preview">${hasKey ? masked : 'Non configurée'}</span>
+    <button class="api-key-btn" onclick="event.stopPropagation();_editApiKey('${provider}')">${hasKey ? 'Modifier' : 'Ajouter'}</button>
+  `;
+}
 
-  // Affiche input clé Gemini si besoin
-  if (p === 'gemini') {
-    row.style.display = hasGemini ? 'none' : 'flex';
-    saved.style.display = hasGemini ? 'block' : 'none';
-  } else {
-    row.style.display = 'none';
-    saved.style.display = 'none';
-  }
+const _KEY_META = {
+  'groq':       { elId: 'api-key-groq',       label: 'Groq',       ph: 'gsk_...',  lsKey: 'sc_key',            prefix: 'gsk_' },
+  'gemini':     { elId: 'api-key-gemini',     label: 'Gemini',     ph: 'AIza...',  lsKey: 'sc_gemini_key',     prefix: 'AIza' },
+  'gemini-pro': { elId: 'api-key-gemini-pro', label: 'Gemini Pro', ph: 'Clé API...', lsKey: 'sc_gemini_pro_key', prefix: '' }
+};
+
+function _editApiKey(provider) {
+  const m = _KEY_META[provider]; if (!m) return;
+  const el = document.getElementById(m.elId);
+  if (!el) return;
+  const label = m.label;
+  const ph    = m.ph;
+  el.innerHTML = `
+    <span class="api-key-dot off" style="background:#6366f1"></span>
+    <span class="api-key-name">${label}</span>
+    <input class="api-key-input" id="edit-key-${provider}" placeholder="${ph}" autofocus
+      onkeydown="if(event.key==='Enter')_saveApiKey('${provider}');if(event.key==='Escape')refreshProviderUI()"/>
+    <button class="api-key-save" onclick="event.stopPropagation();_saveApiKey('${provider}')">OK</button>
+    <button class="api-key-btn" onclick="event.stopPropagation();refreshProviderUI()">✕</button>
+  `;
+  el.onclick = null;
+  setTimeout(() => document.getElementById('edit-key-' + provider)?.focus(), 50);
+}
+
+function _saveApiKey(provider) {
+  const m = _KEY_META[provider]; if (!m) return;
+  const input = document.getElementById('edit-key-' + provider);
+  const k = input?.value.trim();
+  if (!k) { toast('Entre une clé API valide'); return; }
+  if (m.prefix && !k.startsWith(m.prefix)) { toast('La clé ' + m.label + ' doit commencer par ' + m.prefix); return; }
+  localStorage.setItem(m.lsKey, k);
+  if (provider === 'groq') localStorage.setItem('sc_key', k);
+  setProvider(provider);
+  toast('✓ Clé ' + m.label + ' sauvegardée');
+  const el = document.getElementById(m.elId);
+  if (el) el.onclick = () => setProvider(provider);
 }
 function showApp() {
   document.getElementById('setup-sc').classList.add('hidden');
@@ -385,21 +421,38 @@ function refreshDash() {
   if (_dashFilter === 'Tous' && _dashFilterSource === 'Tous') filtered = filtered.slice(0, 8);
 
   // ── Tableau filtré ──
+  const _fmtDate = (d) => {
+    if (!d) return '';
+    const p = d.split('-');
+    if (p.length !== 3) return d;
+    return p[2] + '-' + p[1] + '-' + p[0].slice(2);
+  };
+
+  let _prevDate = '';
   const renderRow = c => {
+    const [, bg] = STAT_COLORS[c.status] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
+    const tdBg = `background:${bg}`;
     const sourceBadge = c.jobSource === 'linkedin'
       ? `<span style="background:#e0f0ff;color:#0a66c2;border:1px solid #bfdbfe;border-radius:100px;padding:2px 9px;font-size:11px;font-weight:700">LinkedIn</span>`
       : c.jobSource === 'indeed'
       ? `<span style="background:#e8eeff;color:#2164f3;border:1px solid #c7d2fe;border-radius:100px;padding:2px 9px;font-size:11px;font-weight:700">Indeed</span>`
       : `<span style="opacity:.3;font-size:12px">—</span>`;
-    return `<tr>
-      <td>
+
+    let sep = '';
+    if (_prevDate && c.date !== _prevDate) {
+      sep = `<tr><td colspan="5" style="padding:0;height:3px;background:var(--border);border:none"></td></tr>`;
+    }
+    _prevDate = c.date;
+
+    return sep + `<tr data-cand-id="${c.id}">
+      <td style="${tdBg}">
         <div style="font-weight:700;color:var(--ink);font-size:13px;cursor:pointer;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px" onclick="openSplitView('${c.id}')" title="Voir offre + CV">${esc(c.poste)}</div>
         <div style="color:var(--ink3);font-size:12px;margin-top:1px">${esc(c.company)}</div>
       </td>
-      <td>${sourceBadge}</td>
-      <td style="color:var(--ink3);font-size:12.5px">${c.date || ''}</td>
-      <td>${renderStatusLetters(c.id, c.status, 'updCandAndRefresh')}</td>
-      <td style="white-space:nowrap">
+      <td style="${tdBg}">${sourceBadge}</td>
+      <td style="${tdBg};color:var(--ink3);font-size:12.5px">${_fmtDate(c.date)}</td>
+      <td style="${tdBg}">${renderStatusLetters(c.id, c.status, 'updCandAndRefresh')}</td>
+      <td style="${tdBg};white-space:nowrap">
         ${c.analysis ? `<button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="CV adapté">CV</button><button onclick="loadCVForCand('${c.id}',true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="PDF">⬇ PDF</button>` : ''}
         <button onclick="openSplitView('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:13px;padding:2px 5px;border-radius:4px" title="Ouvrir">↗</button>
         <button onclick="delCand('${c.id}')" style="background:none;border:1.5px solid #fecaca;cursor:pointer;color:#dc2626;font-size:12px;font-weight:700;padding:2px 7px;border-radius:100px;margin-left:3px;line-height:1" title="Supprimer">🗑</button>
@@ -409,6 +462,7 @@ function refreshDash() {
 
   let recentHtml;
   if (filtered.length) {
+    _prevDate = '';
     recentHtml = `<table class="tbl">
       <thead><tr><th>Poste · Entreprise</th><th>Source</th><th>Date</th><th>Statut</th><th></th></tr></thead>
       <tbody>${filtered.map(renderRow).join('')}</tbody>

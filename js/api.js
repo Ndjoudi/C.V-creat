@@ -7,7 +7,8 @@ function getProvider() {
 }
 
 async function callGroq(prompt, { maxTokens = 2000, temperature = 0.7, model = 'llama-3.3-70b-versatile' } = {}) {
-  if (getProvider() === 'gemini') {
+  const _p = getProvider();
+  if (_p === 'gemini' || _p === 'gemini-pro') {
     return callGemini(prompt, { maxTokens, temperature });
   }
 
@@ -22,10 +23,7 @@ async function callGroq(prompt, { maxTokens = 2000, temperature = 0.7, model = '
   return (d.choices?.[0]?.message?.content || '').trim();
 }
 
-async function callGemini(prompt, { maxTokens = 2000, temperature = 0.7 } = {}) {
-  const key = localStorage.getItem('sc_gemini_key') || '';
-  if (!key) throw new Error('Clé Gemini manquante — ajoute-la dans les paramètres');
-
+async function _callGeminiWithKey(key, prompt, maxTokens, temperature) {
   const r = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
     {
@@ -47,6 +45,27 @@ async function callGemini(prompt, { maxTokens = 2000, temperature = 0.7 } = {}) 
   if (!text) throw new Error(`Gemini: réponse vide — finish reason: ${d.candidates?.[0]?.finishReason || 'inconnu'}`);
   console.log('🔵 Gemini raw response:', text);
   return text.trim();
+}
+
+async function callGemini(prompt, { maxTokens = 2000, temperature = 0.7 } = {}) {
+  const proKey  = localStorage.getItem('sc_gemini_pro_key') || '';
+  const persoKey = localStorage.getItem('sc_gemini_key') || '';
+  if (!proKey && !persoKey) throw new Error('Clé Gemini manquante — ajoute-la dans les paramètres');
+
+  if (proKey) {
+    try {
+      return await _callGeminiWithKey(proKey, prompt, maxTokens, temperature);
+    } catch (e) {
+      const msg = (e.message || '').toLowerCase();
+      const isLimit = msg.includes('429') || msg.includes('rate') || msg.includes('quota') || msg.includes('resource_exhausted') || msg.includes('too many');
+      if (isLimit && persoKey) {
+        console.warn('[AI] Gemini Pro rate limit — bascule sur Gemini perso');
+        return await _callGeminiWithKey(persoKey, prompt, maxTokens, temperature);
+      }
+      throw e;
+    }
+  }
+  return await _callGeminiWithKey(persoKey, prompt, maxTokens, temperature);
 }
 
 function groqErrorMessage(e) {
@@ -72,11 +91,11 @@ async function _callGroqDirect(prompt, { maxTokens = 2000, temperature = 0.7, mo
 // ── AUTO-FALLBACK : Gemini → Groq (ou l'inverse selon les clés dispo) ──
 // Retourne { text, provider } — bascule automatiquement sur 429 / quota
 async function callAIAuto(prompt, options = {}) {
-  const geminiKey = localStorage.getItem('sc_gemini_key') || '';
+  const hasGemini = !!(localStorage.getItem('sc_gemini_pro_key') || localStorage.getItem('sc_gemini_key'));
   const groqKey   = localStorage.getItem('sc_key') || '';
 
   const queue = [];
-  if (geminiKey) queue.push({ name: 'Gemini', model: 'gemini-2.5-flash', fn: () => callGemini(prompt, options) });
+  if (hasGemini) queue.push({ name: 'Gemini', model: 'gemini-2.5-flash', fn: () => callGemini(prompt, options) });
   if (groqKey)   queue.push({ name: 'Groq',   model: 'llama-3.3-70b',   fn: () => _callGroqDirect(prompt, options) });
 
   if (!queue.length) throw new Error('Aucune clé API configurée — ajoute une clé Gemini ou Groq dans les paramètres');

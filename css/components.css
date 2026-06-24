@@ -240,6 +240,49 @@ select.inp{cursor:pointer}
   border-radius:var(--radius-sm);padding:16px;border:1px solid var(--border);
 }
 
+/* ── API KEY ROWS ─────────────────────────────────────── */
+.api-key-row{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 9px;border-radius:8px;
+  border:1.5px solid var(--border);
+  cursor:pointer;transition:all .15s;
+  position:relative;
+}
+.api-key-row:hover{border-color:var(--ink3)}
+.api-key-row.active{border-color:#6366f1;background:rgba(99,102,241,.04)}
+.api-key-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+  transition:background .2s;
+}
+.api-key-dot.on{background:#10b981}
+.api-key-dot.off{background:#D1D5DB}
+.api-key-name{font-size:11px;font-weight:700;min-width:48px}
+.api-key-preview{
+  flex:1;font-size:10px;color:var(--ink3);
+  font-family:'SF Mono',Monaco,monospace;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.api-key-btn{
+  font-size:10px;font-weight:600;padding:2px 7px;
+  border-radius:5px;border:1px solid var(--border);
+  background:none;color:var(--ink3);cursor:pointer;
+  transition:all .12s;flex-shrink:0;
+}
+.api-key-btn:hover{background:var(--ink);color:white;border-color:var(--ink)}
+.api-key-input{
+  flex:1;font-size:10.5px;padding:3px 6px;
+  border:1px solid var(--border);border-radius:5px;
+  font-family:'SF Mono',Monaco,monospace;
+  outline:none;
+}
+.api-key-input:focus{border-color:#6366f1}
+.api-key-save{
+  font-size:10px;font-weight:600;padding:2px 8px;
+  border-radius:5px;border:none;
+  background:#10b981;color:white;cursor:pointer;
+  flex-shrink:0;
+}
+
 /* ── TRACKER ───────────────────────────────────────────── */
 .tbl{width:100%;border-collapse:collapse}
 .tbl th{
@@ -247,10 +290,10 @@ select.inp{cursor:pointer}
   text-transform:uppercase;letter-spacing:.8px;
   color:var(--ink3);border-bottom:1.5px solid var(--border);
 }
-.tbl td{padding:11px 13px;font-size:13px;border-bottom:1px solid var(--border2);vertical-align:middle}
+.tbl td{padding:11px 13px;font-size:13px;border-bottom:1px solid var(--border2);vertical-align:middle;background:inherit}
 .tbl tr:last-child td{border-bottom:none}
-.tbl tbody tr{transition:var(--t)}
-.tbl tbody tr:hover td{background:var(--bg)}
+.tbl tbody tr{transition:background .25s}
+.tbl tbody tr:hover td{filter:brightness(.97)}
 .tracker-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
 .tfilter{
   padding:5px 14px;border-radius:100px;font-size:12px;font-weight:600;

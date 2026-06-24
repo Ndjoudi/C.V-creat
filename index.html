@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
-<link rel="stylesheet" href="css/components.css?v=37"/>
+<link rel="stylesheet" href="css/components.css?v=39"/>
 <link rel="stylesheet" href="css/cv.css?v=39"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
@@ -90,21 +90,14 @@
           <div class="sb-frole" id="sb-prole"></div>
         </div>
         <div class="sb-actions">
-          <button class="btn btn-g" onclick="resetKey()" style="flex:1;justify-content:center;font-size:12px;padding:7px 10px">Changer la clé</button>
           <button class="btn-icon" onclick="exportAllData()" title="Exporter"><i data-lucide="upload"></i></button>
           <button class="btn-icon" onclick="importAllData()" title="Importer"><i data-lucide="download"></i></button>
         </div>
-        <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
-          <div style="font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">🤖 Modèle IA</div>
-          <div style="display:flex;gap:5px;margin-bottom:8px">
-            <button id="provider-groq-btn" onclick="setProvider('groq')" style="flex:1;font-size:11px;padding:4px 6px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-weight:600;transition:all .15s">Groq</button>
-            <button id="provider-gemini-btn" onclick="setProvider('gemini')" style="flex:1;font-size:11px;padding:4px 6px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-weight:600;transition:all .15s">Gemini</button>
-          </div>
-          <div id="gemini-key-row" style="display:none;gap:5px">
-            <input id="gemini-key-input" type="password" placeholder="AIza..." class="inp" style="font-size:11px;padding:5px 8px;flex:1"/>
-            <button onclick="saveGeminiKey()" style="font-size:11px;padding:5px 8px;border-radius:6px;border:none;background:#10b981;color:white;cursor:pointer;font-weight:600;white-space:nowrap">Sauver</button>
-          </div>
-          <div id="gemini-key-saved" style="display:none;font-size:11px;color:#10b981;font-weight:600">✓ Clé Gemini enregistrée</div>
+        <div id="api-keys-panel" style="margin-top:10px;padding:10px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+          <div style="font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px">🔑 Clés API</div>
+          <div id="api-key-groq" class="api-key-row" onclick="setProvider('groq')"></div>
+          <div id="api-key-gemini" class="api-key-row" onclick="setProvider('gemini')" style="margin-top:6px"></div>
+          <div id="api-key-gemini-pro" class="api-key-row" onclick="setProvider('gemini-pro')" style="margin-top:6px"></div>
         </div>
       </div>
       <!-- Icônes seules (collapsed) -->
@@ -560,7 +553,7 @@
             <div class="fg"><label class="lb">Date</label>     <input class="inp" id="f-date"  type="date"/></div>
             <div class="fg"><label class="lb">Statut</label>
               <select class="inp" id="f-status">
-                <option>Analysé</option><option>Envoyé</option><option>Message in</option><option>Entretien</option><option>Refusé</option>
+                <option>À traiter</option><option>Envoyé</option><option>Message in</option><option>Entretien</option><option>Refusé</option>
               </select>
             </div>
           </div>
@@ -699,6 +692,7 @@
     </div>
     <div id="split-status-letters"></div>
     <div id="split-job-link"></div>
+    <button id="split-linkedin-btn" onclick="window._openLinkedInContact()" style="display:none;align-items:center;gap:5px;background:#0a66c2;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;padding:5px 14px;font-weight:600;white-space:nowrap">in Trouver le recruteur</button>
 <button id="cv-edit-btn" onclick="toggleCVEditMode()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">✏️ Modifier le CV</button>
     <button onclick="loadCVForCand(window._splitCandId, true)" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">⬇ PDF</button>
   </div>
@@ -717,14 +711,14 @@
 </div>
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
-<script src="js/api.js?v=36"></script>
-<script src="js/app.js?v=62"></script>
+<script src="js/api.js?v=38"></script>
+<script src="js/app.js?v=66"></script>
 <script src="js/profile.js?v=53"></script>
 <script src="js/import-cv.js?v=35"></script>
 <script src="js/cv.js?v=56"></script>
 <script src="js/analyze.js?v=38"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=150"></script>
+<script src="js/tracker.js?v=154"></script>
 <script src="js/modal.js?v=36"></script>
 
 </body>

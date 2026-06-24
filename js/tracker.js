@@ -347,45 +347,62 @@ function renderTracker() {
     return;
   }
 
+  const _fmtDate = (d) => {
+    if (!d) return '';
+    const p = d.split('-');
+    if (p.length !== 3) return d;
+    return p[2] + '-' + p[1] + '-' + p[0].slice(2);
+  };
+
+  let _prevDate = '';
+  const rowsHtml = visible.map(c => {
+    const [col, bg, border] = STAT_COLORS[c.status] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
+    const tdBg = `background:${bg}`;
+
+    // Score badge
+    const sc = c.analysis?.score_global ?? c.score;
+    let scoreBadge = '<span style="opacity:.35;font-size:12px">—</span>';
+    if (sc !== null && sc !== undefined) {
+      const sc_col = sc >= 70 ? 'var(--teal)' : sc >= 50 ? '#D97706' : 'var(--red)';
+      const sc_bg  = sc >= 70 ? 'var(--teal-bg)' : sc >= 50 ? '#FFFBEB' : 'var(--red-bg)';
+      const sc_bd  = sc >= 70 ? 'var(--teal-border)' : sc >= 50 ? '#FDE68A' : 'var(--red-border)';
+      const hasAnalysis = !!c.analysis;
+      scoreBadge = `<span
+        style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:700;color:${sc_col};background:${sc_bg};border:1.5px solid ${sc_bd};${hasAnalysis ? 'cursor:pointer' : ''}"
+        ${hasAnalysis ? `onclick="openAnalysisModal('${c.id}')" title="Voir l'analyse complète"` : ''}
+      >${sc}%${hasAnalysis ? ' ↗' : ''}</span>`;
+    }
+
+    const indeedLink = c.indeedUrl
+      ? `<a href="${esc(c.indeedUrl)}" target="_blank" rel="noopener" style="font-size:10.5px;color:#2164f3;text-decoration:none;font-weight:600">↗ Annonce</a>`
+      : '';
+
+    let sep = '';
+    if (_prevDate && c.date !== _prevDate) {
+      sep = `<tr><td colspan="6" style="padding:0;height:3px;background:var(--border);border:none"></td></tr>`;
+    }
+    _prevDate = c.date;
+
+    return sep + `<tr data-cand-id="${c.id}">
+      <td style="${tdBg}">
+        <div style="font-weight:700;color:var(--ink);font-size:13px">${esc(c.poste)}</div>
+        <div style="color:var(--ink3);font-size:12px;margin-top:1px">${esc(c.company)}${indeedLink ? ' · ' + indeedLink : ''}</div>
+      </td>
+      <td style="${tdBg}">${scoreBadge}</td>
+      <td style="${tdBg};color:var(--ink3);font-size:12.5px">${_fmtDate(c.date)}</td>
+      <td style="${tdBg}">${renderStatusLetters(c.id, c.status, 'updCand')}</td>
+      <td style="${tdBg}" class="notes-cell" onclick="openNoteModal('${esc(c.company)}','${esc(c.poste)}',\`${(c.notes||'').replace(/`/g,"'")}\`)" title="Cliquer pour voir">${esc(c.notes) || '<span style="opacity:.4">—</span>'}</td>
+      <td style="${tdBg};white-space:nowrap">${c.analysis ? `
+        <button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Voir le CV adapté à cette offre">CV</button><button onclick="loadCVForCand('${c.id}', true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="Télécharger PDF">⬇ PDF</button>` : ''}<button onclick="openInterviewForCand('${c.id}')" style="background:none;border:1.5px solid #e9d5ff;cursor:pointer;color:#7c3aed;font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Simuler l'entretien pour ce poste">🎤 Entretien</button><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
+    </tr>`;
+  }).join('');
+
   document.getElementById('tracker-table').innerHTML = `
     <table class="tbl">
       <thead><tr>
         <th>Poste · Entreprise</th><th>Score</th><th>Date</th><th>Statut</th><th>Notes</th><th></th>
       </tr></thead>
-      <tbody>${visible.map(c => {
-        const [col, bg, border] = STAT_COLORS[c.status] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
-
-        // Score badge — priorité à l'analyse la plus récente
-        const sc = c.analysis?.score_global ?? c.score;
-        let scoreBadge = '<span style="opacity:.35;font-size:12px">—</span>';
-        if (sc !== null && sc !== undefined) {
-          const sc_col = sc >= 70 ? 'var(--teal)' : sc >= 50 ? '#D97706' : 'var(--red)';
-          const sc_bg  = sc >= 70 ? 'var(--teal-bg)' : sc >= 50 ? '#FFFBEB' : 'var(--red-bg)';
-          const sc_bd  = sc >= 70 ? 'var(--teal-border)' : sc >= 50 ? '#FDE68A' : 'var(--red-border)';
-          const hasAnalysis = !!c.analysis;
-          scoreBadge = `<span
-            style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:700;color:${sc_col};background:${sc_bg};border:1.5px solid ${sc_bd};${hasAnalysis ? 'cursor:pointer' : ''}"
-            ${hasAnalysis ? `onclick="openAnalysisModal('${c.id}')" title="Voir l'analyse complète"` : ''}
-          >${sc}%${hasAnalysis ? ' ↗' : ''}</span>`;
-        }
-
-        const indeedLink = c.indeedUrl
-          ? `<a href="${esc(c.indeedUrl)}" target="_blank" rel="noopener" style="font-size:10.5px;color:#2164f3;text-decoration:none;font-weight:600">↗ Annonce</a>`
-          : '';
-
-        return `<tr>
-          <td>
-            <div style="font-weight:700;color:var(--ink);font-size:13px">${esc(c.poste)}</div>
-            <div style="color:var(--ink3);font-size:12px;margin-top:1px">${esc(c.company)}${indeedLink ? ' · ' + indeedLink : ''}</div>
-          </td>
-          <td>${scoreBadge}</td>
-          <td style="color:var(--ink3);font-size:12.5px">${c.date || ''}</td>
-          <td>${renderStatusLetters(c.id, c.status, 'updCand')}</td>
-          <td class="notes-cell" onclick="openNoteModal('${esc(c.company)}','${esc(c.poste)}',\`${(c.notes||'').replace(/`/g,"'")}\`)" title="Cliquer pour voir">${esc(c.notes) || '<span style="opacity:.4">—</span>'}</td>
-          <td style="white-space:nowrap">${c.analysis ? `
-            <button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Voir le CV adapté à cette offre">CV</button><button onclick="loadCVForCand('${c.id}', true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="Télécharger PDF">⬇ PDF</button>` : ''}<button onclick="openInterviewForCand('${c.id}')" style="background:none;border:1.5px solid #e9d5ff;cursor:pointer;color:#7c3aed;font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Simuler l'entretien pour ce poste">🎤 Entretien</button><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
-        </tr>`;
-      }).join('')}</tbody>
+      <tbody>${rowsHtml}</tbody>
     </table>`;
 }
 
@@ -569,6 +586,11 @@ function updCand(id, k, v) {
     const [col,, border] = STAT_COLORS[s] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
     return `<div class="stat" style="border-color:${border}"><div class="stat-n" style="color:${col}">${c2.filter(x => x.status === s).length}</div><div class="stat-l">${s}</div></div>`;
   }).join('');
+  if (k === 'status') {
+    const [, bg] = STAT_COLORS[v] || ['var(--ink3)', 'var(--bg)', 'var(--border)'];
+    const tr = document.querySelector(`#tracker-table tr[data-cand-id="${id}"]`);
+    if (tr) tr.querySelectorAll('td').forEach(td => td.style.background = bg);
+  }
   refreshBadges();
 }
 
@@ -2404,7 +2426,11 @@ function _renderCoverLetterResult(d) {
   // ── Lettre ──
   const lettreHtml = `
     <div style="position:relative">
-      <div id="lm-letter-text" style="font-size:12.5px;line-height:1.75;color:var(--ink);white-space:pre-wrap;background:var(--bg2);border-radius:8px;padding:14px 16px;border:1px solid var(--border)">${esc(d.lettre||'')}</div>
+      <div id="lm-letter-text" contenteditable="true"
+        style="font-size:12.5px;line-height:1.75;color:var(--ink);white-space:pre-wrap;background:var(--bg2);border-radius:8px;padding:14px 16px;border:1px solid var(--border);outline:none;cursor:text;transition:border-color .15s"
+        onfocus="this.style.borderColor='#0891b2'"
+        onblur="this.style.borderColor='var(--border)';window._saveLMEdit('${d._candId||''}','lettre',this.innerText)"
+        >${esc(d.lettre||'')}</div>
       <div style="display:flex;gap:7px;margin-top:8px">
         <button onclick="window._copyLM('lm-letter-text')"
           style="background:#0891b2;color:white;border:none;border-radius:6px;padding:4px 14px;font-size:11.5px;font-weight:600;cursor:pointer;flex:1">
@@ -2436,7 +2462,11 @@ function _renderCoverLetterResult(d) {
     return `<div style="margin-bottom:12px">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0891b2;margin-bottom:5px">${item.label}</div>
       <div style="position:relative">
-        <div id="lm-form-${item.key}" style="font-size:12px;line-height:1.6;color:var(--ink);background:var(--bg2);border-radius:7px;padding:9px 11px;border:1px solid var(--border);white-space:pre-wrap">${esc(val)}</div>
+        <div id="lm-form-${item.key}" contenteditable="true"
+          style="font-size:12px;line-height:1.6;color:var(--ink);background:var(--bg2);border-radius:7px;padding:9px 11px;border:1px solid var(--border);white-space:pre-wrap;outline:none;cursor:text;transition:border-color .15s"
+          onfocus="this.style.borderColor='#0891b2'"
+          onblur="this.style.borderColor='var(--border)';window._saveLMEdit('${d._candId||''}','form.${item.key}',this.innerText)"
+          >${esc(val)}</div>
         <button onclick="window._copyLM('lm-form-${item.key}')"
           style="position:absolute;top:6px;right:7px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:10px;color:var(--ink3);cursor:pointer">
           copier
@@ -2450,6 +2480,23 @@ function _renderCoverLetterResult(d) {
     <div id="lm-panel-lettre">${lettreHtml}</div>
     <div id="lm-panel-formules" style="display:none">${formulaireHtml}</div>`;
 }
+
+// ── SAUVEGARDE ÉDITION LETTRE ────────────────────────────────
+window._saveLMEdit = function(candId, field, value) {
+  if (!candId) return;
+  const cands = ls('sc_cands', []);
+  const idx = cands.findIndex(x => x.id === candId);
+  if (idx === -1 || !cands[idx].analysis?.cover_letter) return;
+  const cl = cands[idx].analysis.cover_letter;
+  if (field === 'lettre') {
+    cl.lettre = value;
+  } else if (field.startsWith('form.')) {
+    const key = field.slice(5);
+    if (!cl.formulaire) cl.formulaire = {};
+    cl.formulaire[key] = value;
+  }
+  ss('sc_cands', cands);
+};
 
 // ── TÉLÉCHARGER LA LETTRE EN PDF ────────────────────────────
 window._downloadLMPdf = function(candId) {
@@ -3372,6 +3419,18 @@ async function openSplitView(candId) {
       jobLinkEl.innerHTML = '';
     }
   }
+  // ── Bouton LinkedIn ──
+  const liBtn = document.getElementById('split-linkedin-btn');
+  if (liBtn && c.company) {
+    liBtn.style.display = 'inline-flex';
+    window._openLinkedInContact = () => {
+      const q = encodeURIComponent(c.company + ' recruteur OR talent acquisition OR RH OR responsable recrutement');
+      window.open('https://www.linkedin.com/search/results/people/?keywords=' + q, '_blank');
+    };
+  } else if (liBtn) {
+    liBtn.style.display = 'none';
+  }
+
   // ── Panneau gauche ──
   const rawText     = (c.jobDescription||'').replace(/&nbsp;/g,' ').replace(/[ \t]{3,}/g,' ').trim();
 
