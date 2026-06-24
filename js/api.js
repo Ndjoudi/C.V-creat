@@ -47,25 +47,43 @@ async function _callGeminiWithKey(key, prompt, maxTokens, temperature) {
   return text.trim();
 }
 
+// Erreur temporaire/surcharge → on doit basculer sur un autre provider
+function _isTransientAIError(e) {
+  const msg = (e.message || '').toLowerCase();
+  return msg.includes('429') || msg.includes('rate') || msg.includes('quota')
+      || msg.includes('resource_exhausted') || msg.includes('too many')
+      || msg.includes('503') || msg.includes('500') || msg.includes('overload')
+      || msg.includes('high demand') || msg.includes('unavailable') || msg.includes('try again');
+}
+
 async function callGemini(prompt, { maxTokens = 2000, temperature = 0.7 } = {}) {
-  const proKey  = localStorage.getItem('sc_gemini_pro_key') || '';
+  const proKey   = localStorage.getItem('sc_gemini_pro_key') || '';
   const persoKey = localStorage.getItem('sc_gemini_key') || '';
+  const groqKey  = localStorage.getItem('sc_key') || '';
   if (!proKey && !persoKey) throw new Error('Clé Gemini manquante — ajoute-la dans les paramètres');
 
-  if (proKey) {
+  // Chaîne de secours : Gemini Pro → Gemini perso → Groq
+  const queue = [];
+  if (proKey)   queue.push({ name: 'Gemini Pro', fn: () => _callGeminiWithKey(proKey,   prompt, maxTokens, temperature) });
+  if (persoKey) queue.push({ name: 'Gemini',     fn: () => _callGeminiWithKey(persoKey, prompt, maxTokens, temperature) });
+  if (groqKey)  queue.push({ name: 'Groq',       fn: () => _callGroqDirect(prompt, { maxTokens, temperature }) });
+
+  let lastErr;
+  for (let i = 0; i < queue.length; i++) {
     try {
-      return await _callGeminiWithKey(proKey, prompt, maxTokens, temperature);
+      return await queue[i].fn();
     } catch (e) {
-      const msg = (e.message || '').toLowerCase();
-      const isLimit = msg.includes('429') || msg.includes('rate') || msg.includes('quota') || msg.includes('resource_exhausted') || msg.includes('too many');
-      if (isLimit && persoKey) {
-        console.warn('[AI] Gemini Pro rate limit — bascule sur Gemini perso');
-        return await _callGeminiWithKey(persoKey, prompt, maxTokens, temperature);
+      lastErr = e;
+      const transient = _isTransientAIError(e);
+      const hasNext = i < queue.length - 1;
+      if (transient && hasNext) {
+        console.warn(`[AI] ${queue[i].name} indisponible (${e.message}) — bascule sur ${queue[i+1].name}`);
+        continue;
       }
       throw e;
     }
   }
-  return await _callGeminiWithKey(persoKey, prompt, maxTokens, temperature);
+  throw lastErr;
 }
 
 function groqErrorMessage(e) {
