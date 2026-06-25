@@ -3,7 +3,7 @@
 .cv-doc{
   background:#FFFFFF;padding:36px 44px;
   border:1px solid #D2D2D7;border-radius:4px;
-  font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
+  font-family:Arial,Helvetica,sans-serif;
   box-shadow:0 4px 24px rgba(0,0,0,.06);
   color:#1D1D1F;
 }
@@ -42,8 +42,9 @@
 /* ── SECTIONS ───────────────────────────────────────────── */
 .cv-sec{margin-bottom:13px}
 .cv-stitle{
-  font-size:9px;font-weight:700;
-  text-transform:uppercase;letter-spacing:2px;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;
   color:#000000;
   margin-bottom:8px;padding-bottom:3px;
   border-bottom:1px solid #D2D2D7;
@@ -267,8 +268,9 @@
 }
 /* Titre de section sidebar */
 .cv-sb-stitle{
-  font-size:7.5px;font-weight:700;
-  text-transform:uppercase;letter-spacing:2px;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:8.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;
   color:rgba(255,255,255,.35);
   margin:15px 0 7px;
   padding-bottom:4px;
