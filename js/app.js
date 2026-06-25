@@ -8,9 +8,12 @@ const STATS = ['À traiter','Envoyé','Message in','Entretien','Refusé'];
 let _dashFilter = 'Tous';
 let _dashFilterSource = 'Tous';
 let _dashSortDate = 'desc'; // desc = récent → ancien
-function setDashFilter(f) { _dashFilter = f; refreshDash(); }
-function setDashFilterSource(f) { _dashFilterSource = f; refreshDash(); }
-function toggleDashSortDate() { _dashSortDate = _dashSortDate === 'desc' ? 'asc' : 'desc'; refreshDash(); }
+let _dashPage = 0;
+const DASH_PAGE_SIZE = 15;
+function setDashFilter(f) { _dashFilter = f; _dashPage = 0; refreshDash(); }
+function setDashFilterSource(f) { _dashFilterSource = f; _dashPage = 0; refreshDash(); }
+function toggleDashSortDate() { _dashSortDate = _dashSortDate === 'desc' ? 'asc' : 'desc'; _dashPage = 0; refreshDash(); }
+function setDashPage(p) { _dashPage = p; refreshDash(); }
 const STAT_COLORS = {
   'À traiter':  ['var(--ink3)','var(--bg)','var(--border)'],
   'Envoyé':     ['#3B82F6','#EFF6FF','#BFDBFE'],
@@ -418,7 +421,13 @@ function refreshDash() {
     const da = a.date || '', db = b.date || '';
     return _dashSortDate === 'desc' ? db.localeCompare(da) : da.localeCompare(db);
   });
-  if (_dashFilter === 'Tous' && _dashFilterSource === 'Tous') filtered = filtered.slice(0, 8);
+  // ── Pagination ──
+  const totalRows  = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / DASH_PAGE_SIZE));
+  if (_dashPage >= totalPages) _dashPage = totalPages - 1;
+  if (_dashPage < 0) _dashPage = 0;
+  const pageStart = _dashPage * DASH_PAGE_SIZE;
+  filtered = filtered.slice(pageStart, pageStart + DASH_PAGE_SIZE);
 
   // ── Tableau filtré ──
   const _fmtDate = (d) => {
@@ -463,10 +472,28 @@ function refreshDash() {
   let recentHtml;
   if (filtered.length) {
     _prevDate = '';
+    let paginationHtml = '';
+    if (totalPages > 1) {
+      const from = pageStart + 1;
+      const to   = pageStart + filtered.length;
+      const btn = (label, page, disabled) =>
+        `<button onclick="setDashPage(${page})" ${disabled ? 'disabled' : ''} style="
+          background:none;border:1.5px solid var(--border);border-radius:7px;
+          padding:4px 11px;font-size:12px;font-weight:600;cursor:${disabled ? 'default' : 'pointer'};
+          color:${disabled ? 'var(--border)' : 'var(--ink2)'};">${label}</button>`;
+      paginationHtml = `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+        <span style="font-size:12px;color:var(--ink3)">${from}–${to} sur ${totalRows}</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${btn('← Préc', _dashPage - 1, _dashPage === 0)}
+          <span style="font-size:12px;color:var(--ink3);font-weight:600;padding:0 4px">${_dashPage + 1} / ${totalPages}</span>
+          ${btn('Suiv →', _dashPage + 1, _dashPage === totalPages - 1)}
+        </div>
+      </div>`;
+    }
     recentHtml = `<table class="tbl">
       <thead><tr><th>Poste · Entreprise</th><th>Source</th><th>Date</th><th>Statut</th><th></th></tr></thead>
       <tbody>${filtered.map(renderRow).join('')}</tbody>
-    </table>`;
+    </table>${paginationHtml}`;
   } else {
     recentHtml = `<div class="empty" style="padding:24px"><div class="empty-ic">◫</div><div class="empty-t">${cands.length ? 'Aucune candidature pour ce filtre' : 'Aucune candidature'}</div></div>`;
   }
