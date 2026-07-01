@@ -1,3 +1,14 @@
+// ── NETTOYAGE TITRE DE POSTE ───────────────────────────────
+// Supprime les mentions de mixité : (H/F), F/H, (H/F/X), (M/W/D)...
+function cleanJobTitle(title) {
+  if (!title) return title;
+  return title
+    .replace(/\s*[\(\[]?\b(?:[hfwmxd]\s*\/\s*){1,2}[hfwmxd]\b[\)\]]?/gi, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s*[-–—·,]\s*$/, '')
+    .trim();
+}
+
 // ── ANON TOGGLE ────────────────────────────────────────────
 let ANON = true;
 
@@ -308,7 +319,7 @@ async function doAnalyzeCore(offerText, containerEl) {
 
   // ── 5. Fusion local ──
   const result = {
-    poste:            local.title,
+    poste:            cleanJobTitle(local.title),
     entreprise:       local.company,
     location:         local.location,
     salary:           local.salary,

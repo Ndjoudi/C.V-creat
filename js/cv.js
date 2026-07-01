@@ -5,8 +5,18 @@ function renderBulletHtml(text, expIdx) {
   );
   if (!emphases.length) return esc(text);
 
-  const pillStyle      = 'background:#ede9fe;color:#5b21b6;border-radius:100px;padding:1px 9px;font-weight:700;font-size:.92em;border:1px solid #ddd6fe';
-  const underlineStyle = 'font-weight:800;border-bottom:2.5px solid #6366f1;padding-bottom:1px';
+  const _ats = (P.cvTemplate === 'ats');
+  // En ATS : surlignage jaune pour le texte, vert pour les chiffres (%, montants, KPI)
+  const atsTextStyle = 'background:#FEF08A;color:#1D1D1F;font-weight:700;padding:0 3px;border-radius:2px';
+  const atsNumStyle  = 'background:#BBF7D0;color:#14532D;font-weight:700;padding:0 3px;border-radius:2px';
+  const isNumberSeg  = t => /\d/.test(t);
+
+  const pillStyle      = _ats
+    ? atsTextStyle
+    : 'background:#ede9fe;color:#5b21b6;border-radius:100px;padding:1px 9px;font-weight:700;font-size:.92em;border:1px solid #ddd6fe';
+  const underlineStyle = _ats
+    ? atsTextStyle
+    : 'font-weight:800;border-bottom:2.5px solid #6366f1;padding-bottom:1px';
 
   // Trie les emphases par position dans le texte (longest match first pour éviter chevauchements)
   const sorted = [...emphases].sort((a, b) => b.text.length - a.text.length);
@@ -31,7 +41,13 @@ function renderBulletHtml(text, expIdx) {
 
   return segments.map(seg => {
     if (seg.raw) return esc(seg.t);
-    const style = seg.type === 'pill' ? pillStyle : underlineStyle;
+    let style;
+    if (seg.type === 'hl')         style = atsTextStyle;   // surlignage jaune explicite
+    else if (seg.type === 'hlnum') style = atsNumStyle;    // surlignage vert explicite
+    else {
+      style = seg.type === 'pill' ? pillStyle : underlineStyle;
+      if (_ats && isNumberSeg(seg.t)) style = atsNumStyle; // legacy : auto-vert si chiffre
+    }
     return `<span data-cv-em="${seg.type}" style="${style}">${esc(seg.t)}</span>`;
   }).join('');
 }
@@ -62,7 +78,7 @@ if (typeof P !== 'undefined' && P.domainesProfile && !P._v3_hookMigrated) {
 }
 
 // ── PROFILE HIGHLIGHT BUILDER ──────────────────────────────
-function buildProfileHighlight() {
+function buildProfileHighlight(ats) {
   const segments = [];
 
   // Ligne 1 : Formation (depuis education[0])
@@ -80,16 +96,38 @@ function buildProfileHighlight() {
     segments.push(`<span class="cv-phi-plain">Fort(e) de </span><strong class="cv-phi-formation">${esc(P.yearsExp)} d'expérience</strong>`);
   }
 
-  // Ligne 2 : Pills (contrat, disponibilité, mobilité, permis)
-  const pills = [];
-  if (P.contratRecherche) pills.push(`<span class="cv-phi-plain">En recherche d'un </span><span class="cv-phi-pill cv-phi-pill--dark">${esc(P.contratRecherche)}</span>`);
-  if (P.disponibilite)    pills.push(`<span class="cv-phi-plain" style="font-size:11px">Disponible </span><span class="cv-phi-pill cv-phi-pill--green">${esc(P.disponibilite)}</span>`);
-  if (P.mobility)         pills.push(`<span class="cv-phi-pill cv-phi-pill--blue">${esc(P.mobility)}</span>`);
-  if (P.permis)           pills.push(`<span class="cv-phi-pill cv-phi-pill--gray">${esc(P.permis)}</span>`);
-  if (pills.length) segments.push(pills.join(''));
+  // Ligne 2 : contrat, disponibilité, mobilité, permis
+  if (ats) {
+    // Mode ATS : infos labellisées sur la même ligne, espacées, sans séparateur ni case
+    const atsItem = (label, txt) =>
+      `<span class="cv-phi-plain">${label} : </span><span class="cv-phi-strong">${esc(txt)}</span>`;
+    const items = [];
+    if (P.contratRecherche) items.push(atsItem('Contrat', P.contratRecherche));
+    if (P.disponibilite)    items.push(atsItem('Dispo', P.disponibilite));
+    if (P.mobility)         items.push(atsItem('Déplacement', P.mobility));
+    if (P.permis) {
+      // Évite "Permis : Permis A et B" → garde juste la valeur si elle contient déjà "permis"
+      items.push(/permis/i.test(P.permis)
+        ? `<span class="cv-phi-strong">${esc(P.permis)}</span>`
+        : atsItem('Permis', P.permis));
+    }
+    if (items.length) segments.push(items.join('&nbsp;&nbsp;&nbsp;'));
+  } else {
+    const pill = (txt, cls) => `<span class="cv-phi-pill ${cls}">${esc(txt)}</span>`;
+    const pills = [];
+    if (P.contratRecherche) pills.push(`<span class="cv-phi-plain">En recherche d'un </span>${pill(P.contratRecherche,'cv-phi-pill--dark')}`);
+    if (P.disponibilite)    pills.push(`<span class="cv-phi-plain" style="font-size:11px">Disponible </span>${pill(P.disponibilite,'cv-phi-pill--green')}`);
+    if (P.mobility)         pills.push(pill(P.mobility,'cv-phi-pill--blue'));
+    if (P.permis)           pills.push(pill(P.permis,'cv-phi-pill--gray'));
+    if (pills.length) segments.push(pills.join(''));
+  }
 
 
   if (!segments.length) return '';
+  // Mode ATS : tout sur une seule ligne continue (formation + infos)
+  if (ats) {
+    return `<div class="cv-profile-highlight">${segments.join('&nbsp;&nbsp;&nbsp;')}</div>`;
+  }
   return `<div class="cv-profile-highlight">${segments.map(s => `<div class="cv-phi-line">${s}</div>`).join('')}</div>`;
 }
 
@@ -325,7 +363,8 @@ function renderCV() {
     cvDoc.innerHTML  = _buildModerneCV();
     return;
   }
-  cvDoc.className = 'cv-doc';
+  const _ats = (_tpl === 'ats');
+  cvDoc.className = 'cv-doc' + (_ats ? ' cv-doc--ats' : '');
 
   // ── Header ──
   const displayTitle = _cvTarget || P.title;
@@ -350,19 +389,34 @@ function renderCV() {
       <img src="${P.photo}" class="cv-photo"/>
     </div>` : '';
 
-  let html = `
-  <div class="cv-hd">
-    <div style="flex:1">
-      <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
-      ${contacts ? `<div class="cv-contact-line">${contacts}</div>` : ''}
-      ${extraLine ? `<div class="cv-contact-line" style="margin-top:3px">${extraLine}</div>` : ''}
+  let html;
+  if (_ats) {
+    // ATS : poste en premier, puis nom, puis contact
+    html = `
+    <div class="cv-hd">
+      <div style="flex:1">
+        ${displayTitle ? `<div class="cv-ats-poste">${esc(displayTitle)}</div>` : ''}
+        <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
+        ${contacts ? `<div class="cv-contact-line">${contacts}</div>` : ''}
+      </div>
+      ${rightCol}
     </div>
-    ${rightCol}
-  </div>
-  <div class="cv-div"></div>`;
+    <div class="cv-div"></div>`;
+  } else {
+    html = `
+    <div class="cv-hd">
+      <div style="flex:1">
+        <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
+        ${contacts ? `<div class="cv-contact-line">${contacts}</div>` : ''}
+        ${extraLine ? `<div class="cv-contact-line" style="margin-top:3px">${extraLine}</div>` : ''}
+      </div>
+      ${rightCol}
+    </div>
+    <div class="cv-div"></div>`;
+  }
 
   // ── Profil : bloc highlight + phrase d'accroche ───────────
-  const highlightBlock = buildProfileHighlight();
+  const highlightBlock = buildProfileHighlight(_ats);
   const targetText     = _buildAccrocheText();
   if (highlightBlock || targetText) {
     html += `<div class="cv-sec">
@@ -415,46 +469,53 @@ function renderCV() {
       <div class="cv-stitle">Compétences et Outils</div>`;
 
     // Helper : tag cliquable — clic pour sélectionner / désélectionner
+    // En mode ATS : texte simple (pas de case), surligné si matché
     const tagEl = s => {
       const matched = isMatchedSkill(s);
       const sk = s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      if (_ats) {
+        return `<span class="cv-skill-plain${matched ? ' cv-skill-plain--match' : ''}"
+          onclick="toggleSkillMatch('${sk}')"
+          title="${matched ? 'Désélectionner' : 'Sélectionner pour cette offre'}">${esc(s)}</span>`;
+      }
       return `<span class="cv-skill-tag${matched ? ' cv-skill-tag--match' : ''} cv-skill-tag--toggle"
         onclick="toggleSkillMatch('${sk}')"
         title="${matched ? 'Désélectionner' : 'Sélectionner pour cette offre'}"
         style="cursor:pointer">${esc(s)}</span>`;
     };
+    const tagSep = _ats ? ', ' : '';
 
-    // Helper : label de catégorie avec bouton +
+    // Helper : label de catégorie avec bouton + (à gauche)
     const catLabel = (label, key) =>
       `<div class="cv-skill-key" style="display:flex;align-items:center;gap:5px;white-space:nowrap">
-        ${label}
         <button onclick="event.stopPropagation();window._openSkillPicker('${key}',this)"
           style="flex-shrink:0;width:16px;height:16px;background:#e0e7ff;color:#4f46e5;border:none;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700">+</button>
+        ${label}
       </div>`;
 
     if (P.subdomains.length || true) {
       html += `<div class="cv-skill-row">
         ${catLabel('Domaines','subdomains')}
-        <div class="cv-skill-tags">${P.subdomains.map(tagEl).join('')}</div>
+        <div class="cv-skill-tags">${P.subdomains.map(tagEl).join(tagSep)}</div>
       </div>`;
     }
     {
       const merged = [...P.tools.map(tagEl), ...P.informatique.map(tagEl)];
       html += `<div class="cv-skill-row">
         ${catLabel('Outils SC','tools')}
-        <div class="cv-skill-tags">${merged.join('')}</div>
+        <div class="cv-skill-tags">${merged.join(tagSep)}</div>
       </div>`;
     }
     if (P.certifs.length) {
       html += `<div class="cv-skill-row">
         <div class="cv-skill-key">Certifications</div>
-        <div class="cv-skill-tags">${P.certifs.map(tagEl).join('')}</div>
+        <div class="cv-skill-tags">${P.certifs.map(tagEl).join(tagSep)}</div>
       </div>`;
     }
     if (P.customSkills.length || true) {
       html += `<div class="cv-skill-row">
         ${catLabel('Autres','customSkills')}
-        <div class="cv-skill-tags">${P.customSkills.map(tagEl).join('')}</div>
+        <div class="cv-skill-tags">${P.customSkills.map(tagEl).join(tagSep)}</div>
       </div>`;
     }
     html += `</div>`;
@@ -462,31 +523,48 @@ function renderCV() {
 
   // ── Langues ──
   if (P.languages.length) {
-    html += `<div class="cv-sec">
-      <div class="cv-stitle">Langues</div>
-      <div class="cv-lang-row">${P.languages.map(l =>
-        `<div class="cv-lang-item">
-          <span class="cv-lang-name">${esc(l.name)}</span>
-          <span class="cv-lang-level">— ${esc(l.level)}</span>
-        </div>`
-      ).join('')}</div>
-    </div>`;
+    if (_ats) {
+      const langsInline = P.languages.map(l =>
+        `<span class="cv-lang-item"><span class="cv-lang-name">${esc(l.name)}</span> — <span class="cv-lang-level">${esc(l.level)}</span></span>`
+      ).join('&nbsp;&nbsp;&nbsp;');
+      html += `<div class="cv-sec">
+        <div class="cv-lang-row--ats"><span class="cv-stitle-inline">Langues :</span> ${langsInline}</div>
+      </div>`;
+    } else {
+      html += `<div class="cv-sec">
+        <div class="cv-stitle">Langues</div>
+        <div class="cv-lang-row">${P.languages.map(l =>
+          `<div class="cv-lang-item">
+            <span class="cv-lang-name">${esc(l.name)}</span>
+            <span class="cv-lang-level">— ${esc(l.level)}</span>
+          </div>`
+        ).join('')}</div>
+      </div>`;
+    }
   }
 
   // ── Secteurs ──
   if (P.sectors.length) {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Secteurs</div>
-      <div class="cv-skill-tags">${P.sectors.map(s => `<span class="cv-skill-tag">${esc(s)}</span>`).join('')}</div>
+      <div class="cv-skill-tags">${P.sectors.map(s => _ats
+        ? `<span class="cv-skill-plain">${esc(s)}</span>`
+        : `<span class="cv-skill-tag">${esc(s)}</span>`).join(_ats ? ', ' : '')}</div>
     </div>`;
   }
 
   // ── Centres d'intérêt ──
   if (P.hobbies) {
+    if (_ats) {
+      html += `<div class="cv-sec">
+        <div class="cv-lang-row--ats"><span class="cv-stitle-inline">Centres d'intérêt :</span> ${esc(P.hobbies)}</div>
+      </div>`;
+    } else {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Centres d'intérêt</div>
       <div class="cv-summary-text">${esc(P.hobbies)}</div>
     </div>`;
+    }
   }
 
   cvDoc.innerHTML = html;
@@ -721,6 +799,8 @@ function _syncSplitCV() {
   const split = document.getElementById('cv-doc-split');
   const main  = document.getElementById('cv-doc');
   if (!split || !main) return;
+  // Synchronise la classe du template (cv-doc--ats / cv-doc--moderne)
+  split.className = main.className;
   split.innerHTML = main.innerHTML;
   // Strip les spans d'emphase statiques (renderBulletHtml) pour que
   // _applyEmphases puisse reposer des spans interactifs proprement
@@ -743,7 +823,9 @@ function printCV() {
     document.body.appendChild(wrapper);
   }
   const _printTpl   = P.cvTemplate || 'classique';
-  const _printClass = _printTpl === 'moderne' ? 'cv-doc cv-doc--moderne' : 'cv-doc';
+  const _printClass = _printTpl === 'moderne' ? 'cv-doc cv-doc--moderne'
+                    : _printTpl === 'ats'     ? 'cv-doc cv-doc--ats'
+                    : 'cv-doc';
   wrapper.innerHTML = `<div class="${_printClass}">${srcEl.innerHTML}</div>`;
 
   // Supprime les éléments interactifs (boutons +, toolbars) de la version imprimée
@@ -794,7 +876,22 @@ function setCVTemplate(tpl) {
   P.cvTemplate = tpl;
   ss('sc_profile', P);
   renderCV();
-  if (typeof _syncSplitCV === 'function') _syncSplitCV();
+  // Met à jour le sélecteur dans la split view
+  if (typeof _updateSplitTplPicker === 'function') _updateSplitTplPicker(tpl);
+  // Si la split view est ouverte, on la reconstruit entièrement (classe + emphases)
+  const splitOpen = !document.getElementById('split-modal-overlay')?.classList.contains('hidden');
+  if (splitOpen && typeof _refreshSplitCV === 'function') {
+    _refreshSplitCV();
+  } else if (typeof _syncSplitCV === 'function') {
+    _syncSplitCV();
+  }
+}
+
+// Met à jour l'état actif des boutons template dans la split view
+function _updateSplitTplPicker(tpl) {
+  document.querySelectorAll('#split-tpl-picker .tpl-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tpl === tpl);
+  });
 }
 
 // ── SUPPRIMER UNE COMPÉTENCE DU PROFIL (sidebar Moderne) ──

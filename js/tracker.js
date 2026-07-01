@@ -209,7 +209,7 @@ async function _runJobFetch(url, source) {
     // Pré-remplit poste + entreprise
     const posteEl = document.getElementById('dash-poste');
     const coEl    = document.getElementById('dash-co');
-    if (posteEl && job.title)   posteEl.value = job.title;
+    if (posteEl && job.title)   posteEl.value = cleanJobTitle(job.title);
     if (coEl    && job.company) coEl.value    = job.company;
 
     // Affiche la fiche formatée
@@ -469,7 +469,7 @@ async function runPasteAnalysis() {
       { maxTokens: 200, temperature: 0 }
     );
     const p = safeParseJSON(raw);
-    if (p.title)   document.getElementById('f-poste').value = p.title;
+    if (p.title)   document.getElementById('f-poste').value = cleanJobTitle(p.title);
     if (p.company) document.getElementById('f-co').value    = p.company;
 
     const parts = [p.title, p.company, p.location, p.contractType, p.salary].filter(Boolean);
@@ -916,6 +916,14 @@ function _showEmphasisToolbar(text, range) {
       style="background:none;border:none;color:#111;font-size:12.5px;font-weight:800;border-bottom:2.5px solid #6366f1;padding:2px 4px 1px;cursor:pointer;line-height:1.2">
       <u style="text-decoration:none">A</u>̲ Souligné
     </button>
+    <button data-em="hl"
+      style="background:#FEF08A;color:#1D1D1F;border:1px solid #FACC15;border-radius:5px;padding:3px 11px;font-size:12px;font-weight:700;cursor:pointer">
+      🟡 Texte
+    </button>
+    <button data-em="hlnum"
+      style="background:#BBF7D0;color:#14532D;border:1px solid #4ADE80;border-radius:5px;padding:3px 11px;font-size:12px;font-weight:700;cursor:pointer">
+      🟢 Chiffre
+    </button>
     <span style="color:#d1d5db;font-size:16px;line-height:1">|</span>
     <button data-em="remove"
       style="background:none;border:none;color:#9ca3af;font-size:11px;cursor:pointer;padding:2px 4px;font-weight:600"
@@ -986,9 +994,23 @@ function _wrapPhrase(container, phrase, type, candId) {
   if (!phrase) return;
   const phraseLow = phrase.toLowerCase();
 
-  // Styles visuels
-  const pillStyle       = 'background:#ede9fe;color:#5b21b6;border-radius:100px;padding:1px 9px;font-weight:700;font-size:.92em;border:1px solid #ddd6fe;cursor:pointer';
-  const underlineStyle  = 'font-weight:800;border-bottom:2.5px solid #6366f1;padding-bottom:1px;cursor:pointer';
+  // Styles visuels — en mode ATS : surlignage jaune (texte) / vert (chiffres), pas de cases
+  const _ats = (P.cvTemplate === 'ats');
+  const hlYellow = 'background:#FEF08A;color:#1D1D1F;padding:0 3px;border-radius:2px;font-weight:700;cursor:pointer';
+  const hlGreen  = 'background:#BBF7D0;color:#14532D;padding:0 3px;border-radius:2px;font-weight:700;cursor:pointer';
+  // Couleur auto (legacy) selon présence d'un chiffre
+  const atsAuto  = /\d/.test(phrase) ? hlGreen : hlYellow;
+  const pillStyle       = _ats
+    ? atsAuto
+    : 'background:#ede9fe;color:#5b21b6;border-radius:100px;padding:1px 9px;font-weight:700;font-size:.92em;border:1px solid #ddd6fe;cursor:pointer';
+  const underlineStyle  = _ats
+    ? atsAuto
+    : 'font-weight:800;border-bottom:2.5px solid #6366f1;padding-bottom:1px;cursor:pointer';
+  // Types ATS explicites (choisis dans le toolbar)
+  const styleForType = t =>
+    t === 'hl'    ? hlYellow :
+    t === 'hlnum' ? hlGreen  :
+    t === 'pill'  ? pillStyle : underlineStyle;
 
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
     acceptNode: n => {
@@ -1016,7 +1038,7 @@ function _wrapPhrase(container, phrase, type, candId) {
     span.dataset.emphasis = type;
     span.textContent      = match;
     span.title            = '✕ Clic pour retirer';
-    span.style.cssText    = type === 'pill' ? pillStyle : underlineStyle;
+    span.style.cssText    = styleForType(type);
     span.onclick = e => {
       e.stopPropagation();
       // 1. Suppression immédiate du span dans le DOM (feedback visuel instantané)
@@ -2050,7 +2072,7 @@ RÈGLES :
     if (idx !== -1) {
       if (!cands[idx].analysis) cands[idx].analysis = {};
       cands[idx].analysis.career_ops = data;
-      cands[idx].analysis.poste      = data.poste || cands[idx].analysis.poste;
+      cands[idx].analysis.poste      = cleanJobTitle(data.poste) || cands[idx].analysis.poste;
       cands[idx].analysis.entreprise = data.entreprise || cands[idx].analysis.entreprise;
       ss('sc_cands', cands);
     }
@@ -3392,6 +3414,9 @@ async function openSplitView(candId) {
   // ── Barre du haut ──
   document.getElementById('split-modal-title').textContent = c.poste + ' · ' + c.company;
   document.getElementById('split-modal-sub').textContent   = c.date || '';
+
+  // ── Sélecteur de template ──
+  if (typeof _updateSplitTplPicker === 'function') _updateSplitTplPicker(P.cvTemplate || 'classique');
 
   // ── Statut letters dans le header ──
   const statusEl = document.getElementById('split-status-letters');

@@ -227,6 +227,71 @@
 #cv-print-wrapper{display:none}
 
 /* ══════════════════════════════════════════════════════════
+   TEMPLATE ATS — identique au classique, sans cases (pills)
+   Mise en avant = surlignage du texte (pas de bordures)
+   ══════════════════════════════════════════════════════════ */
+/* Compétences en texte simple, séparées par des virgules */
+.cv-doc--ats .cv-skill-tags{
+  display:block;line-height:1.7;
+  font-size:11.5px;color:#3A3A3C;
+}
+.cv-doc--ats .cv-skill-plain{
+  cursor:pointer;color:#3A3A3C;
+  transition:background .12s;
+}
+/* Colonne label plus étroite + écart réduit avec les compétences */
+.cv-doc--ats .cv-skill-key{ min-width:74px; }
+.cv-doc--ats .cv-skill-row{ gap:6px; }
+/* Poste en tête (avant le nom) en mode ATS */
+.cv-doc--ats .cv-ats-poste{
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:20px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.5px;
+  color:#000;margin-bottom:2px;line-height:1.15;
+}
+.cv-doc--ats .cv-nm{ font-size:16px;margin-bottom:3px; }
+/* Espace réduit entre l'état civil et le trait */
+.cv-doc--ats .cv-div{ margin-top:2px; }
+
+/* Trait de séparation entre les blocs en mode ATS */
+.cv-doc--ats .cv-sec{
+  border-top:1px solid #E5E5EA;
+  padding-top:11px;margin-top:11px;
+}
+.cv-doc--ats .cv-sec:first-of-type{
+  border-top:none;padding-top:0;margin-top:0;
+}
+
+/* Langues sur une ligne avec titre inline (copier-coller propre) */
+.cv-lang-row--ats{ display:block;font-size:11.5px;line-height:1.6; }
+.cv-lang-row--ats .cv-lang-item{ display:inline;white-space:nowrap; }
+.cv-lang-row--ats .cv-lang-name{ display:inline; }
+.cv-lang-row--ats .cv-lang-level{ display:inline;color:#86868B;font-size:11px; }
+.cv-stitle-inline{
+  font-family:Arial,Helvetica,sans-serif;
+  font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+  font-size:10px;color:#000;
+}
+.cv-doc--ats .cv-skill-plain--match{
+  background:#FEF08A;color:#1D1D1F;font-weight:700;
+  padding:0 3px;border-radius:2px;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+/* Profil — pills converties en texte gras (pas de cases) */
+.cv-doc--ats .cv-phi-strong{ font-weight:700;color:#1D1D1F; }
+/* Bloc profil ATS : flux texte normal → copier-coller propre */
+.cv-doc--ats .cv-profile-highlight{
+  display:block;gap:0;font-size:11px;line-height:1.6;
+  padding-top:4px;padding-bottom:4px;
+}
+/* Réduit l'écart avant la phrase d'accroche */
+.cv-doc--ats .cv-summary-text{ margin-top:4px!important; }
+/* Surlignages dans les bullets / textes — garder à l'impression */
+.cv-doc--ats [data-cv-em]{
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+
+/* ══════════════════════════════════════════════════════════
    TEMPLATE MODERNE — sidebar sombre + colonne principale
    ══════════════════════════════════════════════════════════ */
 .cv-doc--moderne{

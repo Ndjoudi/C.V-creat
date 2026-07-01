@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
 <link rel="stylesheet" href="css/components.css?v=39"/>
-<link rel="stylesheet" href="css/cv.css?v=40"/>
+<link rel="stylesheet" href="css/cv.css?v=53"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -285,10 +285,10 @@
             <div class="fg"><label class="lb">Contrat recherché</label><input class="inp" id="p-contratRecherche" placeholder="Ex : CDI temps complet" oninput="saveProfile()"/></div>
             <div class="fg"><label class="lb">Disponibilité</label><input class="inp" id="p-disponibilite" placeholder="Ex : Octobre 2026" oninput="saveProfile()"/></div>
             <div class="fg"><label class="lb">Mobilité géographique</label>
-              <select class="inp" id="p-mobility" onchange="saveProfile()">
-                <option value="">Sélectionner...</option>
+              <input class="inp" id="p-mobility" list="mobility-options" placeholder="Ex : Régionale, ou Lyon et alentours…" oninput="saveProfile()" autocomplete="off"/>
+              <datalist id="mobility-options">
                 <option>Locale (même ville)</option><option>Régionale</option><option>Nationale</option><option>Internationale</option>
-              </select>
+              </datalist>
             </div>
             <div class="fg"><label class="lb">Permis / Véhicule</label><input class="inp" id="p-permis" placeholder="Ex : Permis B, véhicule personnel" oninput="saveProfile()"/></div>
           </div>
@@ -459,6 +459,7 @@
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
           <span style="font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;flex-shrink:0">Template</span>
           <button class="tpl-btn active" data-tpl="classique" onclick="setCVTemplate('classique')">📄 Classique</button>
+          <button class="tpl-btn"        data-tpl="ats"       onclick="setCVTemplate('ats')">✅ ATS</button>
           <button class="tpl-btn"        data-tpl="moderne"   onclick="setCVTemplate('moderne')">🎨 Moderne</button>
         </div>
         <div style="font-size:11.5px;color:var(--ink3);margin-bottom:14px;display:flex;align-items:center;gap:6px"><i data-lucide="info" style="width:13px;height:13px;flex-shrink:0"></i>Dans la boîte d'impression : choisir <strong>"Enregistrer en PDF"</strong>, désactiver les en-têtes/pieds de page</div>
@@ -686,11 +687,16 @@
   <!-- Top bar -->
   <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1.5px solid var(--border);background:white;flex-shrink:0">
     <button onclick="closeSplitView()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:13px;padding:5px 12px;font-weight:600;display:flex;align-items:center;gap:5px">← Retour</button>
+    <div id="split-status-letters"></div>
     <div style="flex:1">
       <div style="font-size:14px;font-weight:800;color:var(--ink)" id="split-modal-title"></div>
       <div style="font-size:11.5px;color:var(--ink3)" id="split-modal-sub"></div>
     </div>
-    <div id="split-status-letters"></div>
+    <div id="split-tpl-picker" style="display:flex;gap:5px">
+      <button class="tpl-btn active" data-tpl="classique" onclick="setCVTemplate('classique')" style="padding:4px 10px;font-size:11px">📄 Classique</button>
+      <button class="tpl-btn"        data-tpl="ats"       onclick="setCVTemplate('ats')" style="padding:4px 10px;font-size:11px">✅ ATS</button>
+      <button class="tpl-btn"        data-tpl="moderne"   onclick="setCVTemplate('moderne')" style="padding:4px 10px;font-size:11px">🎨 Moderne</button>
+    </div>
     <div id="split-job-link"></div>
     <button id="split-linkedin-btn" onclick="window._openLinkedInContact()" style="display:none;align-items:center;gap:5px;background:#0a66c2;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;padding:5px 14px;font-weight:600;white-space:nowrap">in Trouver le recruteur</button>
 <button id="cv-edit-btn" onclick="toggleCVEditMode()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">✏️ Modifier le CV</button>
@@ -715,10 +721,10 @@
 <script src="js/app.js?v=67"></script>
 <script src="js/profile.js?v=53"></script>
 <script src="js/import-cv.js?v=35"></script>
-<script src="js/cv.js?v=56"></script>
-<script src="js/analyze.js?v=38"></script>
+<script src="js/cv.js?v=72"></script>
+<script src="js/analyze.js?v=39"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=154"></script>
+<script src="js/tracker.js?v=160"></script>
 <script src="js/modal.js?v=36"></script>
 
 </body>
