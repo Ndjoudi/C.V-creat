@@ -778,12 +778,17 @@ function _applyOverridesToP(overrides) {
     summaryTarget:   P.summaryTarget,
     experiences:     JSON.parse(JSON.stringify(P.experiences)),
     _cvTarget:       _cvTarget,
-    domainesProfile: P.domainesProfile
+    domainesProfile: P.domainesProfile,
+    accrocheIntro:   P.accrocheIntro
   };
   // Titre du poste
   if (overrides.title) {
     _cvTarget = overrides.title;
     localStorage.setItem('sc_cv_target', _cvTarget);
+  }
+  // Phrase d'accroche (partie libre) personnalisée pour l'offre
+  if (overrides.accrocheIntro !== undefined) {
+    P.accrocheIntro = overrides.accrocheIntro;
   }
   // Résumé personnalisé
   if (overrides.summaryTarget !== undefined) {
@@ -820,6 +825,7 @@ function _restoreP() {
   P.experiences     = _pSnapshot.experiences;
   _cvTarget         = _pSnapshot._cvTarget;
   P.domainesProfile = _pSnapshot.domainesProfile;
+  P.accrocheIntro   = _pSnapshot.accrocheIntro;
   localStorage.setItem('sc_cv_target', _cvTarget);
   _pSnapshot = null;
 }
@@ -1467,9 +1473,19 @@ function _saveCVEditsFromDOM(candId) {
     if (t) overrides.title = t;
   }
 
-  // ── Résumé ──
+  // ── Résumé / phrase d'accroche ──
   const summaryEl = cvSplit.querySelector('.cv-summary-text');
-  if (summaryEl) overrides.summaryTarget = summaryEl.textContent.trim();
+  if (summaryEl) {
+    const fullText = summaryEl.textContent.trim();
+    // Format "INTRO, je vise un poste de POSTE." → on sépare intro + poste
+    const m = fullText.match(/^(.*?),?\s*je vise un poste de\s+(.+?)\.?\s*$/i);
+    if (m) {
+      overrides.accrocheIntro = m[1].trim();
+      overrides.title         = m[2].trim();
+    } else {
+      overrides.summaryTarget = fullText;
+    }
+  }
 
   // ── Expériences ──
   const hiddenExpIndices = [];
