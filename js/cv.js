@@ -418,11 +418,17 @@ function renderCV() {
   // ── Profil : bloc highlight + phrase d'accroche ───────────
   const highlightBlock = buildProfileHighlight(_ats);
   const targetText     = _buildAccrocheText();
+  // Met le nom du poste en évidence (plus grand) dans la phrase d'accroche
+  let targetHtml = esc(targetText);
+  if (displayTitle) {
+    const posteEsc = esc(displayTitle);
+    targetHtml = targetHtml.replace(posteEsc, `<span class="cv-accroche-poste">${posteEsc}</span>`);
+  }
   if (highlightBlock || targetText) {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>
       ${highlightBlock}
-      ${targetText ? `<div class="cv-summary-text"${highlightBlock ? ' style="margin-top:9px"' : ''}>${esc(targetText)}</div>` : ''}
+      ${targetText ? `<div class="cv-summary-text"${highlightBlock ? ' style="margin-top:9px"' : ''}>${targetHtml}</div>` : ''}
     </div>`;
   }
 
