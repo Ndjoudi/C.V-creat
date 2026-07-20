@@ -154,10 +154,14 @@
           <span style="font-size:12.5px;font-weight:700;color:var(--ink)">Nouvelle candidature</span>
           <span style="font-size:11px;color:var(--ink3)">Colle le lien ou le texte de l'annonce</span>
         </div>
-        <textarea class="inp" id="dash-paste-text" rows="1"
-          placeholder="Lien LinkedIn / Indeed ou texte de l'annonce…"
-          style="resize:none;font-size:12px;margin-bottom:3px;padding:6px 10px;min-height:0"
-          onpaste="scheduleDashPasteAnalysis()"></textarea>
+        <div style="display:flex;gap:6px;align-items:stretch;margin-bottom:3px">
+          <textarea class="inp" id="dash-paste-text" rows="1"
+            placeholder="Lien LinkedIn / Indeed ou texte de l'annonce…"
+            style="flex:1;resize:none;font-size:12px;padding:6px 10px;min-height:0"
+            onpaste="scheduleDashPasteAnalysis()"></textarea>
+          <button onclick="pasteFromClipboardDash()" title="Coller le presse-papiers"
+            style="flex-shrink:0;background:var(--ink);color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;padding:0 14px;white-space:nowrap">📋 Coller</button>
+        </div>
         <div style="display:flex;align-items:center;gap:8px;min-height:16px;margin-bottom:3px">
           <div id="dash-source-badge"></div>
           <div id="dash-paste-status" style="font-size:11px;line-height:1.4;color:var(--ink3)"></div>
@@ -724,7 +728,7 @@
 <script src="js/cv.js?v=74"></script>
 <script src="js/analyze.js?v=39"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=161"></script>
+<script src="js/tracker.js?v=163"></script>
 <script src="js/modal.js?v=36"></script>
 
 </body>

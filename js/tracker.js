@@ -151,6 +151,21 @@ function _showSourceBadge(source) {
   el.innerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;background:${conf.bg};color:white;border-radius:100px;padding:2px 9px;font-size:10.5px;font-weight:700">✓ ${conf.label}</span>`;
 }
 
+async function pasteFromClipboardDash() {
+  const ta = document.getElementById('dash-paste-text');
+  if (!ta) return;
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text || !text.trim()) { toast('Presse-papiers vide'); return; }
+    ta.value = text.trim();
+    ta.focus();
+    scheduleDashPasteAnalysis(); // déclenche fetch/analyse comme un vrai collage
+  } catch (e) {
+    toast('Impossible de lire le presse-papiers — colle manuellement (Cmd+V)');
+    ta.focus();
+  }
+}
+
 function scheduleDashPasteAnalysis() {
   clearTimeout(_dashPasteTimer);
   // Délai 300ms : laisse le navigateur écrire la valeur collée dans le textarea
@@ -1176,8 +1191,9 @@ function _enterCVEditMode() {
     const key     = labelToKey[label];
     if (!key) return;
 
-    row.querySelectorAll('.cv-skill-tag').forEach(tag => {
-      const val = tag.textContent.replace('✓','').trim();
+    // .cv-skill-tag (classique/moderne) OU .cv-skill-plain (ATS)
+    row.querySelectorAll('.cv-skill-tag, .cv-skill-plain').forEach(tag => {
+      const val = tag.textContent.replace('✓','').replace(/×$/,'').trim();
       tag.style.paddingRight = '4px';
       const x = document.createElement('span');
       x.textContent = '×';
@@ -1187,6 +1203,9 @@ function _enterCVEditMode() {
         e.stopPropagation();
         P[key] = (P[key] || []).filter(s => s !== val);
         ss('sc_profile', P);
+        // Retire aussi la virgule séparatrice qui suit (mode ATS)
+        const next = tag.nextSibling;
+        if (next && next.nodeType === 3 && /^[\s,]+$/.test(next.textContent)) next.remove();
         tag.remove();
       };
       tag.appendChild(x);
