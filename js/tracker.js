@@ -3413,6 +3413,29 @@ window._regenLinkedIn = function() {
   if (d) window._genLinkedIn(d.candId, d.contactType);
 };
 
+// Sauvegarde le poste modifié depuis le header de la split view
+window._saveSplitPoste = function(candId, newPoste) {
+  const val = (newPoste || '').trim();
+  if (!val) return;
+  const cands = ls('sc_cands', []);
+  const idx = cands.findIndex(x => x.id === candId);
+  if (idx === -1) return;
+  if (cands[idx].poste === val) return; // rien changé
+  cands[idx].poste = val;
+  if (cands[idx].analysis) cands[idx].analysis.poste = val;
+  // Met aussi à jour l'override de titre par offre (sinon le CV réaffiche l'ancien poste)
+  if (!cands[idx].cv_overrides) cands[idx].cv_overrides = {};
+  cands[idx].cv_overrides.title = val;
+  ss('sc_cands', cands);
+  // Met à jour le poste ciblé du CV + re-render
+  _cvTarget = val;
+  localStorage.setItem('sc_cv_target', val);
+  if (typeof _refreshSplitCV === 'function') _refreshSplitCV();
+  if (typeof renderTracker === 'function') renderTracker();
+  if (typeof refreshDash === 'function') refreshDash();
+  toast('✓ Poste modifié');
+};
+
 async function openSplitView(candId) {
   const c = ls('sc_cands', []).find(x => x.id === candId);
   if (!c) return;
@@ -3446,8 +3469,17 @@ async function openSplitView(candId) {
     : `<div style="color:var(--ink3);padding:24px;font-size:13px">CV non disponible — complète ton profil.</div>`;
   if (openApplied) renderCV(); // restaure cv-doc principal
 
-  // ── Barre du haut ──
-  document.getElementById('split-modal-title').textContent = c.poste + ' · ' + c.company;
+  // ── Barre du haut ── (poste éditable directement)
+  document.getElementById('split-modal-title').innerHTML =
+    `<span id="split-poste-edit" contenteditable="true" spellcheck="false"
+       onblur="window._saveSplitPoste('${candId}', this.textContent)"
+       onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+       title="Cliquer pour modifier le poste"
+       style="outline:none;border-bottom:1px dashed transparent;cursor:text;transition:border-color .15s"
+       onfocus="this.style.borderBottomColor='#6366f1'"
+       onmouseover="if(document.activeElement!==this)this.style.borderBottomColor='var(--border)'"
+       onmouseout="if(document.activeElement!==this)this.style.borderBottomColor='transparent'"
+       >${esc(c.poste)}</span><span style="color:var(--ink3);font-weight:600"> · ${esc(c.company)}</span>`;
   document.getElementById('split-modal-sub').textContent   = c.date || '';
 
   // ── Sélecteur de template ──
