@@ -262,7 +262,8 @@
   border-top:1px solid #E5E5EA;
   padding-top:11px;margin-top:11px;
 }
-.cv-doc--ats .cv-sec:first-of-type{
+/* Pas de trait sur la 1re section (Profil) — elle suit le trait d'en-tête */
+.cv-doc--ats .cv-div + .cv-sec{
   border-top:none;padding-top:0;margin-top:0;
 }
 
