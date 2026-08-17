@@ -331,6 +331,7 @@ function addCandFromDash() {
   // Analyse IA en arrière-plan si l'annonce a bien été récupérée
   const _nouvId = cands[cands.length - 1].id;
   if (cands[cands.length - 1].jobDescription) {
+    _marqueAnalyseTentee(_nouvId);
     launchCareerOpsAnalysis(_nouvId, 'gemini', true);
   }
 
@@ -2044,8 +2045,16 @@ function _buildCVText() {
 }
 
 // ── ANALYSE IA CAREER-OPS STYLE ─────────────────────────────
-// Évite de relancer plusieurs fois l'analyse d'une même offre dans la session
-const _analysesLancees = new Set();
+// Marque qu'une analyse automatique a déjà été tentée pour cette offre.
+// Persisté dans la candidature → survit au rechargement de la page.
+function _marqueAnalyseTentee(candId) {
+  const cands = ls('sc_cands', []);
+  const idx   = cands.findIndex(x => x.id === candId);
+  if (idx === -1) return;
+  if (!cands[idx].analysis) cands[idx].analysis = {};
+  cands[idx].analysis.auto_tentee = new Date().toISOString();
+  ss('sc_cands', cands);
+}
 
 // silencieux = true → tourne en arrière-plan, sans affichage, avec bascule Gemini → Groq
 async function launchCareerOpsAnalysis(candId, provider, silencieux = false) {
@@ -3652,10 +3661,12 @@ async function openSplitView(candId) {
     _applyEmphases(candId);
   }, 200);
 
-  // ── Analyse IA : lancée d'office si elle n'a jamais été faite ──
-  // (couvre les candidatures ajoutées avant cette fonctionnalité)
-  if (!a.career_ops && c.jobDescription && !_analysesLancees.has(candId)) {
-    _analysesLancees.add(candId);
+  // ── Analyse IA : UNE SEULE tentative automatique par offre ──
+  // Le marqueur est enregistré dans la candidature : même après un
+  // rechargement de page, on ne relance jamais tout seul.
+  // (les boutons ⚡ Groq / ✦ Gemini restent là pour relancer à la demande)
+  if (!a.career_ops && !a.auto_tentee && c.jobDescription) {
+    _marqueAnalyseTentee(candId);
     setTimeout(() => launchCareerOpsAnalysis(candId, 'gemini'), 300);
   }
 

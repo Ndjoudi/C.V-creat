@@ -572,8 +572,10 @@ async function _feedAjouteAuSuivi(offreId, btn) {
   const nouvelId = cands[cands.length - 1].id;
 
   // Analyse IA lancée en arrière-plan (Gemini → Groq si quota atteint)
+  // Une seule tentative : le marqueur évite toute relance automatique
   if (description && typeof launchCareerOpsAnalysis === 'function') {
     toast('✓ Ajoutée — analyse IA en cours…');
+    if (typeof _marqueAnalyseTentee === 'function') _marqueAnalyseTentee(nouvelId);
     launchCareerOpsAnalysis(nouvelId, 'gemini', true);
   } else {
     toast(description
