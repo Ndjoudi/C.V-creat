@@ -837,9 +837,11 @@ function printCV() {
   // Supprime les éléments interactifs (boutons +, toolbars) de la version imprimée
   wrapper.querySelectorAll('button, #emphasis-toolbar, [id$="-picker"]').forEach(el => el.remove());
 
-  // Nom du fichier PDF = "Poste - Entreprise - Date" si une offre est ouverte
+  // Nom du fichier PDF = "Date - Poste - Entreprise"
+  // Vaut pour la split view comme pour les boutons PDF (tableau, Feed)
   const originalTitle = document.title;
-  const candId = window._splitCandId;
+  const candId = window._splitCandId || window._pdfCandId;
+  window._pdfCandId = null;
   if (candId) {
     const c = ls('sc_cands', []).find(x => x.id === candId);
     if (c) {
@@ -856,7 +858,8 @@ function printCV() {
           dateStr = c.date; // garde la date telle quelle si pas parsable
         }
       }
-      const parts = [dateStr, c.poste, c.company].filter(Boolean);
+      const posteNet = typeof cleanJobTitle === 'function' ? cleanJobTitle(c.poste) : c.poste;
+      const parts = [dateStr, posteNet, c.company].filter(Boolean);
       if (parts.length) document.title = parts.join(' - ');
     }
   }

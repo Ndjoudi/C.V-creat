@@ -350,6 +350,7 @@ function goTo(id) {
   document.querySelectorAll('.ni').forEach(n => n.classList.toggle('on', n.dataset.sc === id));
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + id));
   if (id === 'cv')       renderCV();
+  if (id === 'feed')     ouvreFeed();
   if (id === 'dash')     refreshDash();
   if (id === 'tracker')  renderTracker();
   if (id === 'history')  renderHistory();

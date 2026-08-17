@@ -525,9 +525,9 @@ function loadCVForCand(candId, andPrint = false) {
   const c = ls('sc_cands', []).find(x => x.id === candId);
   if (!c) return;
 
-  // Injecter le poste ciblé
+  // Injecter le poste ciblé — sans la mention de mixité (H/F)
   const target = c.analysis?.poste || c.poste;
-  _cvTarget = target;
+  _cvTarget = typeof cleanJobTitle === 'function' ? cleanJobTitle(target) : target;
   localStorage.setItem('sc_cv_target', _cvTarget);
 
   // Injecter les compétences matchées
@@ -544,6 +544,8 @@ function loadCVForCand(candId, andPrint = false) {
 
   if (andPrint) {
     // Rendre le CV en arrière-plan puis imprimer
+    // _pdfCandId sert à nommer le fichier même hors split view
+    window._pdfCandId = candId;
     renderCV();
     setTimeout(() => printCV(), 250);
   } else {

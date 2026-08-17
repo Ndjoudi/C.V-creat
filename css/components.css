@@ -240,6 +240,134 @@ select.inp{cursor:pointer}
   border-radius:var(--radius-sm);padding:16px;border:1px solid var(--border);
 }
 
+/* ── FEED — cartes d'offres ───────────────────────────── */
+.feed-groupe{ margin-bottom:26px; }
+.feed-groupe-hdr{
+  display:flex;align-items:center;gap:9px;
+  margin-bottom:12px;padding-bottom:9px;
+  border-bottom:1.5px solid var(--border);
+}
+/* Piste horizontale : 2 lignes fixes, défilement vers la droite */
+.feed-piste{ position:relative; }
+.feed-grid{
+  display:grid;gap:13px;
+  grid-auto-flow:column;
+  grid-template-rows:repeat(2,auto);
+  grid-auto-columns:calc((100% - 26px) / 3);
+  overflow-x:auto;overflow-y:hidden;
+  scroll-behavior:smooth;
+  scroll-snap-type:x proximity;
+  padding:2px 2px 10px;
+  scrollbar-width:thin;
+}
+.feed-grid::-webkit-scrollbar{ height:7px; }
+.feed-grid::-webkit-scrollbar-thumb{
+  background:var(--border);border-radius:100px;
+}
+.feed-grid::-webkit-scrollbar-thumb:hover{ background:var(--ink3); }
+.feed-grid .feed-card{ scroll-snap-align:start; }
+
+@media(max-width:980px){ .feed-grid{ grid-auto-columns:calc((100% - 13px) / 2); } }
+@media(max-width:640px){ .feed-grid{ grid-auto-columns:100%; } }
+
+/* Flèches de défilement */
+.feed-fleche{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:34px;height:34px;border-radius:50%;
+  background:var(--card);border:1.5px solid var(--border);
+  color:var(--ink2);font-size:16px;font-weight:700;
+  cursor:pointer;z-index:3;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 3px 12px rgba(0,0,0,.13);
+  transition:opacity .18s,background .15s,border-color .15s;
+}
+.feed-fleche:hover{ background:var(--ink);color:#fff;border-color:var(--ink); }
+.feed-fleche--g{ left:-10px; }
+.feed-fleche--d{ right:-10px; }
+.feed-fleche[disabled]{ opacity:0;pointer-events:none; }
+.feed-card{
+  display:flex;flex-direction:column;
+  background:var(--card);
+  border:1.5px solid var(--border);
+  border-radius:12px;padding:14px 15px;
+  transition:border-color .15s,box-shadow .15s,transform .12s;
+}
+.feed-card:hover{
+  border-color:var(--ink3);
+  box-shadow:0 4px 16px rgba(0,0,0,.07);
+}
+.feed-card--new{
+  border-color:#FACC15;
+  background:linear-gradient(180deg,#FEFCE8 0%,var(--card) 62%);
+}
+.feed-card--masquee{ opacity:.5; }
+.feed-card-titre{
+  font-size:13px;font-weight:800;color:var(--ink);
+  line-height:1.3;letter-spacing:-.1px;
+}
+.feed-card-meta{
+  font-size:11.5px;color:var(--ink3);
+  margin-top:3px;line-height:1.45;
+}
+.feed-card-sep{
+  height:1px;background:var(--border2);
+  margin:11px 0 10px;
+}
+.feed-card-tags{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:8px;margin-bottom:12px;
+}
+.feed-card-secteur{
+  font-size:11.5px;color:var(--ink2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.feed-card-contrat{
+  flex-shrink:0;background:var(--bg);
+  border:1px solid var(--border);border-radius:100px;
+  padding:2px 10px;font-size:11px;font-weight:700;color:var(--ink2);
+  white-space:nowrap;
+}
+.feed-card-actions{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  margin-top:auto;
+}
+.feed-btn{
+  border-radius:100px;font-size:11px;font-weight:700;
+  padding:4px 11px;cursor:pointer;white-space:nowrap;
+  transition:all .13s;
+}
+.feed-btn--non{
+  background:none;border:1.5px solid var(--border);color:var(--ink3);
+}
+.feed-btn--non:hover{ border-color:var(--red);color:var(--red); }
+.feed-btn--voir{
+  background:none;border:none;color:#2164f3;
+  text-decoration:none;padding:4px 6px;
+}
+.feed-btn--voir:hover{ text-decoration:underline; }
+.feed-btn--suivre{
+  background:none;border:1.5px solid var(--teal-border);color:var(--teal-d);
+}
+.feed-btn--suivre:hover{ background:var(--teal-bg); }
+.feed-btn--cv{
+  background:#0f172a;border:1.5px solid #0f172a;color:#fff;
+}
+.feed-btn--cv:hover{ background:#1e293b;border-color:#1e293b; }
+.feed-btn--restore{
+  background:none;border:1.5px solid var(--border);color:var(--ink2);
+}
+.feed-btn--restore:hover{ border-color:var(--ink);color:var(--ink); }
+.feed-card-date{
+  display:flex;align-items:center;gap:6px;
+  margin-top:11px;padding-top:9px;
+  border-top:1px solid var(--border2);
+  font-size:11px;color:var(--ink3);font-weight:600;
+}
+.feed-suivie{
+  font-size:11px;color:var(--teal-d);font-weight:700;
+  display:inline-flex;align-items:center;gap:4px;
+}
+
 /* ── API KEY ROWS ─────────────────────────────────────── */
 .api-key-row{
   display:flex;align-items:center;gap:8px;

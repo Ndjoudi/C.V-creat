@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
-<link rel="stylesheet" href="css/components.css?v=39"/>
+<link rel="stylesheet" href="css/components.css?v=43"/>
 <link rel="stylesheet" href="css/cv.css?v=59"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
@@ -75,6 +75,7 @@
       <div class="ni on"  data-sc="dash">     <i data-lucide="layout-dashboard" class="ni-icon"></i><span class="ni-label">Tableau de bord</span></div>
       <div class="ni"     data-sc="profile">  <i data-lucide="circle-user"      class="ni-icon"></i><span class="ni-label">Mon Profil</span></div>
       <div class="ni"     data-sc="cv">       <i data-lucide="file-text"        class="ni-icon"></i><span class="ni-label">Mon CV</span></div>
+      <div class="ni"     data-sc="feed">     <i data-lucide="rss"              class="ni-icon"></i><span class="ni-label">Feed</span></div>
 <!-- Badges fantômes — nécessaires pour refreshBadges() -->
       <span id="badge-cands" style="display:none"></span>
       <span id="badge-hist"  style="display:none"></span>
@@ -518,6 +519,21 @@
       <div id="history-list"></div>
     </div>
 
+    <!-- FEED -->
+    <div id="sc-feed" class="screen">
+      <div class="page-header">
+        <div>
+          <div class="ptitle">Feed</div>
+          <div class="psub">Offres récupérées automatiquement — mise à jour 2×/jour (matin et après-midi)</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="feed-statut" style="font-size:12px"></div>
+          <button class="btn btn-g" onclick="actualiseFeed()" style="font-size:12px">↻ Actualiser</button>
+        </div>
+      </div>
+      <div id="feed-content"></div>
+    </div>
+
     <!-- TRACKER -->
     <div id="sc-tracker" class="screen">
       <div class="page-header">
@@ -722,13 +738,14 @@
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
 <script src="js/api.js?v=39"></script>
-<script src="js/app.js?v=67"></script>
+<script src="js/app.js?v=68"></script>
 <script src="js/profile.js?v=53"></script>
 <script src="js/import-cv.js?v=35"></script>
-<script src="js/cv.js?v=74"></script>
+<script src="js/cv.js?v=77"></script>
 <script src="js/analyze.js?v=39"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=165"></script>
+<script src="js/tracker.js?v=167"></script>
+<script src="js/feed.js?v=11"></script>
 <script src="js/modal.js?v=36"></script>
 
 </body>
