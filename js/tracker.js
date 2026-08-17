@@ -2045,6 +2045,25 @@ function _buildCVText() {
 }
 
 // ── ANALYSE IA CAREER-OPS STYLE ─────────────────────────────
+// ── PDF + passage automatique du statut à "Envoyé" ─────────
+// Télécharger le CV = tu postules → on avance le statut tout seul.
+// Sécurité : on n'écrase jamais un statut plus avancé (Entretien, Refusé…),
+// seul "À traiter" (ou un statut vide) est concerné.
+function _pdfEtMarquerEnvoye(candId) {
+  if (!candId) return;
+  loadCVForCand(candId, true);
+
+  const cands = ls('sc_cands', []);
+  const idx   = cands.findIndex(x => x.id === candId);
+  if (idx === -1) return;
+
+  const statut = cands[idx].status || '';
+  if (statut === '' || statut === 'À traiter') {
+    updCandAndRefreshSplit(candId, 'status', 'Envoyé');
+    setTimeout(() => toast('Statut passé à « Envoyé »'), 400);
+  }
+}
+
 // Marque qu'une analyse automatique a déjà été tentée pour cette offre.
 // Persisté dans la candidature → survit au rechargement de la page.
 function _marqueAnalyseTentee(candId) {
