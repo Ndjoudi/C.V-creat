@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Supply Copilot — Copilote de Carrière Supply Chain</title>
+<meta name="description" content="Ton copilote IA pour ta carrière supply chain. CV, lettres de motivation, analyse d'offres, simulation d'entretien — 100% gratuit, propulsé par Groq."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/base.css?v=36"/>
+<link rel="stylesheet" href="css/components.css?v=37"/>
+<link rel="stylesheet" href="css/cv.css?v=38"/>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- ── SETUP SCREEN ──────────────────────────────────────── -->
+<div id="setup-sc" class="setup-sc">
+  <div class="setup-card">
+    <div class="setup-logo"><i data-lucide="zap"></i></div>
+    <div class="setup-title">Supply Copilot</div>
+    <div class="setup-sub">Ton copilote IA pour ta carrière supply chain — analyse d'offres, CV optimisé, lettres de motivation et simulation d'entretien.</div>
+    <div class="setup-steps">
+      <div class="setup-step"><div class="sn"><i data-lucide="key-round"></i></div>Clé Groq gratuite</div>
+      <div class="setup-step"><div class="sn"><i data-lucide="circle-user"></i></div>Profil SC</div>
+      <div class="setup-step"><div class="sn"><i data-lucide="sparkles"></i></div>IA activée</div>
+    </div>
+    <!-- Switch provider -->
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button id="setup-groq-btn" onclick="setupSetProvider('groq')" style="flex:1;padding:8px;border-radius:10px;border:2px solid #111;background:#111;color:white;font-size:13px;font-weight:700;cursor:pointer">Groq</button>
+      <button id="setup-gemini-btn" onclick="setupSetProvider('gemini')" style="flex:1;padding:8px;border-radius:10px;border:2px solid var(--border);background:none;color:var(--ink3);font-size:13px;font-weight:700;cursor:pointer">Gemini</button>
+    </div>
+
+    <!-- Champ clé dynamique -->
+    <div class="fg">
+      <label class="lb" id="setup-key-label" style="text-align:left;display:block;margin-bottom:6px">Clé API Groq (gratuite)</label>
+      <input id="key-input" class="inp" type="password" placeholder="gsk_..."/>
+    </div>
+    <button class="btn btn-p" id="key-btn" onclick="saveKey()" style="width:100%;justify-content:center;padding:12px 18px;font-size:15px">Démarrer <i data-lucide="arrow-right" style="width:16px;height:16px"></i></button>
+    <div class="note" id="setup-key-note">Gratuit, fonctionne en France. Va sur <a class="alink" href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> → crée un compte → "Create API key" → copie ta clé ici.</div>
+  </div>
+</div>
+
+<!-- ── APP ──────────────────────────────────────────────── -->
+<div id="app" class="app hidden">
+
+  <!-- Mobile topbar -->
+  <div class="topbar">
+    <div class="topbar-logo"><i data-lucide="zap" style="width:16px;height:16px;vertical-align:-3px"></i> Supply Copilot</div>
+    <div style="display:flex;gap:8px">
+      <button class="menu-btn" onclick="openMobileMenu()"><i data-lucide="menu"></i></button>
+    </div>
+  </div>
+
+  <!-- Sidebar overlay -->
+  <div class="sb-overlay" id="sb-overlay" onclick="closeMobileMenu()"></div>
+
+  <!-- ── SIDEBAR ─────────────────────────────────────────── -->
+  <div class="sb" id="sidebar">
+    <!-- Logo + toggle -->
+    <div class="sb-logo">
+      <div class="sb-icon" onclick="toggleSidebar()" title="Réduire / Agrandir" style="cursor:pointer"><i data-lucide="zap"></i></div>
+      <div class="sb-logo-text">
+        <div class="sb-name">Supply Copilot</div>
+        <div class="sb-sub">Career Intelligence</div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="nav" id="nav">
+      <div class="nav-section">Principal</div>
+      <div class="ni on"  data-sc="dash">     <i data-lucide="layout-dashboard" class="ni-icon"></i><span class="ni-label">Tableau de bord</span></div>
+      <div class="ni"     data-sc="profile">  <i data-lucide="circle-user"      class="ni-icon"></i><span class="ni-label">Mon Profil</span></div>
+      <div class="ni"     data-sc="cv">       <i data-lucide="file-text"        class="ni-icon"></i><span class="ni-label">Mon CV</span></div>
+<!-- Badges fantômes — nécessaires pour refreshBadges() -->
+      <span id="badge-cands" style="display:none"></span>
+      <span id="badge-hist"  style="display:none"></span>
+    </nav>
+
+    <!-- Footer -->
+    <div class="sb-ft">
+      <!-- Plein -->
+      <div class="sb-ft-full">
+        <div id="sb-profile-info" class="hidden" style="margin-bottom:10px">
+          <div class="sb-flabel">Profil actif</div>
+          <div class="sb-fname" id="sb-pname"></div>
+          <div class="sb-frole" id="sb-prole"></div>
+        </div>
+        <div class="sb-actions">
+          <button class="btn btn-g" onclick="resetKey()" style="flex:1;justify-content:center;font-size:12px;padding:7px 10px">Changer la clé</button>
+          <button class="btn-icon" onclick="exportAllData()" title="Exporter"><i data-lucide="upload"></i></button>
+          <button class="btn-icon" onclick="importAllData()" title="Importer"><i data-lucide="download"></i></button>
+        </div>
+        <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+          <div style="font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">🤖 Modèle IA</div>
+          <div style="display:flex;gap:5px;margin-bottom:8px">
+            <button id="provider-groq-btn" onclick="setProvider('groq')" style="flex:1;font-size:11px;padding:4px 6px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-weight:600;transition:all .15s">Groq</button>
+            <button id="provider-gemini-btn" onclick="setProvider('gemini')" style="flex:1;font-size:11px;padding:4px 6px;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-weight:600;transition:all .15s">Gemini</button>
+          </div>
+          <div id="gemini-key-row" style="display:none;gap:5px">
+            <input id="gemini-key-input" type="password" placeholder="AIza..." class="inp" style="font-size:11px;padding:5px 8px;flex:1"/>
+            <button onclick="saveGeminiKey()" style="font-size:11px;padding:5px 8px;border-radius:6px;border:none;background:#10b981;color:white;cursor:pointer;font-weight:600;white-space:nowrap">Sauver</button>
+          </div>
+          <div id="gemini-key-saved" style="display:none;font-size:11px;color:#10b981;font-weight:600">✓ Clé Gemini enregistrée</div>
+        </div>
+      </div>
+      <!-- Icônes seules (collapsed) -->
+      <div class="sb-ft-icons">
+        <button class="btn-icon" onclick="resetKey()" title="Changer la clé"><i data-lucide="key-round"></i></button>
+        <button class="btn-icon" onclick="exportAllData()" title="Exporter"><i data-lucide="upload"></i></button>
+        <button class="btn-icon" onclick="importAllData()" title="Importer"><i data-lucide="download"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MAIN CONTENT ────────────────────────────────────── -->
+  <div class="main" id="main-content">
+
+    <!-- DASHBOARD -->
+    <div id="sc-dash" class="screen on">
+      <div id="onboard-block" class="onboard hidden">
+        <div style="font-size:19px;font-weight:800;color:var(--ink);margin-bottom:8px;display:flex;align-items:center;gap:10px"><i data-lucide="user-round-plus" style="width:22px;height:22px;flex-shrink:0"></i>Commence par créer ton profil</div>
+        <div style="font-size:13.5px;color:var(--ink3);margin-bottom:18px;line-height:1.65">Renseigne tes compétences supply chain — outils, certifications, expériences. L'IA s'en sert pour tout personnaliser automatiquement.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-p" onclick="goTo('profile')">Créer mon profil <i data-lucide="arrow-right" style="width:14px;height:14px"></i></button>
+          <button class="btn btn-g" onclick="goTo('tracker')"><i data-lucide="briefcase" class="btn-icon-sm"></i>Ajouter une candidature</button>
+        </div>
+      </div>
+      <div class="page-header" style="margin-bottom:14px;align-items:center">
+        <div class="ptitle" id="dash-title" style="font-size:18px;font-weight:800;letter-spacing:-.3px">Bonjour</div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <a href="https://fr.indeed.com/jobs?q=&l=%C3%8Ele-de-France&from=searchOnHP%2Cwhereautocomplete&vjk=2d9490b69ecbdb98" target="_blank" rel="noopener"
+            style="display:inline-flex;align-items:center;gap:5px;background:#2164f3;color:white;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Indeed
+          </a>
+          <a href="https://fr.indeed.com/jobs?q=&l=Val-de-Marne&radius=25&from=searchOnDesktopSerp%2Cwhereautocomplete&vjk=82e7d0f3f333bb42&advn=974789213537331" target="_blank" rel="noopener"
+            style="display:inline-flex;align-items:center;gap:5px;background:#1a56db;color:white;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Indeed 94
+          </a>
+          <a href="https://www.linkedin.com/jobs/search/?currentJobId=4402252746&geoId=104246759&keywords=supply%20chain&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true" target="_blank" rel="noopener"
+            style="display:inline-flex;align-items:center;gap:5px;background:#0a66c2;color:white;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+            LinkedIn
+          </a>
+          <a href="https://www.linkedin.com/jobs/search/?currentJobId=4279786324&geoId=104122256&keywords=supply%20chain&origin=JOB_SEARCH_PAGE_LOCATION_AUTOCOMPLETE&refresh=true" target="_blank" rel="noopener"
+            style="display:inline-flex;align-items:center;gap:5px;background:#084f96;color:white;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+            LinkedIn 94
+          </a>
+        </div>
+      </div>
+
+      <!-- Formulaire Nouvelle candidature direct -->
+      <div class="card" style="margin-bottom:14px;padding:10px 14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:12.5px;font-weight:700;color:var(--ink)">Nouvelle candidature</span>
+          <span style="font-size:11px;color:var(--ink3)">Colle le lien ou le texte de l'annonce</span>
+        </div>
+        <textarea class="inp" id="dash-paste-text" rows="1"
+          placeholder="Lien LinkedIn / Indeed ou texte de l'annonce…"
+          style="resize:none;font-size:12px;margin-bottom:3px;padding:6px 10px;min-height:0"
+          onpaste="scheduleDashPasteAnalysis()"></textarea>
+        <div style="display:flex;align-items:center;gap:8px;min-height:16px;margin-bottom:3px">
+          <div id="dash-source-badge"></div>
+          <div id="dash-paste-status" style="font-size:11px;line-height:1.4;color:var(--ink3)"></div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap">
+          <div class="fg" style="flex:2;min-width:100px;margin:0"><label class="lb" style="font-size:9.5px">POSTE</label><input class="inp" id="dash-poste" placeholder="Responsable Logistique" style="padding:5px 9px;font-size:12px"/></div>
+          <div class="fg" style="flex:2;min-width:100px;margin:0"><label class="lb" style="font-size:9.5px">ENTREPRISE</label><input class="inp" id="dash-co" placeholder="Carrefour" style="padding:5px 9px;font-size:12px"/></div>
+          <div class="fg" style="flex:1;min-width:100px;margin:0"><label class="lb" style="font-size:9.5px">DATE</label><input class="inp" id="dash-date" type="date" style="padding:5px 9px;font-size:12px"/></div>
+          <button class="btn btn-p" onclick="addCandFromDash()" style="font-size:12px;padding:6px 14px;flex-shrink:0;align-self:flex-end">Enregistrer</button>
+        </div>
+        <!-- Prévisualisation (fiche formatée) -->
+        <div id="dash-linkedin-preview" style="display:none;margin-top:10px;border:1.5px solid #bfdbfe;border-radius:9px;overflow:hidden">
+          <div style="background:#eff6ff;padding:8px 12px;display:flex;align-items:center;gap:10px">
+            <div style="font-size:18px;flex-shrink:0">🏢</div>
+            <div style="flex:1;min-width:0">
+              <div id="li-prev-title" style="font-size:13px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px">
+                <div id="li-prev-company" style="font-size:11.5px;color:#0a66c2;font-weight:600"></div>
+                <div id="li-prev-location" style="font-size:11px;color:#64748b"></div>
+                <div id="li-prev-badges" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+              </div>
+            </div>
+          </div>
+          <div style="padding:10px 12px;border-top:1px solid #bfdbfe;position:relative">
+            <div id="li-prev-desc" style="font-size:12px;color:#334155;line-height:1.6;white-space:pre-line;max-height:52px;overflow:hidden;transition:max-height .3s ease"></div>
+            <div id="li-prev-fade" style="position:absolute;bottom:24px;left:0;right:0;height:28px;background:linear-gradient(transparent,#fff);pointer-events:none"></div>
+            <button id="li-prev-toggle" onclick="toggleLiDesc()" style="margin-top:2px;font-size:10.5px;color:#0a66c2;background:none;border:none;cursor:pointer;padding:0;font-weight:600">▼ Voir plus</button>
+          </div>
+          <div style="padding:7px 12px;background:#f8fafc;border-top:1px solid #bfdbfe">
+            <span style="font-size:10.5px;color:#64748b">✓ Pré-rempli — clique sur <strong>Enregistrer</strong> pour sauvegarder.</span>
+          </div>
+        </div>
+        <div id="dash-analysis-result" class="hidden"></div>
+      </div>
+
+      <div id="dash-stats"></div>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="sc-profile" class="screen">
+      <div class="page-header">
+        <div>
+          <div class="ptitle">Mon Profil</div>
+          <div class="psub">Renseigne-le une fois, l'IA personnalise tout le reste</div>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab on"  data-tab="import"><i data-lucide="arrow-down-to-line" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"></i>Importer un CV</div>
+        <div class="tab"     data-tab="info">Infos</div>
+        <div class="tab"     data-tab="skills">Compétences</div>
+        <div class="tab"     data-tab="exp">Expériences</div>
+        <div class="tab"     data-tab="edu">Formation</div>
+        <div class="tab"     data-tab="divers">Divers</div>
+      </div>
+      <!-- TAB IMPORT -->
+      <div id="tab-import">
+        <div class="card card-hi" style="margin-bottom:16px">
+          <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px;display:flex;align-items:center;gap:8px"><i data-lucide="file-up" style="width:17px;height:17px;flex-shrink:0"></i>Importer ton CV existant</div>
+          <div style="font-size:13px;color:var(--ink3);line-height:1.65">Copie-colle le texte de ton CV (depuis Word, PDF, LinkedIn...). L'IA extrait automatiquement toutes les informations et remplit ton profil. Tu pourras vérifier et corriger avant de valider.</div>
+        </div>
+        <div class="card">
+          <div class="fg-row" style="margin-bottom:10px">
+            <label class="lb">Texte de ton CV</label>
+            <span style="font-size:11px;color:var(--ink3)">Ctrl+A dans ton PDF puis colle ici</span>
+          </div>
+          <textarea class="inp" id="import-cv-txt" rows="14" placeholder="Jean Dupont&#10;Responsable Supply Chain | 8 ans d'expérience&#10;jean.dupont@email.com · +33 6 12 34 56 78 · Paris&#10;&#10;EXPÉRIENCES&#10;Responsable Approvisionnement — Carrefour (2020-2024)&#10;• Gestion de 3 000 références fournisseurs...&#10;&#10;COMPÉTENCES&#10;SAP MM, Excel avancé, Power BI..."></textarea>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <button class="btn btn-p" id="import-cv-btn" onclick="importCVFromText()"><i data-lucide="sparkles" class="btn-icon-sm"></i>Extraire avec l'IA</button>
+            <button class="btn btn-g" onclick="document.getElementById('import-cv-txt').value=''">Effacer</button>
+            <span style="font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:5px"><i data-lucide="alert-triangle" style="width:12px;height:12px;flex-shrink:0"></i>Tes données actuelles seront remplacées</span>
+          </div>
+        </div>
+        <div id="import-cv-loading" class="ldg hidden"><div class="sp"></div>L'IA analyse ton CV et extrait les informations...</div>
+        <div id="import-cv-error" class="hidden" style="padding:13px 18px;background:var(--red-bg);border-radius:10px;color:var(--red);font-size:13.5px;margin-bottom:12px;border:1px solid var(--red-border)"></div>
+        <div id="import-cv-preview" class="hidden">
+          <div class="card" style="border-color:var(--teal-border);background:var(--teal-bg)">
+            <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:14px;display:flex;align-items:center;gap:8px"><i data-lucide="circle-check" style="width:16px;height:16px;flex-shrink:0"></i>Profil extrait — vérifie avant de valider</div>
+            <div id="import-cv-summary" style="font-size:13px;color:var(--ink2);line-height:1.9"></div>
+            <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+              <button class="btn btn-p" onclick="applyImportedCV()"><i data-lucide="check" class="btn-icon-sm"></i>Appliquer au profil</button>
+              <button class="btn btn-g" onclick="cancelImport()">Annuler</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB INFO -->
+      <div id="tab-info" class="hidden">
+
+        <!-- ① PHOTO -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="section-hdg"><i data-lucide="image" style="width:13px;height:13px"></i>Photo</div>
+          <div style="display:flex;align-items:center;gap:24px">
+            <div style="width:88px;height:88px;border-radius:50%;border:2px solid var(--border);overflow:hidden;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <img id="photo-preview" class="hidden" style="width:100%;height:100%;object-fit:cover"/>
+              <div id="photo-placeholder"><i data-lucide="user" style="width:30px;height:30px;color:var(--ink3)"></i></div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--ink3);margin-bottom:10px;line-height:1.7">Sourire · Tenue professionnelle · Fond neutre</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <label class="btn btn-g" style="cursor:pointer;font-size:12px;padding:7px 14px;border-radius:980px">
+                  <i data-lucide="upload" class="btn-icon-sm"></i>Choisir une photo
+                  <input type="file" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)"/>
+                </label>
+                <button id="photo-remove-btn" class="btn-del hidden" onclick="removePhoto()">Supprimer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ② TITRE & ACCROCHE -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="section-hdg"><i data-lucide="type" style="width:13px;height:13px"></i>Titre & Accroche CV</div>
+
+          <!-- Titre général -->
+          <div class="fg">
+            <label class="lb">Titre professionnel général</label>
+            <input class="inp" id="p-title" placeholder="Ex: Supply Chain Manager · Assistant Marketing · Chargé RH" oninput="saveProfile()"/>
+            <div style="font-size:11px;color:var(--ink3);margin-top:4px">Ton titre par défaut — il sera remplacé par le <strong>Poste ciblé</strong> dans l'écran CV lors d'une candidature</div>
+          </div>
+
+          <!-- Séparateur -->
+          <div style="border-top:1px solid var(--border);margin:16px 0 14px"></div>
+
+          <!-- Mon profil — champs structurés -->
+          <div class="section-hdg" style="margin-bottom:12px"><i data-lucide="layout-list" style="width:13px;height:13px"></i>Mon profil <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink3)">— stable, rempli une fois</span></div>
+          <div class="g2">
+            <div class="fg" style="grid-column:1/-1">
+              <label class="lb">Formation <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink3)">— depuis l'onglet Formation</span></label>
+              <div class="inp" id="p-formation-display" style="color:var(--ink3);background:var(--bg);min-height:38px;display:flex;align-items:center">—</div>
+            </div>
+            <div class="fg" style="grid-column:1/-1">
+              <label class="lb">Domaines</label>
+              <input class="inp" id="p-domainesProfile" placeholder="Ex : Gestion des stocks · Approvisionnement · Amélioration continue" oninput="saveProfile()"/>
+            </div>
+            <div class="fg"><label class="lb">Contrat recherché</label><input class="inp" id="p-contratRecherche" placeholder="Ex : CDI temps complet" oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Disponibilité</label><input class="inp" id="p-disponibilite" placeholder="Ex : Octobre 2026" oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Mobilité géographique</label>
+              <select class="inp" id="p-mobility" onchange="saveProfile()">
+                <option value="">Sélectionner...</option>
+                <option>Locale (même ville)</option><option>Régionale</option><option>Nationale</option><option>Internationale</option>
+              </select>
+            </div>
+            <div class="fg"><label class="lb">Permis / Véhicule</label><input class="inp" id="p-permis" placeholder="Ex : Permis B, véhicule personnel" oninput="saveProfile()"/></div>
+          </div>
+
+          <!-- Séparateur -->
+          <div style="border-top:1px solid var(--border);margin:16px 0 14px"></div>
+
+          <!-- Pour ce poste (dynamique) -->
+          <div class="fg" style="margin-bottom:0">
+            <div class="fg-row">
+              <label class="lb">Pour ce poste <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--teal)">— à adapter par candidature</span></label>
+              <button class="btn-ai" onclick="openModal('target')"><i data-lucide="sparkles" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px"></i>Générer avec l'IA</button>
+            </div>
+            <div style="font-size:11.5px;color:var(--ink3);margin-bottom:8px;line-height:1.55">Faits concrets uniquement — outils maîtrisés, expériences clés, langue si requise.</div>
+            <textarea class="inp" id="p-summaryTarget" rows="2" placeholder="Ex : 2 stages en environnement logistique, WMS et Excel maîtrisés. Anglais B2." oninput="saveProfile()"></textarea>
+          </div>
+        </div>
+
+        <!-- ③ ÉTAT CIVIL -->
+        <div class="card">
+          <div class="section-hdg"><i data-lucide="id-card" style="width:13px;height:13px"></i>État civil</div>
+          <div class="g2">
+            <div class="fg"><label class="lb">Prénom</label><input class="inp" id="p-fn"       placeholder="Jean"                           oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Nom</label>   <input class="inp" id="p-ln"       placeholder="Dupont"                         oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Email</label> <input class="inp" id="p-email"    type="email" placeholder="jean@email.com"    oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Téléphone</label><input class="inp" id="p-phone" placeholder="+33 6 12 34 56 78"              oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Localisation</label><input class="inp" id="p-loc" placeholder="Paris, Île-de-France"          oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">LinkedIn</label><input class="inp" id="p-linkedin" placeholder="linkedin.com/in/jean-dupont"  oninput="saveProfile()"/></div>
+            <div class="fg"><label class="lb">Années d'expérience</label>
+              <select class="inp" id="p-yexp" onchange="saveProfile()">
+                <option value="">Sélectionner...</option>
+                <option>Moins d'1 an</option><option>1-2 ans</option><option>3-5 ans</option><option>5-10 ans</option><option>10-15 ans</option><option>15+ ans</option>
+              </select>
+            </div>
+          </div>
+          <div style="padding:10px 14px;background:var(--teal-bg);border-radius:var(--radius-sm);font-size:12.5px;color:var(--teal-d);font-weight:600;border:1px solid var(--teal-border)"><i data-lucide="check" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px"></i>Sauvegardé automatiquement</div>
+        </div>
+      </div>
+      <!-- TAB SKILLS -->
+      <div id="tab-skills" class="hidden">
+
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Sous-domaines Supply Chain</span><button class="btn-ai" onclick="showAddChip('subs')">+ Ajouter</button></div>
+          <div class="chips" id="chips-subs"></div>
+          <div id="add-chip-subs" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-subs-inp" placeholder="Ex: Reverse Logistics, Trade Finance..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('subdomains','subs')"/>
+            <button class="btn btn-p" onclick="saveAddChip('subdomains','subs')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('subs')">Annuler</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Outils et Logiciels</span><button class="btn-ai" onclick="showAddChip('tools')">+ Ajouter</button></div>
+          <div class="chips" id="chips-tools"></div>
+          <div id="add-chip-tools" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-tools-inp" placeholder="Ex: Coupa, Ariba, Esker, Monday..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('tools','tools')"/>
+            <button class="btn btn-p" onclick="saveAddChip('tools','tools')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('tools')">Annuler</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Certifications</span><button class="btn-ai" onclick="showAddChip('certs')">+ Ajouter</button></div>
+          <div class="chips" id="chips-certs"></div>
+          <div id="add-chip-certs" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-certs-inp" placeholder="Ex: AWS Cloud Practitioner, DELF B2..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('certifs','certs')"/>
+            <button class="btn btn-p" onclick="saveAddChip('certifs','certs')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('certs')">Annuler</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Secteurs d'activité</span><button class="btn-ai" onclick="showAddChip('sects')">+ Ajouter</button></div>
+          <div class="chips" id="chips-sects"></div>
+          <div id="add-chip-sects" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-sects-inp" placeholder="Ex: Défense, Télécommunications, Navale..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('sectors','sects')"/>
+            <button class="btn btn-p" onclick="saveAddChip('sectors','sects')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('sects')">Annuler</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Compétences personnalisées</span><button class="btn-ai" onclick="showAddChip('custom')">+ Ajouter</button></div>
+          <div class="chips" id="chips-custom"></div>
+          <div id="add-chip-custom" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-custom-inp" placeholder="Ex: Gestion de projet Agile, RGPD, Lean..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('customSkills','custom')"/>
+            <button class="btn btn-p" onclick="saveAddChip('customSkills','custom')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('custom')">Annuler</button>
+          </div>
+        </div>
+
+      </div>
+      <!-- TAB EXP -->
+      <div id="tab-exp" class="hidden">
+        <div id="exp-list"></div>
+        <button class="btn btn-g" onclick="addExp()" style="width:100%;justify-content:center;border:1.5px dashed var(--teal-border);color:var(--teal-d);padding:14px">+ Ajouter une expérience</button>
+      </div>
+      <!-- TAB EDU -->
+      <div id="tab-edu" class="hidden">
+        <div id="edu-list"></div>
+        <button class="btn btn-g" onclick="addEdu()" style="width:100%;justify-content:center;border:1.5px dashed var(--teal-border);color:var(--teal-d);padding:14px">+ Ajouter une formation</button>
+      </div>
+      <!-- TAB DIVERS -->
+      <div id="tab-divers" class="hidden">
+
+        <!-- Langues -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="section-hdg"><i data-lucide="languages" style="width:13px;height:13px"></i>Langues</div>
+          <div id="lang-list"></div>
+          <button class="btn btn-g" onclick="addLang()" style="margin-top:10px">+ Ajouter une langue</button>
+        </div>
+
+        <!-- Bureautique & Informatique -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="ctitle-row">
+            <div class="section-hdg" style="margin:0"><i data-lucide="monitor" style="width:13px;height:13px"></i>Bureautique & Informatique</div>
+            <button class="btn-ai" onclick="showAddChip('info')">+ Ajouter</button>
+          </div>
+          <div style="font-size:12px;color:var(--ink3);margin:6px 0 10px">Logiciels bureautiques, outils collaboratifs, IA générative...</div>
+          <div class="chips" id="chips-info"></div>
+          <div id="add-chip-info" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-info-inp" placeholder="Ex: Figma, Jira, Asana, Power Automate..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('informatique','info')"/>
+            <button class="btn btn-p" onclick="saveAddChip('informatique','info')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('info')">Annuler</button>
+          </div>
+        </div>
+
+        <!-- Centres d'intérêt -->
+        <div class="card">
+          <div class="section-hdg"><i data-lucide="heart" style="width:13px;height:13px"></i>Centres d'intérêt</div>
+          <textarea class="inp" id="p-hobbies" rows="3" placeholder="Ex : Sport, voyages, lecture, bénévolat, musique..." oninput="saveProfile()"></textarea>
+          <div style="font-size:11px;color:var(--ink3);margin-top:6px">Optionnel — à inclure si pertinent par rapport au poste</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- CV -->
+    <div id="sc-cv" class="screen">
+      <div id="cv-empty" class="empty hidden">
+        <div class="empty-ic">◧</div>
+        <div class="empty-t">Profil vide</div>
+        <div class="empty-s">Renseigne ton profil pour générer ton CV</div>
+      </div>
+      <div id="cv-content" class="cv-wrap">
+        <div class="cv-bar page-header">
+          <div>
+            <div class="ptitle" style="margin-bottom:2px">Mon CV</div>
+            <div class="psub" style="margin-bottom:0">Format A4 — PDF texte lisible par les ATS</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-g" id="analyze-cv-btn" onclick="analyzeCV()"><i data-lucide="scan-search" class="btn-icon-sm"></i>Analyser mon CV</button>
+            <button class="btn btn-p" onclick="printCV()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Télécharger PDF
+            </button>
+          </div>
+        </div>
+        <!-- Poste ciblé -->
+        <div style="background:var(--card);border:1.5px solid var(--teal-border);border-radius:14px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <i data-lucide="target" style="width:15px;height:15px;color:var(--teal)"></i>
+            <span style="font-size:12px;font-weight:700;color:var(--teal)">Poste ciblé</span>
+          </div>
+          <input class="inp" id="cv-target-input" placeholder="Ex: CDI - Assistant Marketing (remplace le titre sur le CV)" style="flex:1;padding:8px 12px;font-size:13px;min-width:200px" oninput="setCVTarget(this.value)"/>
+          <div style="font-size:11px;color:var(--ink3);white-space:nowrap">Auto-rempli après analyse d'offre</div>
+        </div>
+        <div style="font-size:11.5px;color:var(--ink3);margin-bottom:14px;display:flex;align-items:center;gap:6px"><i data-lucide="info" style="width:13px;height:13px;flex-shrink:0"></i>Dans la boîte d'impression : choisir <strong>"Enregistrer en PDF"</strong>, désactiver les en-têtes/pieds de page</div>
+        <div id="cv-analysis-result" style="margin-bottom:16px"></div>
+        <div class="cv-doc" id="cv-doc"></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--ink3)">PDF généré par le navigateur — rendu identique à l'aperçu</div>
+      </div>
+    </div>
+
+    <!-- ANALYZE -->
+    <div id="sc-analyze" class="screen">
+      <div class="page-header">
+        <div>
+          <div class="ptitle">Analyser une offre</div>
+          <div class="psub">L'IA adapte ton CV et génère une lettre de motivation sur mesure</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ctitle">Colle l'offre d'emploi ici</div>
+        <textarea class="inp" id="offer-txt" style="min-height:190px" placeholder="Copie-colle le texte complet de l'offre (LinkedIn, Indeed, APEC, France Travail...)"></textarea>
+        <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-p" id="analyze-btn" onclick="doAnalyze()"><i data-lucide="sparkles" class="btn-icon-sm"></i>Analyser avec l'IA</button>
+            <button class="btn btn-g" onclick="clearOffer()">Effacer</button>
+          </div>
+          <div class="tog is-on" id="anon-tog" onclick="toggleAnon()">
+            <div class="tog-track"><div class="tog-thumb"></div></div>
+            <div>
+              <div class="tog-label" style="font-size:12.5px;font-weight:600">Mode anonyme</div>
+              <div style="font-size:11px;color:var(--ink3)">Nom, email, entreprises masqués</div>
+            </div>
+          </div>
+        </div>
+        <div id="anon-note" class="anon-note is-on">
+          Envoyé à Groq : compétences et expériences uniquement — données personnelles remplacées
+        </div>
+      </div>
+      <div id="analyze-loading" class="ldg hidden"><div class="sp"></div>L'IA analyse l'offre et prépare tes documents...</div>
+      <div id="analyze-error" style="padding:13px 18px;background:var(--red-bg);border-radius:10px;color:var(--red);font-size:13.5px;margin-bottom:12px;border:1px solid var(--red-border)" class="hidden"></div>
+      <div id="analyze-result"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="sc-history" class="screen">
+      <div class="page-header">
+        <div>
+          <div class="ptitle">Mes analyses</div>
+          <div class="psub">Retrouve toutes tes analyses d'offres précédentes</div>
+        </div>
+        <button class="btn btn-g" onclick="clearHistory()" style="font-size:12px">Tout effacer</button>
+      </div>
+      <div id="history-list"></div>
+    </div>
+
+    <!-- TRACKER -->
+    <div id="sc-tracker" class="screen">
+      <div class="page-header">
+        <div>
+          <div class="ptitle">Mes Candidatures</div>
+          <div class="psub">Suis l'avancement de tous tes dossiers</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-g" onclick="exportCSV()" style="font-size:12.5px">Export CSV</button>
+          <button class="btn btn-p" onclick="toggleAddForm()">+ Ajouter</button>
+        </div>
+      </div>
+      <div class="g5" style="margin-bottom:16px" id="tracker-stats"></div>
+      <div class="tracker-filters" id="tracker-filters"></div>
+      <div class="card">
+        <div id="add-form" class="hidden" style="background:var(--teal-bg);border-radius:12px;padding:18px;margin-bottom:18px;border:1.5px solid var(--teal-border)">
+          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px">Nouvelle candidature</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">Colle le texte de l'annonce — l'IA remplit tout automatiquement.</div>
+
+          <!-- Zone de collage principale -->
+          <div class="fg" style="margin-bottom:12px">
+            <div style="display:flex;gap:8px;align-items:flex-start">
+              <textarea class="inp" id="f-paste-text" rows="4"
+                placeholder="Colle ici le texte de l'annonce (titre, entreprise, lieu, description...)"
+                style="flex:1;resize:vertical;font-size:12.5px"
+                onpaste="schedulePasteAnalysis()"></textarea>
+            </div>
+            <div id="f-paste-status" style="font-size:11.5px;margin-top:6px;line-height:1.6;min-height:18px"></div>
+          </div>
+
+          <!-- Séparateur -->
+          <div style="border-top:1px solid var(--teal-border);margin:12px 0"></div>
+
+          <!-- Champs auto-remplis (éditables) -->
+          <div class="g2">
+            <div class="fg"><label class="lb">Poste</label>    <input class="inp" id="f-poste" placeholder="Responsable Logistique"/></div>
+            <div class="fg"><label class="lb">Entreprise</label><input class="inp" id="f-co"   placeholder="Carrefour"/></div>
+            <div class="fg"><label class="lb">Date</label>     <input class="inp" id="f-date"  type="date"/></div>
+            <div class="fg"><label class="lb">Statut</label>
+              <select class="inp" id="f-status">
+                <option>Analysé</option><option>Envoyé</option><option>Message in</option><option>Entretien</option><option>Refusé</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:14px">
+            <label class="lb">Lien de l'annonce <span style="font-size:9.5px;color:var(--ink3);text-transform:none;letter-spacing:0;font-weight:400">— optionnel</span></label>
+            <input class="inp" id="f-indeed-url" placeholder="https://fr.indeed.com/?vjk=..."/>
+          </div>
+          <div class="fg"><label class="lb">Notes</label><input class="inp" id="f-notes" placeholder="Contacts, détails, relance..."/></div>
+          <div style="display:flex;gap:9px">
+            <button class="btn btn-p" onclick="addCand()">Enregistrer</button>
+            <button class="btn btn-g" onclick="toggleAddForm()">Annuler</button>
+          </div>
+          <!-- Résultats d'analyse inline -->
+          <div id="tracker-analysis-result" class="hidden"></div>
+        </div>
+        <div id="tracker-table"></div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ── AI GENERATION MODAL ──────────────────────────────── -->
+<div id="modal-overlay" class="overlay hidden">
+  <div class="modal" id="main-modal">
+    <div class="mhd">
+      <div>
+        <div class="mtitle" id="modal-title"><i data-lucide="sparkles" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"></i>Générer avec l'IA</div>
+        <div class="msub"  id="modal-sub">Question 1 sur 4</div>
+      </div>
+      <button class="mclose" onclick="closeModal()">×</button>
+    </div>
+    <div class="mbody" id="modal-body"></div>
+    <div class="mfoot hidden" id="modal-foot">
+      <button class="btn btn-p" onclick="applyGenerated()" style="flex:1;justify-content:center"><i data-lucide="check" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"></i>Utiliser ce texte</button>
+      <button class="btn btn-g" onclick="closeModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ANALYSIS MODAL (candidature) ────────────────────── -->
+<div id="analysis-modal-overlay" class="overlay hidden" onclick="if(event.target===this)closeAnalysisModal()">
+  <div class="modal modal-wide">
+    <div class="mhd">
+      <div>
+        <div class="mtitle" id="analysis-modal-title"></div>
+        <div class="msub">Résultats de l'analyse IA</div>
+      </div>
+      <button class="mclose" onclick="closeAnalysisModal()">×</button>
+    </div>
+    <div class="mbody" id="analysis-modal-body"></div>
+  </div>
+</div>
+
+<!-- ── HISTORY MODAL ────────────────────────────────────── -->
+<div id="hist-modal-overlay" class="overlay hidden">
+  <div class="modal modal-wide">
+    <div class="mhd">
+      <div>
+        <div class="mtitle" id="hist-modal-title">Analyse</div>
+        <div class="msub"  id="hist-modal-sub"></div>
+      </div>
+      <button class="mclose" onclick="closeHistModal()">×</button>
+    </div>
+    <div class="mbody" id="hist-modal-body"></div>
+  </div>
+</div>
+
+<!-- ── NOTE MODAL (tracker) ────────────────────────────── -->
+<div id="note-modal-overlay" class="overlay hidden">
+  <div class="modal">
+    <div class="mhd">
+      <div><div class="mtitle" id="note-modal-title">Note</div></div>
+      <button class="mclose" onclick="closeNoteModal()">×</button>
+    </div>
+    <div class="mbody">
+      <div class="note-modal-body" id="note-modal-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BULLET PICKER MODAL ──────────────────────────────── -->
+<div id="bullet-picker-overlay" class="overlay hidden">
+  <div class="modal modal-full">
+    <div class="mhd">
+      <div style="flex:1">
+        <div class="mtitle" id="bullet-picker-title">Reformuler les bullets</div>
+        <div class="msub" id="bullet-picker-sub">Choisir la version à garder pour chaque bullet</div>
+      </div>
+      <!-- Choix IA -->
+      <div style="display:flex;gap:5px;align-items:center;margin:0 12px" id="bullet-picker-ai-btns">
+        <button onclick="reformulateBulletsWithProvider('groq')"
+          style="background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+          🟠 Groq</button>
+        <button onclick="reformulateBulletsWithProvider('gemini')"
+          style="background:#f5f3ff;color:#7c3aed;border:1.5px solid #ddd6fe;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+          🟣 Gemini</button>
+      </div>
+      <button class="mclose" onclick="closeBulletPicker()">×</button>
+    </div>
+    <div class="mbody" id="bullet-picker-list"></div>
+    <div class="mfoot">
+      <button class="btn btn-p" onclick="confirmBulletPicker()" style="flex:1;justify-content:center"><i data-lucide="check" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"></i>Appliquer la sélection</button>
+      <button class="btn btn-g" onclick="closeBulletPicker()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BULLET MATCH MODAL ────────────────────────────────── -->
+<div id="bullet-match-overlay" class="overlay hidden">
+  <div class="modal modal-wide">
+    <div class="mhd">
+      <div>
+        <div class="mtitle" id="bullet-match-title"><i data-lucide="target" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"></i>Bullets correspondant à cette offre</div>
+        <div class="msub" id="bullet-match-sub">L'IA a sélectionné les réalisations les plus pertinentes — valide ou ajuste</div>
+      </div>
+      <button class="mclose" onclick="closeBulletMatch()">×</button>
+    </div>
+    <div class="mbody" id="bullet-match-list"></div>
+    <div class="mfoot">
+      <button class="btn btn-p" onclick="confirmBulletMatch()" style="flex:1;justify-content:center"><i data-lucide="check" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px"></i>Appliquer la sélection au CV</button>
+      <button class="btn btn-g" onclick="closeBulletMatch()">Ignorer</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── SPLIT VIEW MODAL (offre + CV côte à côte) ────────── -->
+<div id="split-modal-overlay" class="hidden" style="position:fixed;inset:0;z-index:1200;display:flex;flex-direction:column;background:var(--bg)">
+  <!-- Top bar -->
+  <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1.5px solid var(--border);background:white;flex-shrink:0">
+    <button onclick="closeSplitView()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:13px;padding:5px 12px;font-weight:600;display:flex;align-items:center;gap:5px">← Retour</button>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:800;color:var(--ink)" id="split-modal-title"></div>
+      <div style="font-size:11.5px;color:var(--ink3)" id="split-modal-sub"></div>
+    </div>
+    <div id="split-status-letters"></div>
+    <div id="split-job-link"></div>
+<button id="cv-edit-btn" onclick="toggleCVEditMode()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">✏️ Modifier le CV</button>
+    <button onclick="loadCVForCand(window._splitCandId, true)" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">⬇ PDF</button>
+  </div>
+  <!-- Two panels -->
+  <div style="display:flex;flex:1;overflow:hidden">
+    <!-- Left: analyse + offre -->
+    <div id="split-left-panel" style="width:50%;height:100%;overflow-y:auto;padding:24px 28px;border-right:1.5px solid var(--border);background:white"></div>
+    <!-- Right: CV adapté -->
+    <div style="width:50%;height:100%;overflow-y:auto;background:#F1F5F9;display:flex;flex-direction:column;align-items:center;padding:24px 20px">
+      <div style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;display:flex;align-items:center;gap:10px;width:100%;max-width:680px">
+        <span style="flex:1">CV adapté à cette offre · éléments surlignés = correspondances</span>
+      </div>
+      <div id="split-right-panel" style="width:100%;max-width:680px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCRIPTS (order matters) ──────────────────────────── -->
+<script src="js/api.js?v=36"></script>
+<script src="js/app.js?v=62"></script>
+<script src="js/profile.js?v=53"></script>
+<script src="js/import-cv.js?v=35"></script>
+<script src="js/cv.js?v=48"></script>
+<script src="js/analyze.js?v=38"></script>
+<script src="js/history.js?v=35"></script>
+<script src="js/tracker.js?v=146"></script>
+<script src="js/modal.js?v=36"></script>
+
+</body>
+</html>
