@@ -327,6 +327,13 @@ function addCandFromDash() {
   });
   _liLastJob = null; // reset après enregistrement
   ss('sc_cands', cands);
+
+  // Analyse IA en arrière-plan si l'annonce a bien été récupérée
+  const _nouvId = cands[cands.length - 1].id;
+  if (cands[cands.length - 1].jobDescription) {
+    launchCareerOpsAnalysis(_nouvId, 'gemini', true);
+  }
+
   pasteEl.value = '';
   delete pasteEl.dataset.desc;
   document.getElementById('dash-poste').value  = '';
@@ -2037,16 +2044,21 @@ function _buildCVText() {
 }
 
 // ── ANALYSE IA CAREER-OPS STYLE ─────────────────────────────
-async function launchCareerOpsAnalysis(candId, provider) {
+// Évite de relancer plusieurs fois l'analyse d'une même offre dans la session
+const _analysesLancees = new Set();
+
+// silencieux = true → tourne en arrière-plan, sans affichage, avec bascule Gemini → Groq
+async function launchCareerOpsAnalysis(candId, provider, silencieux = false) {
   const c = ls('sc_cands', []).find(x => x.id === candId);
   if (!c) return;
   const offerText = (c.jobDescription || '').replace(/&nbsp;/g, ' ').replace(/[ \t]{3,}/g, ' ').trim();
-  if (!offerText) { toast('Aucun texte d\'offre enregistré'); return; }
+  if (!offerText) { if (!silencieux) toast('Aucun texte d\'offre enregistré'); return; }
 
   const block = document.getElementById('split-ai-analysis');
-  if (!block) return;
+  if (!block && !silencieux) return;
 
-  block.innerHTML = `
+  if (!silencieux) {
+    block.innerHTML = `
     <div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px">
       ${_analysisHeader(candId, provider)}
       <div id="split-ai-results" style="padding:16px 18px">
@@ -2057,9 +2069,10 @@ async function launchCareerOpsAnalysis(candId, provider) {
         </div>
       </div>
     </div>`;
+  }
 
-  const cvText   = _buildCVText();
-  const resultsEl = document.getElementById('split-ai-results');
+  const cvText    = _buildCVText();
+  const resultsEl = silencieux ? null : document.getElementById('split-ai-results');
 
   const prompt = `Tu es un expert RH supply chain. Analyse cette offre pour ce candidat. Réponds UNIQUEMENT en JSON valide, sans markdown, sans commentaires.
 
@@ -2097,11 +2110,20 @@ RÈGLES :
 - "recommandations_cv" : actions concrètes ("Ajouter X dans le résumé", "Mentionner Y dans l'expérience Z")`;
 
   try {
-    const callFn = provider === 'gemini' ? callGemini : callGroq;
-    const raw    = await callFn(prompt, { maxTokens: 1800, temperature: 0.1 });
-    const data   = safeParseJSON(raw);
+    let raw, fournisseur = provider;
+    if (silencieux) {
+      // Gemini d'abord, bascule automatique sur Groq si quota/surcharge
+      const r = await callAIAuto(prompt, { maxTokens: 1800, temperature: 0.1 });
+      raw = r.text;
+      fournisseur = (r.provider || '').toLowerCase().includes('groq') ? 'groq' : 'gemini';
+    } else {
+      const callFn = provider === 'gemini' ? callGemini : callGroq;
+      raw = await callFn(prompt, { maxTokens: 1800, temperature: 0.1 });
+    }
+    const data = safeParseJSON(raw);
     if (!data || !data.score) throw new Error('Réponse invalide');
-    _renderCareerOpsResult(data, candId, provider, resultsEl);
+    provider = fournisseur;
+    if (resultsEl) _renderCareerOpsResult(data, candId, provider, resultsEl);
 
     // Sauvegarder dans la candidature
     const cands = ls('sc_cands', []);
@@ -2111,11 +2133,21 @@ RÈGLES :
       cands[idx].analysis.career_ops = data;
       cands[idx].analysis.poste      = cleanJobTitle(data.poste) || cands[idx].analysis.poste;
       cands[idx].analysis.entreprise = data.entreprise || cands[idx].analysis.entreprise;
+      cands[idx].analysis.career_ops_provider = provider;
+      cands[idx].score = Math.round((data.score / 5) * 100);
       ss('sc_cands', cands);
     }
+    if (silencieux) {
+      if (typeof renderTracker === 'function') renderTracker();
+      if (typeof refreshDash   === 'function') refreshDash();
+    }
   } catch(e) {
-    resultsEl.innerHTML = `
-      <div style="color:var(--red);font-size:13px;padding:4px 0">⚠ ${esc(e.message || 'Erreur — vérifie ta clé API')}</div>`;
+    if (resultsEl) {
+      resultsEl.innerHTML = `
+        <div style="color:var(--red);font-size:13px;padding:4px 0">⚠ ${esc(e.message || 'Erreur — vérifie ta clé API')}</div>`;
+    } else {
+      console.warn('[Analyse auto] échec:', e.message);
+    }
   }
 }
 
@@ -3619,6 +3651,13 @@ async function openSplitView(candId) {
     }
     _applyEmphases(candId);
   }, 200);
+
+  // ── Analyse IA : lancée d'office si elle n'a jamais été faite ──
+  // (couvre les candidatures ajoutées avant cette fonctionnalité)
+  if (!a.career_ops && c.jobDescription && !_analysesLancees.has(candId)) {
+    _analysesLancees.add(candId);
+    setTimeout(() => launchCareerOpsAnalysis(candId, 'gemini'), 300);
+  }
 
   // ── Ouvrir le modal ──
   document.getElementById('split-modal-overlay').classList.remove('hidden');

@@ -18,6 +18,7 @@ let _feedFiltres = { societe: 'Tous', secteur: 'Tous', contrat: 'CDI', depts: ['
 let _feedCharge  = false;
 let _feedVisiteRef = '';          // figée à l'ouverture, sinon les ⭐ disparaissent en cours de route
 let _feedVue = 'aconsulter';      // 'aconsulter' | 'masquees' | 'suivies'
+let _feedVoirJournal = false;     // panneau "historique des collectes"
 
 // ── OFFRES MASQUÉES ("pas intéressant") ────────────────────
 function _feedMasquees()      { return new Set(ls('sc_feed_hidden', [])); }
@@ -173,11 +174,83 @@ function renderFeed() {
         style="cursor:pointer;user-select:none;border-radius:100px;padding:4px 12px;font-size:11.5px;font-weight:700;white-space:nowrap"></span>
     </div>
 
+    <div id="feed-journal"></div>
     <div id="feed-compteur" style="font-size:12px;color:var(--ink3);margin-bottom:14px"></div>
     <div id="feed-liste"></div>`;
 
+  _feedRenderJournal();
+
   _feedMajCompteurs();
   _feedRenderListe();
+}
+
+// ── JOURNAL DES COLLECTES ──────────────────────────────────
+function _feedToggleJournal() {
+  _feedVoirJournal = !_feedVoirJournal;
+  _feedRenderJournal();
+}
+
+function _feedRenderJournal() {
+  const el = document.getElementById('feed-journal');
+  if (!el) return;
+  if (!_feedVoirJournal) { el.innerHTML = ''; return; }
+
+  const journal = _feedData.journal || [];
+  if (!journal.length) {
+    el.innerHTML = `<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;
+      padding:14px;margin-bottom:14px;font-size:12px;color:var(--ink3)">
+      Aucune collecte enregistrée pour l'instant. Le journal se remplira à la prochaine mise à jour
+      (7h et 13h UTC) ou si tu cliques sur « Actualiser ».</div>`;
+    return;
+  }
+
+  const lignes = journal.map(e => {
+    const d = new Date(e.quand);
+    const quand = isNaN(d) ? e.quand
+      : d.toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const auto = e.origine === 'auto';
+    const enPanne = (e.sources || []).some(s => !s.ok) || (e.alertes || []).length;
+
+    const detail = (e.sources || []).map(s => {
+      const nom = s.source === 'stef' ? 'STEF' : s.source === 'staffu' ? 'Staff’U' : s.source;
+      if (!s.ok) return `<span style="color:var(--red);font-weight:700">⚠ ${esc(nom)} : ${esc(s.erreur || 'échec')}</span>`;
+      const nv = s.nouvelles ? ` <b style="color:var(--teal-d)">+${s.nouvelles}</b>` : '';
+      return `<span style="color:var(--ink2)">${esc(nom)} ${s.count}${nv}</span>`;
+    }).join('<span style="color:var(--border)"> · </span>');
+
+    const titres = (e.titres || []).length
+      ? `<div style="margin-top:5px;padding-left:10px;border-left:2px solid var(--teal-border);
+           font-size:11px;color:var(--ink3);line-height:1.6">
+           ${e.titres.map(t => esc(t)).join('<br>')}
+           ${e.nouvelles > e.titres.length ? `<br><i>…et ${e.nouvelles - e.titres.length} autre(s)</i>` : ''}
+         </div>`
+      : '';
+
+    return `<div style="padding:9px 0;border-bottom:1px solid var(--border2)">
+      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12px">
+        <span style="font-weight:700;color:var(--ink);min-width:96px">${quand}</span>
+        <span style="background:${auto ? 'var(--bg)' : '#eef2ff'};border:1px solid ${auto ? 'var(--border)' : '#c7d2fe'};
+          color:${auto ? 'var(--ink3)' : '#4f46e5'};border-radius:100px;padding:1px 8px;font-size:10px;font-weight:700">
+          ${auto ? 'automatique' : 'manuel'}</span>
+        ${detail}
+        <span style="color:var(--ink3);font-size:11px;margin-left:auto">${(e.duree/1000).toFixed(1)} s</span>
+        ${enPanne ? '<span style="color:var(--red);font-weight:700;font-size:11px">⚠</span>' : ''}
+      </div>
+      ${titres}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div style="background:var(--card);border:1.5px solid var(--border);border-radius:12px;
+    padding:6px 16px 10px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 4px">
+      <div style="font-size:12.5px;font-weight:800;color:var(--ink)">Historique des collectes</div>
+      <span onclick="_feedToggleJournal()" style="cursor:pointer;color:var(--ink3);font-size:15px;line-height:1">✕</span>
+    </div>
+    <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">
+      ${journal.length} dernière${journal.length > 1 ? 's' : ''} · les nouveautés détectées sont listées sous chaque ligne
+    </div>
+    ${lignes}
+  </div>`;
 }
 
 // ── PASTILLES (mises à jour sur place, sans re-render) ─────
@@ -496,9 +569,17 @@ async function _feedAjouteAuSuivi(offreId, btn) {
     analysis:       null
   });
   ss('sc_cands', cands);
-  toast(description
-    ? '✓ Ajoutée avec l\'annonce complète'
-    : '✓ Ajoutée — annonce non récupérée, colle-la manuellement');
+  const nouvelId = cands[cands.length - 1].id;
+
+  // Analyse IA lancée en arrière-plan (Gemini → Groq si quota atteint)
+  if (description && typeof launchCareerOpsAnalysis === 'function') {
+    toast('✓ Ajoutée — analyse IA en cours…');
+    launchCareerOpsAnalysis(nouvelId, 'gemini', true);
+  } else {
+    toast(description
+      ? '✓ Ajoutée avec l\'annonce complète'
+      : '✓ Ajoutée — annonce non récupérée, colle-la manuellement');
+  }
   _feedMajCompteurs();   // la pastille "Suivies" augmente
   _feedRenderListe();    // …et la carte quitte la vue "à consulter"
   if (typeof renderTracker === 'function') renderTracker();
