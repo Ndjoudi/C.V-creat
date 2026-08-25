@@ -416,7 +416,7 @@ function renderTracker() {
       <td style="${tdBg}">${renderStatusLetters(c.id, c.status, 'updCand')}</td>
       <td style="${tdBg}" class="notes-cell" onclick="openNoteModal('${esc(c.company)}','${esc(c.poste)}',\`${(c.notes||'').replace(/`/g,"'")}\`)" title="Cliquer pour voir">${esc(c.notes) || '<span style="opacity:.4">—</span>'}</td>
       <td style="${tdBg};white-space:nowrap">${c.analysis ? `
-        <button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Voir le CV adapté à cette offre">CV</button><button onclick="loadCVForCand('${c.id}', true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="Télécharger PDF">⬇ PDF</button>` : ''}<button onclick="openInterviewForCand('${c.id}')" style="background:none;border:1.5px solid #e9d5ff;cursor:pointer;color:#7c3aed;font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Simuler l'entretien pour ce poste">🎤 Entretien</button><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
+        <button onclick="loadCVForCand('${c.id}', true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="Télécharger PDF">⬇ PDF</button>` : ''}<button onclick="openInterviewForCand('${c.id}')" style="background:none;border:1.5px solid #e9d5ff;cursor:pointer;color:#7c3aed;font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Simuler l'entretien pour ce poste">🎤 Entretien</button><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
     </tr>`;
   }).join('');
 
@@ -551,6 +551,11 @@ function loadCVForCand(candId, andPrint = false) {
   closeAnalysisModal();
 
   if (andPrint) {
+    // Télécharger le CV = tu postules → le statut avance tout seul.
+    // Placé ici pour que TOUS les boutons PDF en profitent (tableau de
+    // bord, suivi, fenêtre d'analyse, annonce, Feed) sans duplication.
+    _marquerEnvoye(candId);
+
     // Rendre le CV en arrière-plan puis imprimer
     // _pdfCandId sert à nommer le fichier même hors split view
     window._pdfCandId = candId;
@@ -559,6 +564,27 @@ function loadCVForCand(candId, andPrint = false) {
   } else {
     goTo('cv');
   }
+}
+
+// Fait passer "À traiter" → "Envoyé". Ne fait jamais reculer un statut
+// déjà plus avancé (Entretien, Refusé…).
+function _marquerEnvoye(candId) {
+  const cands = ls('sc_cands', []);
+  const idx   = cands.findIndex(x => x.id === candId);
+  if (idx === -1) return;
+
+  const statut = cands[idx].status || '';
+  if (statut !== '' && statut !== 'À traiter') return;
+
+  if (typeof updCandAndRefreshSplit === 'function') {
+    updCandAndRefreshSplit(candId, 'status', 'Envoyé');
+  } else {
+    cands[idx].status = 'Envoyé';
+    ss('sc_cands', cands);
+  }
+  if (typeof renderTracker === 'function') renderTracker();
+  if (typeof refreshDash   === 'function') refreshDash();
+  setTimeout(() => toast('Statut passé à « Envoyé »'), 400);
 }
 
 // ── MODAL ANALYSE ──────────────────────────────────────────
@@ -2045,25 +2071,6 @@ function _buildCVText() {
 }
 
 // ── ANALYSE IA CAREER-OPS STYLE ─────────────────────────────
-// ── PDF + passage automatique du statut à "Envoyé" ─────────
-// Télécharger le CV = tu postules → on avance le statut tout seul.
-// Sécurité : on n'écrase jamais un statut plus avancé (Entretien, Refusé…),
-// seul "À traiter" (ou un statut vide) est concerné.
-function _pdfEtMarquerEnvoye(candId) {
-  if (!candId) return;
-  loadCVForCand(candId, true);
-
-  const cands = ls('sc_cands', []);
-  const idx   = cands.findIndex(x => x.id === candId);
-  if (idx === -1) return;
-
-  const statut = cands[idx].status || '';
-  if (statut === '' || statut === 'À traiter') {
-    updCandAndRefreshSplit(candId, 'status', 'Envoyé');
-    setTimeout(() => toast('Statut passé à « Envoyé »'), 400);
-  }
-}
-
 // Marque qu'une analyse automatique a déjà été tentée pour cette offre.
 // Persisté dans la candidature → survit au rechargement de la page.
 function _marqueAnalyseTentee(candId) {

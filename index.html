@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
 <link rel="stylesheet" href="css/components.css?v=43"/>
-<link rel="stylesheet" href="css/cv.css?v=59"/>
+<link rel="stylesheet" href="css/cv.css?v=62"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -467,6 +467,9 @@
           <button class="tpl-btn"        data-tpl="ats"       onclick="setCVTemplate('ats')">✅ ATS</button>
           <button class="tpl-btn"        data-tpl="moderne"   onclick="setCVTemplate('moderne')">🎨 Moderne</button>
         </div>
+        <!-- Lettre de recommandation jointe au PDF -->
+        <div id="lettre-reco-bloc" style="margin-bottom:14px"></div>
+
         <div style="font-size:11.5px;color:var(--ink3);margin-bottom:14px;display:flex;align-items:center;gap:6px"><i data-lucide="info" style="width:13px;height:13px;flex-shrink:0"></i>Dans la boîte d'impression : choisir <strong>"Enregistrer en PDF"</strong>, désactiver les en-têtes/pieds de page</div>
         <div id="cv-analysis-result" style="margin-bottom:16px"></div>
         <div class="cv-doc" id="cv-doc"></div>
@@ -721,7 +724,7 @@
     <div id="split-job-link"></div>
     <button id="split-linkedin-btn" onclick="window._openLinkedInContact()" style="display:none;align-items:center;gap:5px;background:#0a66c2;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;padding:5px 14px;font-weight:600;white-space:nowrap">in Trouver le recruteur</button>
 <button id="cv-edit-btn" onclick="toggleCVEditMode()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">✏️ Modifier le CV</button>
-    <button onclick="_pdfEtMarquerEnvoye(window._splitCandId)" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">⬇ PDF</button>
+    <button onclick="loadCVForCand(window._splitCandId, true)" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">⬇ PDF</button>
   </div>
   <!-- Two panels -->
   <div style="display:flex;flex:1;overflow:hidden">
@@ -739,15 +742,17 @@
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
 <script src="js/api.js?v=39"></script>
-<script src="js/app.js?v=68"></script>
+<script src="js/app.js?v=70"></script>
 <script src="js/profile.js?v=53"></script>
 <script src="js/import-cv.js?v=35"></script>
-<script src="js/cv.js?v=77"></script>
+<script src="js/cv.js?v=78"></script>
 <script src="js/analyze.js?v=39"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=170"></script>
-<script src="js/feed.js?v=14"></script>
+<script src="js/tracker.js?v=171"></script>
+<script src="js/lettre-reco.js?v=6"></script>
+<script src="js/feed.js?v=16"></script>
 <script src="js/modal.js?v=36"></script>
+<script src="js/navigation.js?v=1"></script>
 
 </body>
 </html>

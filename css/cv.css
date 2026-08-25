@@ -230,6 +230,47 @@
 }
 #cv-print-wrapper{display:none}
 
+/* ── LETTRE DE RECOMMANDATION (pages jointes au PDF) ────── */
+/* La page est reproduite à l'identique : on colle simplement son image. */
+.lettre-reco-page{
+  page-break-before:always;
+  break-before:page;
+  position:relative;
+  background:#fff;
+  line-height:0;                 /* supprime l'espace sous l'image */
+}
+.lettre-reco-img{
+  display:block;
+  width:100%;height:auto;
+}
+/* Couche lisible par les ATS, invisible à l'œil et à l'impression */
+.lettre-reco-ats{
+  position:absolute;inset:0;
+  padding:12mm;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:8pt;line-height:1.35;
+  color:transparent;
+  white-space:pre-wrap;
+  overflow:hidden;
+  pointer-events:none;
+}
+/* Repli texte (si le navigateur n'a pas pu dessiner les pages) */
+.lettre-reco-texte{ line-height:normal; }
+.lettre-reco-corps{
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:12px;line-height:1.75;color:#1D1D1F;
+  text-align:justify;
+}
+@media print{
+  #cv-print-wrapper .lettre-reco-page{
+    border:none!important;box-shadow:none!important;border-radius:0!important;
+    padding:0!important;margin:0!important;
+    width:100%!important;max-width:none!important;
+  }
+  #cv-print-wrapper .lettre-reco-img{ width:100%!important; }
+  #cv-print-wrapper .lettre-reco-texte{ padding:14mm 16mm!important;background:#fff!important; }
+}
+
 /* ══════════════════════════════════════════════════════════
    TEMPLATE ATS — identique au classique, sans cases (pills)
    Mise en avant = surlignage du texte (pas de bordures)

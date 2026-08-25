@@ -832,7 +832,9 @@ function printCV() {
   const _printClass = _printTpl === 'moderne' ? 'cv-doc cv-doc--moderne'
                     : _printTpl === 'ats'     ? 'cv-doc cv-doc--ats'
                     : 'cv-doc';
-  wrapper.innerHTML = `<div class="${_printClass}">${srcEl.innerHTML}</div>`;
+  // Lettre de recommandation en page 2 (si déposée et l'interrupteur actif)
+  const _lettre = typeof lettreRecoHtmlPourPdf === 'function' ? lettreRecoHtmlPourPdf() : '';
+  wrapper.innerHTML = `<div class="${_printClass}">${srcEl.innerHTML}</div>${_lettre}`;
 
   // Supprime les éléments interactifs (boutons +, toolbars) de la version imprimée
   wrapper.querySelectorAll('button, #emphasis-toolbar, [id$="-picker"]').forEach(el => el.remove());

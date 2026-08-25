@@ -323,7 +323,14 @@ function _feedOffresVisibles() {
     if (f.societe !== 'Tous' && o.société !== f.societe) return false;
     if (f.secteur !== 'Tous' && o.secteur !== f.secteur) return false;
     if (f.contrat !== 'Tous' && o.contrat !== f.contrat) return false;
-    if (f.depts.length && !f.depts.includes(_feedDept(o.lieu))) return false;
+    // Certaines sources ne donnent pas de code postal (GEODIS : "Gennevilliers").
+    // On accepte alors leur propre classement régional (zone).
+    if (f.depts.length) {
+      const dept    = o.dept || _feedDept(o.lieu);   // étiquette de la source, sinon code postal
+      const parDept = f.depts.includes(dept);
+      const parZone = f.preset === 'idf' && o.zone === 'idf';
+      if (!parDept && !parZone) return false;
+    }
     if (f.nouvellesSeules && !(_feedVisiteRef && o.vueLe > _feedVisiteRef)) return false;
     if (rech && !(`${o.titre} ${o.lieu} ${o.secteur}`.toLowerCase().includes(rech))) return false;
     return true;

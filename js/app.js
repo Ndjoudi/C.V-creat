@@ -349,7 +349,7 @@ function initNav() {
 function goTo(id) {
   document.querySelectorAll('.ni').forEach(n => n.classList.toggle('on', n.dataset.sc === id));
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + id));
-  if (id === 'cv')       renderCV();
+  if (id === 'cv')     { renderCV(); if (typeof renderLettreReco === 'function') renderLettreReco(); }
   if (id === 'feed')     ouvreFeed();
   if (id === 'dash')     refreshDash();
   if (id === 'tracker')  renderTracker();
@@ -463,7 +463,7 @@ function refreshDash() {
       <td style="${tdBg};color:var(--ink3);font-size:12.5px">${_fmtDate(c.date)}</td>
       <td style="${tdBg}">${renderStatusLetters(c.id, c.status, 'updCandAndRefresh')}</td>
       <td style="${tdBg};white-space:nowrap">
-        ${c.analysis ? `<button onclick="loadCVForCand('${c.id}')" style="background:none;border:1.5px solid var(--teal-border);cursor:pointer;color:var(--teal-d);font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="CV adapté">CV</button><button onclick="loadCVForCand('${c.id}',true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="PDF">⬇ PDF</button>` : ''}
+        ${c.analysis ? `<button onclick="loadCVForCand('${c.id}',true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="PDF">⬇ PDF</button>` : ''}
         <button onclick="openSplitView('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:13px;padding:2px 5px;border-radius:4px" title="Ouvrir">↗</button>
         <button onclick="delCand('${c.id}')" style="background:none;border:1.5px solid #fecaca;cursor:pointer;color:#dc2626;font-size:12px;font-weight:700;padding:2px 7px;border-radius:100px;margin-left:3px;line-height:1" title="Supprimer">🗑</button>
       </td>
