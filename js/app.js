@@ -21,6 +21,16 @@ const STAT_COLORS = {
   'Entretien':  ['var(--teal)','var(--teal-bg)','var(--teal-border)'],
   'Refusé':     ['#DC2626','var(--red-bg)','var(--red-border)']
 };
+// Bouton vers l'annonce d'origine — rien si aucun lien n'a été enregistré
+function _lienAnnonce(c) {
+  const url = c.jobUrl || c.indeedUrl || '';
+  if (!url) return '';
+  return `<a href="${esc(url)}" target="_blank" rel="noopener"
+    style="display:inline-block;background:none;border:1.5px solid #bfdbfe;text-decoration:none;
+    color:#2164f3;font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px"
+    title="Voir l'annonce d'origine">Annonce ↗</a>`;
+}
+
 // Lettres cliquables de statut — ['À','E','M','E','R']
 const STAT_LETTERS = ['À','E','M','E','R'];
 function renderStatusLetters(candId, currentStatus, onChangeFn) {
@@ -464,6 +474,7 @@ function refreshDash() {
       <td style="${tdBg}">${renderStatusLetters(c.id, c.status, 'updCandAndRefresh')}</td>
       <td style="${tdBg};white-space:nowrap">
         ${c.analysis ? `<button onclick="loadCVForCand('${c.id}',true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="PDF">⬇ PDF</button>` : ''}
+        ${_lienAnnonce(c)}
         <button onclick="openSplitView('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:13px;padding:2px 5px;border-radius:4px" title="Ouvrir">↗</button>
         <button onclick="delCand('${c.id}')" style="background:none;border:1.5px solid #fecaca;cursor:pointer;color:#dc2626;font-size:12px;font-weight:700;padding:2px 7px;border-radius:100px;margin-left:3px;line-height:1" title="Supprimer">🗑</button>
       </td>

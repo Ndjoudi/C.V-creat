@@ -396,9 +396,8 @@ function renderTracker() {
       >${sc}%${hasAnalysis ? ' ↗' : ''}</span>`;
     }
 
-    const indeedLink = c.indeedUrl
-      ? `<a href="${esc(c.indeedUrl)}" target="_blank" rel="noopener" style="font-size:10.5px;color:#2164f3;text-decoration:none;font-weight:600">↗ Annonce</a>`
-      : '';
+    // Le lien vers l'annonce est désormais un vrai bouton dans la colonne
+    // d'actions (_lienAnnonce), et il couvre aussi les offres du Feed.
 
     let sep = '';
     if (_prevDate && c.date !== _prevDate) {
@@ -409,14 +408,14 @@ function renderTracker() {
     return sep + `<tr data-cand-id="${c.id}">
       <td style="${tdBg}">
         <div style="font-weight:700;color:var(--ink);font-size:13px">${esc(c.poste)}</div>
-        <div style="color:var(--ink3);font-size:12px;margin-top:1px">${esc(c.company)}${indeedLink ? ' · ' + indeedLink : ''}</div>
+        <div style="color:var(--ink3);font-size:12px;margin-top:1px">${esc(c.company)}</div>
       </td>
       <td style="${tdBg}">${scoreBadge}</td>
       <td style="${tdBg};color:var(--ink3);font-size:12.5px">${_fmtDate(c.date)}</td>
       <td style="${tdBg}">${renderStatusLetters(c.id, c.status, 'updCand')}</td>
       <td style="${tdBg}" class="notes-cell" onclick="openNoteModal('${esc(c.company)}','${esc(c.poste)}',\`${(c.notes||'').replace(/`/g,"'")}\`)" title="Cliquer pour voir">${esc(c.notes) || '<span style="opacity:.4">—</span>'}</td>
       <td style="${tdBg};white-space:nowrap">${c.analysis ? `
-        <button onclick="loadCVForCand('${c.id}', true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="Télécharger PDF">⬇ PDF</button>` : ''}<button onclick="openInterviewForCand('${c.id}')" style="background:none;border:1.5px solid #e9d5ff;cursor:pointer;color:#7c3aed;font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Simuler l'entretien pour ce poste">🎤 Entretien</button><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
+        <button onclick="loadCVForCand('${c.id}', true)" style="background:none;border:1.5px solid var(--border);cursor:pointer;color:var(--ink3);font-size:11px;font-weight:600;padding:3px 8px;border-radius:100px;margin-right:3px" title="Télécharger PDF">⬇ PDF</button>` : ''}${_lienAnnonce(c)}<button onclick="openInterviewForCand('${c.id}')" style="background:none;border:1.5px solid #e9d5ff;cursor:pointer;color:#7c3aed;font-size:11px;font-weight:700;padding:3px 8px;border-radius:100px;margin-right:3px" title="Simuler l'entretien pour ce poste">🎤 Entretien</button><button onclick="delCand('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--ink3)'">×</button></td>
     </tr>`;
   }).join('');
 
