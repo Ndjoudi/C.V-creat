@@ -815,11 +815,25 @@ function _syncSplitCV() {
   });
 }
 
+// Vrai titre du site, mémorisé une fois pour toutes. Sans ça, deux PDF
+// enchaînés se marchent dessus : le second prendrait pour "titre d'origine"
+// le nom de fichier du premier.
+const _TITRE_SITE = document.title;
+
 function printCV() {
   if (!P.firstName) { toast('Renseigne ton prénom dans le profil'); return; }
 
-  // Utilise cv-doc-split (CV avec modifications de l'offre) si disponible, sinon cv-doc
-  const srcEl = document.getElementById('cv-doc-split') || document.getElementById('cv-doc');
+  // Quelle version du CV imprimer ?
+  //   • Une annonce est ouverte à l'écran → son CV adapté (cv-doc-split)
+  //   • Sinon → le CV principal (cv-doc)
+  // Important : quand on ferme une annonce, cv-doc-split reste dans la page
+  // (elle est seulement masquée). Sans ce contrôle d'ouverture, tous les
+  // boutons PDF réutilisaient ce vieux CV — d'où un titre figé tant qu'on
+  // n'avait pas rechargé la page.
+  const overlay      = document.getElementById('split-modal-overlay');
+  const annonceOuverte = !!overlay && !overlay.classList.contains('hidden');
+  const srcEl = (annonceOuverte && document.getElementById('cv-doc-split'))
+             || document.getElementById('cv-doc');
   if (!srcEl) return;
 
   let wrapper = document.getElementById('cv-print-wrapper');
@@ -841,8 +855,11 @@ function printCV() {
 
   // Nom du fichier PDF = "Date - Poste - Entreprise"
   // Vaut pour la split view comme pour les boutons PDF (tableau, Feed)
-  const originalTitle = document.title;
-  const candId = window._splitCandId || window._pdfCandId;
+  // Même précaution que plus haut : _splitCandId garde la dernière annonce
+  // consultée même après fermeture. On ne s'y fie que si elle est à l'écran,
+  // sinon le PDF hériterait du nom de l'offre précédente.
+  const originalTitle = _TITRE_SITE;
+  const candId = window._pdfCandId || (annonceOuverte ? window._splitCandId : null);
   window._pdfCandId = null;
   if (candId) {
     const c = ls('sc_cands', []).find(x => x.id === candId);
@@ -866,10 +883,14 @@ function printCV() {
     }
   }
 
+  const titreDefini = document.title;
   setTimeout(() => {
     window.print();
-    // Restaure le titre original après l'impression
-    setTimeout(() => { document.title = originalTitle; }, 1000);
+    // Restaure le titre du site — mais seulement si un autre PDF n'a pas
+    // déjà pris la main entre-temps.
+    setTimeout(() => {
+      if (document.title === titreDefini) document.title = originalTitle;
+    }, 1000);
   }, 80);
 }
 
