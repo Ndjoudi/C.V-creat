@@ -1,9 +1,13 @@
 // ── LETTRE DE RECOMMANDATION ───────────────────────────────
-// Tu déposes ton PDF une fois : on en extrait le texte, qui devient
-// une vraie page 2 du CV (texte sélectionnable, lisible par les ATS).
+// Tu déposes ton PDF une fois : on en extrait le texte, qui devient la
+// page 2 de chaque CV, en TEXTE VISIBLE (lisible par les ATS et par l'œil).
+//
+// Pourquoi pas une image de la lettre avec son texte caché dessous ?
+// Les ATS extraient le texte sans les couleurs : un texte invisible est
+// vu comme du « texte blanc caché » et peut faire écarter la candidature.
 //
 // Stocké dans le profil :
-//   P.lettreReco       { nom, texte, pages, ajouteeLe }
+//   P.lettreReco       { nom, pages, texte, ajouteeLe }
 //   P.lettreRecoActive true/false — l'interrupteur
 
 // pdf.js est embarqué dans le site (js/vendor) : pas de dépendance externe,
@@ -28,43 +32,18 @@ function _chargePdfJs() {
   return _pdfjsPret;
 }
 
-// ── RENDU FIDÈLE DES PAGES ─────────────────────────────────
-// On dessine chaque page telle quelle : mise en page, puces, signature,
-// en-tête — tout est conservé à l'identique.
-async function _rendPagesPdf(doc, largeurCible = 1240) {
-  const images = [];
-  for (let p = 1; p <= doc.numPages; p++) {
-    const page  = await doc.getPage(p);
-    const base  = page.getViewport({ scale: 1 });
-    const scale = Math.min(largeurCible / base.width, 3);
-    const vp    = page.getViewport({ scale });
-
-    const canvas = document.createElement('canvas');
-    canvas.width  = Math.floor(vp.width);
-    canvas.height = Math.floor(vp.height);
-    const ctx = canvas.getContext('2d', { alpha: false });
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Certains navigateurs bridés n'arrivent pas à dessiner un PDF :
-    // on ne reste pas bloqué, on laisse la solution de repli prendre le relais.
-    const tache = page.render({ canvasContext: ctx, viewport: vp });
-    await Promise.race([
-      tache.promise,
-      new Promise((_, rej) => setTimeout(() => {
-        try { tache.cancel(); } catch {}
-        rej(new Error('rendu de la page ' + p + ' trop long'));
-      }, 15000))
-    ]);
-
-    // JPEG de bonne qualité : bien plus léger que PNG, sans perte visible sur du texte
-    images.push(canvas.toDataURL('image/jpeg', 0.92));
-  }
-  return images;
-}
+// ── NETTOYAGE DES ANCIENNES LETTRES ────────────────────────
+// Les versions précédentes stockaient aussi l'image de chaque page
+// (plusieurs centaines de Ko). On ne s'en sert plus : on libère la place.
+(function nettoieAnciennesLettres() {
+  if (typeof P === 'undefined' || !P.lettreReco) return;
+  if (!P.lettreReco.images && P.lettreReco.poidsKo === undefined) return;
+  delete P.lettreReco.images;
+  delete P.lettreReco.poidsKo;
+  try { ss('sc_profile', P); } catch {}
+})();
 
 // ── EXTRACTION DU TEXTE ────────────────────────────────────
-// Sert de couche invisible sous l'image, pour que les ATS lisent la lettre.
 async function _texteDuDocument(doc) {
   // 1) Reconstruit les lignes en s'appuyant sur la position verticale des mots
   const lignes = [];
@@ -97,7 +76,7 @@ async function _texteDuDocument(doc) {
   const interligne = ecarts.length ? ecarts[Math.floor(ecarts.length / 2)] : 12;
 
   // 3) Un écart nettement plus grand = changement de paragraphe.
-  //    Sinon les lignes sont recollées : le texte se remettra en forme
+  //    Sinon les lignes sont recollées : le texte se remet en forme
   //    tout seul à la largeur de la page, comme un vrai courrier.
   let texte = lignes[0].txt;
   for (let i = 1; i < lignes.length; i++) {
@@ -107,7 +86,6 @@ async function _texteDuDocument(doc) {
     texte += nouveauParagraphe ? '\n\n' + lignes[i].txt : ' ' + lignes[i].txt;
   }
 
-  // Renvoie une chaîne : le nombre de pages est déjà connu via doc.numPages
   return texte
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
@@ -128,46 +106,19 @@ async function _lettreRecoImporte(input) {
     <span style="font-size:12.5px;color:var(--ink3)">Lecture de ${esc(f.name)}…</span></div>`;
 
   try {
-    const pdfjs  = await _chargePdfJs();
-    const buffer = await f.arrayBuffer();
-    const doc    = await pdfjs.getDocument({ data: buffer }).promise;
-
-    // Le texte d'abord : il sert de couche ATS, et de repli si le rendu échoue
+    const pdfjs = await _chargePdfJs();
+    const doc   = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
     const texte = await _texteDuDocument(doc);
-
-    // Puis l'image fidèle de chaque page — l'essentiel, pour garder la mise en page
-    let images = [];
-    try {
-      images = await _rendPagesPdf(doc);
-    } catch (err) {
-      console.warn('[Lettre] rendu image indisponible, repli sur le texte :', err.message);
-    }
-    if (!images.length && (!texte || texte.length < 40)) {
-      throw new Error('Ni image ni texte exploitable dans ce PDF');
+    if (!texte || texte.length < 40) {
+      throw new Error('Aucun texte trouvé — ce PDF est probablement un scan');
     }
 
-    const poids = Math.round(images.reduce((n, i) => n + i.length, 0) / 1024);
-    if (poids > 4300) {
-      throw new Error(`Lettre trop lourde (${poids} Ko) — réduis le nombre de pages`);
-    }
-
-    P.lettreReco = {
-      nom: f.name, pages: doc.numPages, images, texte,
-      poidsKo: poids, ajouteeLe: new Date().toISOString()
-    };
+    P.lettreReco = { nom: f.name, pages: doc.numPages, texte, ajouteeLe: new Date().toISOString() };
     if (P.lettreRecoActive === undefined) P.lettreRecoActive = true;
-
-    try {
-      ss('sc_profile', P);
-    } catch {
-      delete P.lettreReco;
-      throw new Error('Espace de stockage saturé — essaie un PDF plus léger');
-    }
+    ss('sc_profile', P);
 
     renderLettreReco();
-    toast(images.length
-      ? `✓ Lettre ajoutée — ${doc.numPages} page${doc.numPages > 1 ? 's' : ''} à l'identique (${poids} Ko)`
-      : '✓ Lettre ajoutée en texte — la mise en page d\'origine n\'a pas pu être reproduite');
+    toast(`✓ Lettre ajoutée — ${texte.length} caractères. Relis le texte dans « Aperçu ».`);
   } catch (e) {
     renderLettreReco();
     toast('⚠ ' + e.message);
@@ -192,14 +143,22 @@ function _lettreRecoSauveTexte(val) {
   if (!P.lettreReco) return;
   P.lettreReco.texte = val;
   ss('sc_profile', P);
+  const apercu = document.getElementById('lettre-reco-apercu');
+  if (apercu) apercu.innerHTML = _lettreRecoCorpsHtml(val);
 }
 
 function _lettreRecoToggleEdition() {
   const z = document.getElementById('lettre-reco-edit');
   if (!z) return;
-  const ouvert = z.style.display !== 'none';
-  z.style.display = ouvert ? 'none' : 'block';
-  if (!ouvert) z.querySelector('textarea')?.focus();
+  z.style.display = z.style.display !== 'none' ? 'none' : 'block';
+}
+
+// Paragraphes du texte → HTML (partagé par l'aperçu et le PDF)
+function _lettreRecoCorpsHtml(texte) {
+  return (texte || '')
+    .split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+    .map(p => `<p style="margin:0 0 9px">${esc(p).replace(/\n/g, '<br>')}</p>`)
+    .join('');
 }
 
 // ── AFFICHAGE DU BLOC ──────────────────────────────────────
@@ -252,7 +211,7 @@ function renderLettreReco() {
             ${actif ? '✓ Jointe en page 2 de chaque CV' : 'Non jointe — CV seul'}
           </div>
         </div>
-        <button class="btn btn-g" style="font-size:11.5px;padding:4px 10px" onclick="_lettreRecoToggleEdition()">Aperçu</button>
+        <button class="btn btn-g" style="font-size:11.5px;padding:4px 10px" onclick="_lettreRecoToggleEdition()">Aperçu et correction</button>
         <label class="btn btn-g" style="font-size:11.5px;padding:4px 10px;cursor:pointer;margin:0">
           Remplacer
           <input type="file" accept="application/pdf,.pdf" style="display:none" onchange="_lettreRecoImporte(this)"/>
@@ -262,62 +221,33 @@ function renderLettreReco() {
       </div>
 
       <div id="lettre-reco-edit" style="display:none;margin-top:12px">
-        <div style="font-size:11px;color:var(--ink3);margin-bottom:7px">
-          Voilà exactement ce qui sera ajouté à ton PDF — mise en page, puces et signature comprises.
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">
+          Texte extrait de ton PDF. Corrige-le si une ligne a été mal coupée : c'est exactement ce texte,
+          visible, qui apparaîtra en page 2.
         </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap">
-          ${(L.images || []).map((src, i) => `
-            <div style="flex:0 0 auto">
-              <img src="${src}" alt="Page ${i + 1}"
-                style="width:230px;border:1px solid var(--border);border-radius:6px;display:block;
-                box-shadow:0 2px 8px rgba(0,0,0,.08)"/>
-              <div style="text-align:center;font-size:10.5px;color:var(--ink3);margin-top:4px">Page ${i + 1}</div>
-            </div>`).join('')}
-        </div>
-
-        <details style="margin-top:12px">
-          <summary style="cursor:pointer;font-size:11.5px;color:var(--ink3);font-weight:600">
-            Texte lu par les robots de recrutement (modifiable)
-          </summary>
-          <div style="font-size:11px;color:var(--ink3);margin:6px 0 5px">
-            Ce texte est invisible dans le PDF : il double l'image pour que les ATS puissent lire ta lettre.
-          </div>
-          <textarea class="inp" style="width:100%;min-height:150px;font-size:12px;line-height:1.6;resize:vertical"
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
+          <textarea class="inp" style="flex:1;min-width:260px;min-height:220px;font-size:12px;line-height:1.6;resize:vertical"
             oninput="_lettreRecoSauveTexte(this.value)">${esc(L.texte || '')}</textarea>
-        </details>
+          <div id="lettre-reco-apercu" class="lettre-reco-corps"
+            style="flex:1;min-width:260px;max-height:320px;overflow:auto;background:#fff;border:1px solid var(--border);
+            border-radius:6px;padding:14px 16px">${_lettreRecoCorpsHtml(L.texte)}</div>
+        </div>
       </div>
     </div>`;
 }
 
-// ── PAGES À JOINDRE AU PDF ─────────────────────────────────
-// Chaque page de ta lettre est reproduite telle quelle. Sous l'image,
-// une couche de texte invisible (le même contenu) permet aux ATS de
-// lire la lettre — c'est le principe d'un PDF scanné "recherchable".
+// ── PAGE 2 DU PDF ──────────────────────────────────────────
+// Texte visible uniquement : aucun élément caché, aucune image.
 function lettreRecoHtmlPourPdf() {
   const L = P.lettreReco;
-  if (!L || P.lettreRecoActive === false) return '';
-  const images = L.images || [];
+  if (!L || P.lettreRecoActive === false || !L.texte?.trim()) return '';
 
-  // Cas normal : les pages telles quelles
-  if (images.length) {
-    return images.map((src, i) => `
-      <div class="lettre-reco-page">
-        ${i === 0 && L.texte ? `<div class="lettre-reco-ats">${esc(L.texte)}</div>` : ''}
-        <img class="lettre-reco-img" src="${src}" alt="Lettre de recommandation"/>
-      </div>`).join('');
-  }
-
-  // Repli : le navigateur n'a pas pu dessiner les pages → version texte
-  if (!L.texte?.trim()) return '';
-  const paragraphes = L.texte
-    .split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
-    .map(p => `<p style="margin:0 0 9px">${esc(p).replace(/\n/g, '<br>')}</p>`)
-    .join('');
+  // Si la lettre porte déjà son propre titre, on n'en rajoute pas un second
   const aDejaUnTitre = /recommandation|attestation|qui de droit/i.test(L.texte.slice(0, 70));
 
   return `
     <div class="cv-doc lettre-reco-page lettre-reco-texte">
       ${aDejaUnTitre ? '' : '<div class="cv-stitle" style="margin-bottom:12px">Lettre de recommandation</div>'}
-      <div class="lettre-reco-corps">${paragraphes}</div>
+      <div class="lettre-reco-corps">${_lettreRecoCorpsHtml(L.texte)}</div>
     </div>`;
 }

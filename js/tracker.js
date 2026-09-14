@@ -3610,9 +3610,6 @@ async function openSplitView(candId) {
        >${esc(c.poste)}</span><span style="color:var(--ink3);font-weight:600"> · ${esc(c.company)}</span>`;
   document.getElementById('split-modal-sub').textContent   = c.date || '';
 
-  // ── Sélecteur de template ──
-  if (typeof _updateSplitTplPicker === 'function') _updateSplitTplPicker(P.cvTemplate || 'classique');
-
   // ── Statut letters dans le header ──
   const statusEl = document.getElementById('split-status-letters');
   if (statusEl) {

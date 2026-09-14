@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
 <link rel="stylesheet" href="css/components.css?v=43"/>
-<link rel="stylesheet" href="css/cv.css?v=62"/>
+<link rel="stylesheet" href="css/cv.css?v=65"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -460,13 +460,6 @@
           <input class="inp" id="cv-target-input" placeholder="Ex: CDI - Assistant Marketing (remplace le titre sur le CV)" style="flex:1;padding:8px 12px;font-size:13px;min-width:200px" oninput="setCVTarget(this.value)"/>
           <div style="font-size:11px;color:var(--ink3);white-space:nowrap">Auto-rempli après analyse d'offre</div>
         </div>
-        <!-- Sélecteur de template -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-          <span style="font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;flex-shrink:0">Template</span>
-          <button class="tpl-btn active" data-tpl="classique" onclick="setCVTemplate('classique')">📄 Classique</button>
-          <button class="tpl-btn"        data-tpl="ats"       onclick="setCVTemplate('ats')">✅ ATS</button>
-          <button class="tpl-btn"        data-tpl="moderne"   onclick="setCVTemplate('moderne')">🎨 Moderne</button>
-        </div>
         <!-- Lettre de recommandation jointe au PDF -->
         <div id="lettre-reco-bloc" style="margin-bottom:14px"></div>
 
@@ -716,11 +709,6 @@
       <div style="font-size:14px;font-weight:800;color:var(--ink)" id="split-modal-title"></div>
       <div style="font-size:11.5px;color:var(--ink3)" id="split-modal-sub"></div>
     </div>
-    <div id="split-tpl-picker" style="display:flex;gap:5px">
-      <button class="tpl-btn active" data-tpl="classique" onclick="setCVTemplate('classique')" style="padding:4px 10px;font-size:11px">📄 Classique</button>
-      <button class="tpl-btn"        data-tpl="ats"       onclick="setCVTemplate('ats')" style="padding:4px 10px;font-size:11px">✅ ATS</button>
-      <button class="tpl-btn"        data-tpl="moderne"   onclick="setCVTemplate('moderne')" style="padding:4px 10px;font-size:11px">🎨 Moderne</button>
-    </div>
     <div id="split-job-link"></div>
     <button id="split-linkedin-btn" onclick="window._openLinkedInContact()" style="display:none;align-items:center;gap:5px;background:#0a66c2;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;padding:5px 14px;font-weight:600;white-space:nowrap">in Trouver le recruteur</button>
 <button id="cv-edit-btn" onclick="toggleCVEditMode()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">✏️ Modifier le CV</button>
@@ -745,11 +733,11 @@
 <script src="js/app.js?v=71"></script>
 <script src="js/profile.js?v=53"></script>
 <script src="js/import-cv.js?v=35"></script>
-<script src="js/cv.js?v=81"></script>
+<script src="js/cv.js?v=82"></script>
 <script src="js/analyze.js?v=39"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=179"></script>
-<script src="js/lettre-reco.js?v=6"></script>
+<script src="js/tracker.js?v=180"></script>
+<script src="js/lettre-reco.js?v=7"></script>
 <script src="js/feed.js?v=16"></script>
 <script src="js/modal.js?v=36"></script>
 <script src="js/navigation.js?v=1"></script>

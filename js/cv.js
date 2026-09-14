@@ -78,57 +78,44 @@ if (typeof P !== 'undefined' && P.domainesProfile && !P._v3_hookMigrated) {
 }
 
 // ── PROFILE HIGHLIGHT BUILDER ──────────────────────────────
-function buildProfileHighlight(ats) {
-  const segments = [];
+// Texte simple (plus de pastilles colorées) : chaque ligne est un bloc,
+// avec de vrais séparateurs « | » écrits dans le texte.
+function buildProfileHighlight() {
+  const sep    = '<span class="cv-sep"> | </span>';
+  const lignes = [];
 
   // Ligne 1 : Formation (depuis education[0])
   const edu = P.education && P.education[0];
   if (edu && edu.degree) {
-    let s = `<span class="cv-phi-plain">Fin de cursus </span>`;
-    s += `<strong class="cv-phi-formation">${esc(edu.degree)}</strong>`;
-    if (edu.school) s += `<span class="cv-phi-plain"> à </span><strong class="cv-phi-school">${esc(edu.school)}</strong>`;
-    if (edu.year) {
-      const endYear = edu.year.trim().split(/\s*[-–—]\s*/).pop();
-      s += `<span class="cv-phi-year">, ${esc(endYear)}</span>`;
-    }
-    segments.push(s);
+    const endYear = edu.year ? edu.year.trim().split(/\s*[-–—]\s*/).pop() : '';
+    lignes.push(`Fin de cursus <strong>${esc(edu.degree)}</strong>`
+      + (edu.school ? ` à <strong>${esc(edu.school)}</strong>` : '')
+      + (endYear ? `, ${esc(endYear)}` : ''));
   } else if (P.yearsExp) {
-    segments.push(`<span class="cv-phi-plain">Fort(e) de </span><strong class="cv-phi-formation">${esc(P.yearsExp)} d'expérience</strong>`);
+    lignes.push(`Fort(e) de <strong>${esc(P.yearsExp)} d'expérience</strong>`);
   }
 
   // Ligne 2 : contrat, disponibilité, mobilité, permis
-  if (ats) {
-    // Mode ATS : infos labellisées sur la même ligne, espacées, sans séparateur ni case
-    const atsItem = (label, txt) =>
-      `<span class="cv-phi-plain">${label} : </span><span class="cv-phi-strong">${esc(txt)}</span>`;
-    const items = [];
-    if (P.contratRecherche) items.push(atsItem('Contrat', P.contratRecherche));
-    if (P.disponibilite)    items.push(atsItem('Dispo', P.disponibilite));
-    if (P.mobility)         items.push(atsItem('Déplacement', P.mobility));
-    if (P.permis) {
-      // Évite "Permis : Permis A et B" → garde juste la valeur si elle contient déjà "permis"
-      items.push(/permis/i.test(P.permis)
-        ? `<span class="cv-phi-strong">${esc(P.permis)}</span>`
-        : atsItem('Permis', P.permis));
-    }
-    if (items.length) segments.push(items.join('&nbsp;&nbsp;&nbsp;'));
-  } else {
-    const pill = (txt, cls) => `<span class="cv-phi-pill ${cls}">${esc(txt)}</span>`;
-    const pills = [];
-    if (P.contratRecherche) pills.push(`<span class="cv-phi-plain">En recherche d'un </span>${pill(P.contratRecherche,'cv-phi-pill--dark')}`);
-    if (P.disponibilite)    pills.push(`<span class="cv-phi-plain" style="font-size:11px">Disponible </span>${pill(P.disponibilite,'cv-phi-pill--green')}`);
-    if (P.mobility)         pills.push(pill(P.mobility,'cv-phi-pill--blue'));
-    if (P.permis)           pills.push(pill(P.permis,'cv-phi-pill--gray'));
-    if (pills.length) segments.push(pills.join(''));
+  const infos = [];
+  if (P.contratRecherche) infos.push(`Contrat recherché : <strong>${esc(P.contratRecherche)}</strong>`);
+  if (P.disponibilite)    infos.push(`Disponibilité : <strong>${esc(P.disponibilite)}</strong>`);
+  if (P.mobility)         infos.push(`Mobilité : <strong>${esc(P.mobility)}</strong>`);
+  if (P.permis) {
+    // Évite « Permis : Permis B » quand la valeur contient déjà le mot
+    infos.push(/permis/i.test(P.permis) ? `<strong>${esc(P.permis)}</strong>` : `Permis : <strong>${esc(P.permis)}</strong>`);
   }
+  if (infos.length) lignes.push(infos.join(sep));
 
+  if (!lignes.length) return '';
+  return `<div class="cv-profile-highlight">${lignes.map(l => `<div class="cv-phi-line">${l}</div>`).join('')}</div>`;
+}
 
-  if (!segments.length) return '';
-  // Mode ATS : tout sur une seule ligne continue (formation + infos)
-  if (ats) {
-    return `<div class="cv-profile-highlight">${segments.join('&nbsp;&nbsp;&nbsp;')}</div>`;
-  }
-  return `<div class="cv-profile-highlight">${segments.map(s => `<div class="cv-phi-line">${s}</div>`).join('')}</div>`;
+// ── MODÈLE UNIQUE ──────────────────────────────────────────
+// Un seul CV, conçu pour être lu par les ATS. Les anciens profils
+// (Classique, Moderne) basculent dessus automatiquement.
+if (typeof P !== 'undefined' && P.cvTemplate !== 'ats') {
+  P.cvTemplate = 'ats';
+  try { ss('sc_profile', P); } catch {}
 }
 
 // ── STRIP HTML (nettoyage données legacy rich-editor) ───────
@@ -354,71 +341,39 @@ function renderCV() {
   const targetInput = document.getElementById('cv-target-input');
   if (targetInput && !targetInput.value && _cvTarget) targetInput.value = _cvTarget;
 
-  // ── Template branch ──────────────────────────────────────
+  // Modèle unique, lisible par les ATS — règles détaillées dans le README
   const cvDoc = document.getElementById('cv-doc');
-  const _tpl  = P.cvTemplate || 'classique';
-  _updateTplPicker(_tpl);
-  if (_tpl === 'moderne') {
-    cvDoc.className  = 'cv-doc cv-doc--moderne';
-    cvDoc.innerHTML  = _buildModerneCV();
-    return;
-  }
-  const _ats = (_tpl === 'ats');
-  cvDoc.className = 'cv-doc' + (_ats ? ' cv-doc--ats' : '');
+  cvDoc.className = 'cv-doc cv-doc--ats';
 
-  // ── Header ──
   const displayTitle = _cvTarget || P.title;
+  // Séparateur écrit dans le texte (un séparateur ajouté par le CSS est
+  // invisible pour un ATS, qui colle alors les champs entre eux)
+  const sep = '<span class="cv-sep"> | </span>';
 
-  // LinkedIn: clickable link
-  const liUrl = P.linkedin ? (P.linkedin.startsWith('http') ? P.linkedin : 'https://' + P.linkedin) : '';
-  const liShort = P.linkedin ? P.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\//, 'linkedin.com/') : '';
-
+  // ── En-tête : nom d'abord (l'ATS le cherche en tête), puis poste,
+  //    puis coordonnées en toutes lettres — LinkedIn compris ──
+  const liTexte  = P.linkedin ? P.linkedin.trim().replace(/^https?:\/\/(www\.)?/, '') : '';
   const contacts = [
-    P.email ? `<span>${esc(P.email)}</span>` : '',
-    P.phone ? `<span>${esc(P.phone)}</span>` : '',
-    P.location ? `<span>${esc(P.location)}</span>` : '',
-    liUrl    ? `<span><a href="${liUrl}" style="text-decoration:none;display:inline-flex;align-items:center" title="${esc(liShort)}"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="#0A66C2" style="vertical-align:middle"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a></span>` : ''
-  ].filter(Boolean).join('');
+    P.email    ? esc(P.email)    : '',
+    P.phone    ? esc(P.phone)    : '',
+    P.location ? esc(P.location) : '',
+    liTexte    ? `<a href="https://${esc(liTexte)}" class="cv-link">${esc(liTexte)}</a>` : ''
+  ].filter(Boolean).join(sep);
 
-  // disponibilite / mobilité / permis sont affichés dans le bloc profil — pas dans le header
-  const extraLine = '';
-
-  // Right-side: photo only
-  const rightCol = P.photo ? `
-    <div style="flex-shrink:0">
-      <img src="${P.photo}" class="cv-photo"/>
-    </div>` : '';
-
-  let html;
-  if (_ats) {
-    // ATS : poste en premier, puis nom, puis contact
-    html = `
+  let html = `
     <div class="cv-hd">
-      <div style="flex:1">
+      <div class="cv-hd-main">
+        <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
         ${displayTitle ? `<div class="cv-ats-poste">${esc(displayTitle)}</div>` : ''}
-        <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
         ${contacts ? `<div class="cv-contact-line">${contacts}</div>` : ''}
       </div>
-      ${rightCol}
+      ${P.photo ? `<img src="${P.photo}" class="cv-photo" alt="">` : ''}
     </div>
     <div class="cv-div"></div>`;
-  } else {
-    html = `
-    <div class="cv-hd">
-      <div style="flex:1">
-        <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
-        ${contacts ? `<div class="cv-contact-line">${contacts}</div>` : ''}
-        ${extraLine ? `<div class="cv-contact-line" style="margin-top:3px">${extraLine}</div>` : ''}
-      </div>
-      ${rightCol}
-    </div>
-    <div class="cv-div"></div>`;
-  }
 
-  // ── Profil : bloc highlight + phrase d'accroche ───────────
-  const highlightBlock = buildProfileHighlight(_ats);
+  // ── Profil ──
+  const highlightBlock = buildProfileHighlight();
   const targetText     = _buildAccrocheText();
-  // Met le nom du poste en évidence (plus grand) dans la phrase d'accroche
   let targetHtml = esc(targetText);
   if (displayTitle) {
     const posteEsc = esc(displayTitle);
@@ -428,7 +383,7 @@ function renderCV() {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>
       ${highlightBlock}
-      ${targetText ? `<div class="cv-summary-text"${highlightBlock ? ' style="margin-top:9px"' : ''}>${targetHtml}</div>` : ''}
+      ${targetText ? `<div class="cv-summary-text">${targetHtml}</div>` : ''}
     </div>`;
   }
 
@@ -436,141 +391,89 @@ function renderCV() {
   if (P.experiences.length) {
     html += `<div class="cv-sec"><div class="cv-stitle">Expériences professionnelles</div>`;
     P.experiences.forEach((e, i) => {
-      // Show bullets if any exist (required or selected), otherwise fall back to description
       const activeBullets = (e.bullets || []).filter(b => b.required || b.selected);
       const expIdx = (typeof e._origIdx === 'number') ? e._origIdx : i;
       const bodyHtml = activeBullets.length
-        ? `<ul class="cv-bullets">${activeBullets.map(b => `<li class="cv-bullet-item"><span class="cv-bullet-dot">▸</span><span>${renderBulletHtml(b.text, expIdx)}</span></li>`).join('')}</ul>`
+        ? `<ul class="cv-bullets">${activeBullets.map(b => `<li class="cv-bullet-item"><span class="cv-bullet-dot">•</span><span>${renderBulletHtml(b.text, expIdx)}</span></li>`).join('')}</ul>`
         : renderDescription(e.description);
+      // L'intitulé reste SEUL sur sa ligne : collé au contrat et au rattachement,
+      // l'ATS lisait « Poste CDI Rattaché au… » comme un seul titre de poste
+      const lieu = [e.company, e.sector, e.location, e.duration].filter(Boolean).map(esc).join(sep);
+      const meta = [
+        e.contractType ? esc(e.contractType) : '',
+        e.reportingTo  ? `Rattaché directement au ${esc(e.reportingTo)}` : ''
+      ].filter(Boolean).join(sep);
       html += `<div class="cv-exp" data-exp-idx="${expIdx}">
-        <div class="cv-etitle">${esc(e.title)}${e.contractType ? ' <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px;background:#F2F2F2;color:#6E6E73;border:1px solid #D2D2D7;vertical-align:middle;margin-left:5px">' + esc(e.contractType) + '</span>' : ''}${e.reportingTo ? `<span style="font-size:10px;font-weight:400;font-style:italic;color:#6E6E73;margin-left:8px;vertical-align:middle">Rattaché directement au ${esc(e.reportingTo)}</span>` : ''}</div>
-        ${e.company ? `<div class="cv-erow"><div class="cv-eco">${esc(e.company)}${e.sector ? ' · ' + esc(e.sector) : ''}${e.location ? ' · ' + esc(e.location) : ''}</div><div class="cv-edates">${esc(e.duration)}</div></div>` : ''}
+        <div class="cv-etitle">${esc(e.title)}</div>
+        ${lieu ? `<div class="cv-eco">${lieu}</div>` : ''}
+        ${meta ? `<div class="cv-emeta">${meta}</div>` : ''}
         ${bodyHtml}
       </div>`;
     });
     html += `</div>`;
   }
 
-  // ── Formation (layout compact 1 ligne par diplôme) ──
+  // ── Formation : une ligne par diplôme ──
   if (P.education.length) {
     html += `<div class="cv-sec"><div class="cv-stitle">Formation</div>`;
     P.education.forEach(e => {
       const endYear = e.year ? e.year.trim().split(/\s*[-–—]\s*/).pop() : '';
-      html += `<div class="cv-edu-row">
-        <div class="cv-edu-left">
-          <span class="cv-edu-degree">${esc(e.degree)}</span>
-          ${e.school ? `<span class="cv-edu-school">— ${esc(e.school)}</span>` : ''}
-          ${e.mention ? `<span class="cv-edu-mention">· ${esc(e.mention)}</span>` : ''}
-        </div>
-        ${endYear ? `<span class="cv-edu-year">${esc(endYear)}</span>` : ''}
-      </div>`;
+      const parts = [
+        e.degree ? `<span class="cv-edu-degree">${esc(e.degree)}</span>` : '',
+        ...[e.school, e.mention, endYear].filter(Boolean).map(esc)
+      ].filter(Boolean);
+      html += `<div class="cv-edu-row">${parts.join(sep)}</div>`;
     });
     html += `</div>`;
   }
 
-  // ── Compétences en tags ──
+  // ── Compétences : listes séparées par des virgules ──
   const hasSkills = P.subdomains.length || P.tools.length || P.certifs.length || P.customSkills.length || P.informatique.length;
   if (hasSkills) {
-    html += `<div class="cv-sec">
-      <div class="cv-stitle">Compétences et Outils</div>`;
+    html += `<div class="cv-sec"><div class="cv-stitle">Compétences</div>`;
 
-    // Helper : tag cliquable — clic pour sélectionner / désélectionner
-    // En mode ATS : texte simple (pas de case), surligné si matché
+    // Clic sur une compétence = la mettre en avant pour cette offre
     const tagEl = s => {
       const matched = isMatchedSkill(s);
       const sk = s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      if (_ats) {
-        return `<span class="cv-skill-plain${matched ? ' cv-skill-plain--match' : ''}"
-          onclick="toggleSkillMatch('${sk}')"
-          title="${matched ? 'Désélectionner' : 'Sélectionner pour cette offre'}">${esc(s)}</span>`;
-      }
-      return `<span class="cv-skill-tag${matched ? ' cv-skill-tag--match' : ''} cv-skill-tag--toggle"
+      return `<span class="cv-skill-plain${matched ? ' cv-skill-plain--match' : ''}"
         onclick="toggleSkillMatch('${sk}')"
-        title="${matched ? 'Désélectionner' : 'Sélectionner pour cette offre'}"
-        style="cursor:pointer">${esc(s)}</span>`;
+        title="${matched ? 'Désélectionner' : 'Sélectionner pour cette offre'}">${esc(s)}</span>`;
     };
-    const tagSep = _ats ? ', ' : '';
+    // Bouton + : à l'écran seulement (tous les <button> sont retirés du PDF)
+    const plus  = key => key
+      ? `<button class="cv-skill-add" onclick="event.stopPropagation();window._openSkillPicker('${key}',this)" title="Ajouter">+</button>`
+      : '';
+    // Une catégorie vide garde son + à l'écran mais disparaît du PDF
+    const ligne = (label, items, key) =>
+      `<div class="cv-skill-row${items.length ? '' : ' cv-skill-row--vide'}">${plus(key)}<span class="cv-skill-key">${label} :</span> ${items.map(tagEl).join(', ')}</div>`;
 
-    // Helper : label de catégorie avec bouton + (à gauche)
-    const catLabel = (label, key) =>
-      `<div class="cv-skill-key" style="display:flex;align-items:center;gap:5px;white-space:nowrap">
-        <button onclick="event.stopPropagation();window._openSkillPicker('${key}',this)"
-          style="flex-shrink:0;width:16px;height:16px;background:#e0e7ff;color:#4f46e5;border:none;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700">+</button>
-        ${label}
-      </div>`;
-
-    if (P.subdomains.length || true) {
-      html += `<div class="cv-skill-row">
-        ${catLabel('Domaines','subdomains')}
-        <div class="cv-skill-tags">${P.subdomains.map(tagEl).join(tagSep)}</div>
-      </div>`;
-    }
-    {
-      const merged = [...P.tools.map(tagEl), ...P.informatique.map(tagEl)];
-      html += `<div class="cv-skill-row">
-        ${catLabel('Outils SC','tools')}
-        <div class="cv-skill-tags">${merged.join(tagSep)}</div>
-      </div>`;
-    }
-    if (P.certifs.length) {
-      html += `<div class="cv-skill-row">
-        <div class="cv-skill-key">Certifications</div>
-        <div class="cv-skill-tags">${P.certifs.map(tagEl).join(tagSep)}</div>
-      </div>`;
-    }
-    if (P.customSkills.length || true) {
-      html += `<div class="cv-skill-row">
-        ${catLabel('Autres','customSkills')}
-        <div class="cv-skill-tags">${P.customSkills.map(tagEl).join(tagSep)}</div>
-      </div>`;
-    }
+    html += ligne('Domaines', P.subdomains, 'subdomains');
+    html += ligne('Outils', [...P.tools, ...P.informatique], 'tools');
+    if (P.certifs.length) html += ligne('Certifications', P.certifs, '');
+    html += ligne('Autres compétences', P.customSkills, 'customSkills');
     html += `</div>`;
   }
 
   // ── Langues ──
   if (P.languages.length) {
-    if (_ats) {
-      const langsInline = P.languages.map(l =>
-        `<span class="cv-lang-item"><span class="cv-lang-name">${esc(l.name)}</span> — <span class="cv-lang-level">${esc(l.level)}</span></span>`
-      ).join('&nbsp;&nbsp;&nbsp;');
-      html += `<div class="cv-sec">
-        <div class="cv-lang-row--ats"><span class="cv-stitle-inline">Langues :</span> ${langsInline}</div>
-      </div>`;
-    } else {
-      html += `<div class="cv-sec">
-        <div class="cv-stitle">Langues</div>
-        <div class="cv-lang-row">${P.languages.map(l =>
-          `<div class="cv-lang-item">
-            <span class="cv-lang-name">${esc(l.name)}</span>
-            <span class="cv-lang-level">— ${esc(l.level)}</span>
-          </div>`
-        ).join('')}</div>
-      </div>`;
-    }
+    html += `<div class="cv-sec"><div class="cv-stitle">Langues</div>
+      <div class="cv-summary-text">${P.languages.map(l => `${esc(l.name)}${l.level ? ' — ' + esc(l.level) : ''}`).join(sep)}</div>
+    </div>`;
   }
 
   // ── Secteurs ──
   if (P.sectors.length) {
-    html += `<div class="cv-sec">
-      <div class="cv-stitle">Secteurs</div>
-      <div class="cv-skill-tags">${P.sectors.map(s => _ats
-        ? `<span class="cv-skill-plain">${esc(s)}</span>`
-        : `<span class="cv-skill-tag">${esc(s)}</span>`).join(_ats ? ', ' : '')}</div>
+    html += `<div class="cv-sec"><div class="cv-stitle">Secteurs</div>
+      <div class="cv-summary-text">${P.sectors.map(esc).join(', ')}</div>
     </div>`;
   }
 
   // ── Centres d'intérêt ──
   if (P.hobbies) {
-    if (_ats) {
-      html += `<div class="cv-sec">
-        <div class="cv-lang-row--ats"><span class="cv-stitle-inline">Centres d'intérêt :</span> ${esc(P.hobbies)}</div>
-      </div>`;
-    } else {
-    html += `<div class="cv-sec">
-      <div class="cv-stitle">Centres d'intérêt</div>
+    html += `<div class="cv-sec"><div class="cv-stitle">Centres d'intérêt</div>
       <div class="cv-summary-text">${esc(P.hobbies)}</div>
     </div>`;
-    }
   }
 
   cvDoc.innerHTML = html;
@@ -842,10 +745,7 @@ function printCV() {
     wrapper.id = 'cv-print-wrapper';
     document.body.appendChild(wrapper);
   }
-  const _printTpl   = P.cvTemplate || 'classique';
-  const _printClass = _printTpl === 'moderne' ? 'cv-doc cv-doc--moderne'
-                    : _printTpl === 'ats'     ? 'cv-doc cv-doc--ats'
-                    : 'cv-doc';
+  const _printClass = 'cv-doc cv-doc--ats';   // modèle unique
   // Lettre de recommandation en page 2 (si déposée et l'interrupteur actif)
   const _lettre = typeof lettreRecoHtmlPourPdf === 'function' ? lettreRecoHtmlPourPdf() : '';
   wrapper.innerHTML = `<div class="${_printClass}">${srcEl.innerHTML}</div>${_lettre}`;
@@ -893,210 +793,3 @@ function printCV() {
     }, 1000);
   }, 80);
 }
-
-// ── TEMPLATE PICKER — met à jour les boutons actifs ────────
-function _updateTplPicker(tpl) {
-  document.querySelectorAll('.tpl-btn').forEach(btn => {
-    const t = btn.dataset.tpl;
-    if (!t) return;
-    btn.classList.toggle('active', t === tpl);
-  });
-}
-
-// ── CHANGER LE TEMPLATE ────────────────────────────────────
-function setCVTemplate(tpl) {
-  P.cvTemplate = tpl;
-  ss('sc_profile', P);
-  renderCV();
-  // Met à jour le sélecteur dans la split view
-  if (typeof _updateSplitTplPicker === 'function') _updateSplitTplPicker(tpl);
-  // Si la split view est ouverte, on la reconstruit entièrement (classe + emphases)
-  const splitOpen = !document.getElementById('split-modal-overlay')?.classList.contains('hidden');
-  if (splitOpen && typeof _refreshSplitCV === 'function') {
-    _refreshSplitCV();
-  } else if (typeof _syncSplitCV === 'function') {
-    _syncSplitCV();
-  }
-}
-
-// Met à jour l'état actif des boutons template dans la split view
-function _updateSplitTplPicker(tpl) {
-  document.querySelectorAll('#split-tpl-picker .tpl-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tpl === tpl);
-  });
-}
-
-// ── SUPPRIMER UNE COMPÉTENCE DU PROFIL (sidebar Moderne) ──
-window._removeSkillFromProfile = function(key, val) {
-  // key = 'auto' → cherche dans tous les tableaux
-  let target = key;
-  if (key === 'auto') {
-    target = ['subdomains','tools','informatique','certifs','customSkills']
-      .find(k => (P[k]||[]).some(s => s.toLowerCase() === val.toLowerCase())) || '';
-  }
-  if (!target || !P[target]) return;
-  P[target] = P[target].filter(s => s.toLowerCase() !== val.toLowerCase());
-  ss('sc_profile', P);
-  renderCV();
-  if (typeof _syncSplitCV === 'function') _syncSplitCV();
-};
-
-// ── RENDU TEMPLATE MODERNE (sidebar sombre) ────────────────
-function _buildModerneCV() {
-  const displayTitle = _cvTarget || P.title;
-  const liUrl = P.linkedin
-    ? (P.linkedin.startsWith('http') ? P.linkedin : 'https://' + P.linkedin)
-    : '';
-
-  // ─── SIDEBAR ─────────────────────────────────────────────
-  let sb = '';
-
-  // Photo ou initiales
-  if (P.photo) {
-    sb += `<img src="${P.photo}" class="cv-sb-photo"/>`;
-  } else {
-    const ini = (((P.firstName||'')[0]||'') + ((P.lastName||'')[0]||'')).toUpperCase();
-    sb += `<div style="width:82px;height:82px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:rgba(255,255,255,.6);margin:0 auto 12px;flex-shrink:0">${ini||'?'}</div>`;
-  }
-
-  sb += `<div class="cv-sb-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>`;
-  if (displayTitle) sb += `<div class="cv-sb-ti">${esc(displayTitle)}</div>`;
-
-  // Contact
-  const ci = [
-    P.email    && `<div class="cv-sb-ci"><span class="cv-sb-ci-icon">✉</span><span>${esc(P.email)}</span></div>`,
-    P.phone    && `<div class="cv-sb-ci"><span class="cv-sb-ci-icon">☎</span><span>${esc(P.phone)}</span></div>`,
-    P.location && `<div class="cv-sb-ci"><span class="cv-sb-ci-icon">⌖</span><span>${esc(P.location)}</span></div>`,
-    liUrl      && `<div class="cv-sb-ci"><span class="cv-sb-ci-icon" style="font-weight:900;font-size:8px">in</span><a href="${liUrl}" style="color:rgba(255,255,255,.72);text-decoration:none;word-break:break-all;font-size:9.5px">${esc((P.linkedin||'').replace(/^https?:\/\/(www\.)?linkedin\.com\//,'linkedin.com/'))}</a></div>`,
-  ].filter(Boolean);
-  if (ci.length) sb += `<div class="cv-sb-stitle">Contact</div>${ci.join('')}`;
-
-  // ── Helpers sidebar ──────────────────────────────────────
-  // Tag cliquable (toggle match) + × pour supprimer
-  const sbTag = (s, key) => {
-    const matched = isMatchedSkill(s);
-    const sk  = s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    const k   = (key||'auto').replace(/'/g,"\\'");
-    return `<span class="cv-sb-tag${matched ? ' cv-sb-tag--match' : ''}"
-      onclick="toggleSkillMatch('${sk}')"
-      title="${matched ? 'Désélectionner' : 'Sélectionner'}"
-      style="position:relative;padding-right:18px;cursor:pointer">
-        ${esc(s)}
-        <span onclick="event.stopPropagation();window._removeSkillFromProfile('${k}','${sk}')"
-          title="Supprimer"
-          style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:10px;opacity:.4;line-height:1;cursor:pointer;font-weight:700">×</span>
-      </span>`;
-  };
-
-  // Titre de section + bouton +
-  const sbSec = (label, key) => {
-    const k = (key||'').replace(/'/g,"\\'");
-    return `<div class="cv-sb-stitle" style="display:flex;align-items:center;justify-content:space-between">
-      <span>${label}</span>
-      <button onclick="event.stopPropagation();window._openSkillPicker('${k}',this)"
-        style="background:rgba(255,255,255,.14);color:rgba(255,255,255,.75);border:none;border-radius:50%;width:14px;height:14px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-weight:800;flex-shrink:0;line-height:1">+</button>
-    </div>`;
-  };
-
-  // Compétences (subdomains + tools + informatique) — key 'auto' pour la suppression
-  const allSkillsWithKey = [
-    ...P.subdomains.map(s  => ({s, k:'subdomains'})),
-    ...P.tools.map(s       => ({s, k:'tools'})),
-    ...P.informatique.map(s=> ({s, k:'informatique'})),
-  ].filter(x => x.s);
-
-  if (allSkillsWithKey.length || true) {
-    sb += sbSec('Compétences','tools');
-    sb += `<div>${allSkillsWithKey.map(x => sbTag(x.s, x.k)).join('')}</div>`;
-  }
-  if (P.certifs.length || true) {
-    sb += sbSec('Certifications','certifs');
-    sb += `<div>${P.certifs.map(s => sbTag(s,'certifs')).join('')}</div>`;
-  }
-  if (P.customSkills.length || true) {
-    sb += sbSec('Autres','customSkills');
-    sb += `<div>${P.customSkills.map(s => sbTag(s,'customSkills')).join('')}</div>`;
-  }
-
-  // Langues
-  if (P.languages.length) {
-    sb += `<div class="cv-sb-stitle">Langues</div>`;
-    P.languages.forEach(l => {
-      sb += `<div class="cv-sb-lang">
-        <span style="font-weight:700">${esc(l.name)}</span>
-        <span class="cv-sb-lang-lv">${esc(l.level)}</span>
-      </div>`;
-    });
-  }
-
-  // Formation
-  if (P.education.length) {
-    sb += `<div class="cv-sb-stitle">Formation</div>`;
-    P.education.forEach(e => {
-      const endYear = e.year ? e.year.trim().split(/\s*[-–—]\s*/).pop() : '';
-      sb += `<div class="cv-sb-edu">
-        <div class="cv-sb-edu-deg">${esc(e.degree)}</div>
-        ${e.school   ? `<div class="cv-sb-edu-sc">${esc(e.school)}</div>` : ''}
-        ${e.mention  ? `<div class="cv-sb-edu-sc" style="font-style:italic">${esc(e.mention)}</div>` : ''}
-        ${endYear    ? `<div class="cv-sb-edu-yr">${esc(endYear)}</div>` : ''}
-      </div>`;
-    });
-  }
-
-  // ─── COLONNE PRINCIPALE ───────────────────────────────────
-  let mc = '';
-
-  // Profil
-  const highlightBlock = buildProfileHighlight();
-  const targetText     = _buildAccrocheText();
-  if (highlightBlock || targetText) {
-    mc += `<div class="cv-sec">
-      <div class="cv-stitle">Profil</div>
-      ${highlightBlock}
-      ${targetText ? `<div class="cv-summary-text"${highlightBlock ? ' style="margin-top:9px"' : ''}>${esc(targetText)}</div>` : ''}
-    </div>`;
-  }
-
-  // Expériences
-  if (P.experiences.length) {
-    mc += `<div class="cv-sec"><div class="cv-stitle">Expériences professionnelles</div>`;
-    P.experiences.forEach((e, i) => {
-      const activeBullets = (e.bullets || []).filter(b => b.required || b.selected);
-      const expIdx = (typeof e._origIdx === 'number') ? e._origIdx : i;
-      const bodyHtml = activeBullets.length
-        ? `<ul class="cv-bullets">${activeBullets.map(b =>
-            `<li class="cv-bullet-item"><span class="cv-bullet-dot">▸</span><span>${renderBulletHtml(b.text, expIdx)}</span></li>`
-          ).join('')}</ul>`
-        : renderDescription(e.description);
-      mc += `<div class="cv-exp" data-exp-idx="${expIdx}">
-        <div class="cv-etitle">${esc(e.title)}${e.contractType
-          ? ` <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px;background:#F2F2F2;color:#6E6E73;border:1px solid #D2D2D7;vertical-align:middle;margin-left:5px">${esc(e.contractType)}</span>`
-          : ''}${e.reportingTo
-          ? `<span style="font-size:10px;font-weight:400;font-style:italic;color:#6E6E73;margin-left:8px;vertical-align:middle">Rattaché directement au ${esc(e.reportingTo)}</span>`
-          : ''}</div>
-        ${e.company ? `<div class="cv-erow"><div class="cv-eco">${esc(e.company)}${e.sector ? ' · ' + esc(e.sector) : ''}${e.location ? ' · ' + esc(e.location) : ''}</div><div class="cv-edates">${esc(e.duration)}</div></div>` : ''}
-        ${bodyHtml}
-      </div>`;
-    });
-    mc += `</div>`;
-  }
-
-  // Secteurs
-  if (P.sectors.length) {
-    mc += `<div class="cv-sec">
-      <div class="cv-stitle">Secteurs</div>
-      <div class="cv-skill-tags">${P.sectors.map(s => `<span class="cv-skill-tag">${esc(s)}</span>`).join('')}</div>
-    </div>`;
-  }
-
-  // Centres d'intérêt
-  if (P.hobbies) {
-    mc += `<div class="cv-sec">
-      <div class="cv-stitle">Centres d'intérêt</div>
-      <div class="cv-summary-text">${esc(P.hobbies)}</div>
-    </div>`;
-  }
-
-  return `<div class="cv-sb">${sb}</div><div class="cv-mc">${mc}</div>`;
-}
-
