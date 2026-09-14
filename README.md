@@ -131,7 +131,7 @@ extrayant le texte des PDF générés par l'app.
 | Règle | Pourquoi (défaut constaté) |
 |---|---|
 | Une seule colonne | En deux colonnes, les compétences arrivaient en fin de document, détachées de leur titre |
-| **Nom en première ligne**, puis poste visé, puis coordonnées | L'ATS cherche le nom en tête ; le poste placé avant risquait d'être lu comme le nom |
+| **Poste visé en première ligne**, puis nom, puis coordonnées (choix de l'utilisateur, 14/09/2026) | Risque connu : certains ATS prennent la première ligne pour le nom. Une inversion en CSS ne l'évite pas — Chrome écrit le texte du PDF dans l'ordre affiché (vérifié avec pdf.js). Pour revenir au nom en tête : échanger les deux lignes dans `renderCV()` (`js/cv.js`) |
 | Coordonnées **écrites en texte**, LinkedIn compris | Une icône seule n'est pas lue : le LinkedIn disparaissait |
 | Séparateurs **écrits dans le texte** (` \| `) | Un séparateur ajouté par le CSS (`::before`) n'existe pas pour l'ATS : l'e-mail était collé au téléphone |
 | Intitulé du poste **seul sur sa ligne** | Collé au contrat et au rattachement, il était lu « Poste CDI Rattaché au… » |

@@ -451,3 +451,7 @@
   /* Une rubrique entière ne saute plus en page 2 : seul un poste reste d'un seul bloc */
   .cv-doc--ats .cv-sec{ page-break-inside:auto; break-inside:auto; }
 }
+
+/* En-tête : poste ciblé au-dessus du nom (choix de l'utilisateur, voir README) */
+.cv-doc--ats .cv-hd-main .cv-ats-poste{ margin-bottom:2px; }
+.cv-doc--ats .cv-hd-main .cv-nm{ margin-bottom:4px; }

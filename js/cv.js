@@ -319,8 +319,8 @@ function renderCV() {
   let html = `
     <div class="cv-hd">
       <div class="cv-hd-main">
-        <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
         ${displayTitle ? `<div class="cv-ats-poste">${esc(displayTitle)}</div>` : ''}
+        <div class="cv-nm">${esc(P.firstName)} ${esc(P.lastName)}</div>
         ${contacts ? `<div class="cv-contact-line">${contacts}</div>` : ''}
       </div>
       ${P.photo ? `<img src="${P.photo}" class="cv-photo" alt="">` : ''}
