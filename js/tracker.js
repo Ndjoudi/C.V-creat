@@ -249,7 +249,10 @@ function scheduleDashPasteAnalysis() {
 // Stocke le job fetché pour l'analyse différée
 let _liLastJob = null;
 
-async function _runJobFetch(url, source) {
+// jobDejaLu : offre déjà extraite dans le navigateur (bouton favori, voir
+// import-annonce.js). On saute alors la récupération réseau — souvent bloquée —
+// et on réutilise tel quel l'affichage ci-dessous.
+async function _runJobFetch(url, source, jobDejaLu = null) {
   const status  = document.getElementById('dash-paste-status');
   const preview = document.getElementById('dash-linkedin-preview');
   const label   = source === 'indeed' ? 'Indeed' : 'LinkedIn';
@@ -259,9 +262,10 @@ async function _runJobFetch(url, source) {
   if (preview) preview.style.display = 'none';
 
   try {
-    const job = source === 'indeed'
-      ? await _fetchIndeedJob(url)
-      : await _fetchLinkedInJob(url);
+    const job = jobDejaLu
+      || (source === 'indeed'
+        ? await _fetchIndeedJob(url)
+        : await _fetchLinkedInJob(url));
     _liLastJob = job;
 
     if (!job.descText || job.descText.length < 50) {
