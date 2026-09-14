@@ -357,10 +357,13 @@ async function runDashPasteAnalysis() {
   }
 }
 
-function addCandFromDash() {
+// options.sansAnalyse : utilisé par l'import automatique, dont la fenêtre
+// se referme aussitôt. L'analyse y serait coupée net ET marquée « tentée »,
+// donc jamais relancée : c'est l'onglet principal qui s'en charge.
+function addCandFromDash(options = {}) {
   const co    = document.getElementById('dash-co').value.trim();
   const poste = document.getElementById('dash-poste').value.trim();
-  if (!co || !poste) { toast('Remplis le poste et l\'entreprise'); return; }
+  if (!co || !poste) { toast('Remplis le poste et l\'entreprise'); return null; }
   const cands  = ls('sc_cands', []);
   const pasteEl = document.getElementById('dash-paste-text');
   // Récupère les métadonnées du job fetché (LinkedIn/Indeed) si disponibles
@@ -386,7 +389,7 @@ function addCandFromDash() {
 
   // Analyse IA en arrière-plan si l'annonce a bien été récupérée
   const _nouvId = cands[cands.length - 1].id;
-  if (cands[cands.length - 1].jobDescription) {
+  if (cands[cands.length - 1].jobDescription && !options.sansAnalyse) {
     _marqueAnalyseTentee(_nouvId);
     launchCareerOpsAnalysis(_nouvId, 'gemini', true);
   }
@@ -402,6 +405,7 @@ function addCandFromDash() {
   refreshDash();
   refreshBadges();
   toast('Candidature ajoutée ✓');
+  return _nouvId;
 }
 
 function renderTracker() {

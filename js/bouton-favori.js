@@ -36,9 +36,10 @@ if(!d.descText){alert('Description introuvable : clique d\\'abord sur l\\'offre 
 var oct=new TextEncoder().encode(JSON.stringify(d)),s='';for(var i=0;i<oct.length;i++)s+=String.fromCharCode(oct[i]);
 var b64=btoa(s).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
 function copie(txt){try{navigator.clipboard.writeText(txt);return;}catch(e){}var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}ta.remove();}
-copie(MARQ+b64);
-if(/^https?:/.test(APP)){window.open(APP+'#import='+b64,'_blank');}
-else{alert('✓ Annonce copiée : '+d.title+'\\n\\nDans Supply Copilot, clique sur « Coller ».');}
+var fen=null;
+if(/^https?:/.test(APP)){var L=440,H=300,x=Math.max(0,Math.round((screen.width-L)/2)),y=Math.max(0,Math.round((screen.height-H)/2));
+fen=window.open(APP+'#import='+b64+'&auto=1','supplycopilot_import','popup=yes,width='+L+',height='+H+',left='+x+',top='+y);}
+if(!fen){copie(MARQ+b64);alert('✓ Annonce copiée : '+d.title+'\\n\\nOuvre Supply Copilot et clique sur « Coller ».');}
 })();`;
 }
 
@@ -50,23 +51,26 @@ function _boutonFavoriLien() {
   return 'javascript:' + encodeURIComponent(_boutonFavoriCode(appUrl));
 }
 
+// Placé dans la barre latérale, sous les clés API : on l'installe une fois,
+// il n'a pas à encombrer le tableau de bord.
 function renderBoutonFavori() {
   if (document.getElementById('bouton-favori-bloc')) return;
-  const ancre = document.getElementById('dash-paste-status');
+  const ancre = document.getElementById('api-keys-panel');
   if (!ancre) return;
 
   const bloc = document.createElement('div');
   bloc.id = 'bouton-favori-bloc';
-  bloc.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 2px;' +
-    'padding:8px 12px;background:var(--bg);border:1.5px dashed var(--border);border-radius:10px;font-size:12px;color:var(--ink3)';
+  bloc.style.cssText = 'margin-top:10px;padding:10px;background:var(--bg);border-radius:10px;border:1px solid var(--border)';
   bloc.innerHTML = `
-    <span>Indeed ou LinkedIn bloque le lien ?</span>
+    <div style="font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">📥 Import d'annonces</div>
     <a href="${_boutonFavoriLien()}" draggable="true"
       onclick="event.preventDefault();toast('Glisse ce bouton dans ta barre de favoris, puis clique-le sur une offre Indeed ou LinkedIn');"
-      style="display:inline-flex;align-items:center;gap:5px;background:#111;color:#fff;text-decoration:none;
-      border-radius:100px;padding:4px 12px;font-weight:700;cursor:grab"
-      title="Glisse-moi dans ta barre de favoris">📥 Envoyer à Supply Copilot</a>
-    <span>← glisse-le dans ta barre de favoris, puis clique-le sur l'offre ouverte.</span>`;
+      style="display:flex;align-items:center;justify-content:center;gap:5px;background:#111;color:#fff;text-decoration:none;
+      border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:grab"
+      title="Glisse-moi dans ta barre de favoris">Envoyer à Supply Copilot</a>
+    <div style="font-size:10.5px;color:var(--ink3);margin-top:6px;line-height:1.4">
+      À glisser une fois dans ta barre de favoris, puis à cliquer sur une offre Indeed ou LinkedIn.
+    </div>`;
   ancre.insertAdjacentElement('afterend', bloc);
 }
 
