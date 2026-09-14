@@ -13,6 +13,18 @@ function _extractIndeedJobKey(url) {
   return m ? m[1] : null;
 }
 
+// Le worker relaie vers un service de scraping qui, sur un site protégé,
+// peut mettre ~1 minute avant d'abandonner. On coupe bien avant.
+async function _fetchAvecDelai(url, ms = 15000) {
+  const ctrl = new AbortController();
+  const minuteur = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { signal: ctrl.signal });
+  } finally {
+    clearTimeout(minuteur);
+  }
+}
+
 async function _fetchIndeedJob(url) {
   const jk = _extractIndeedJobKey(url);
   if (!jk) throw new Error('ID du poste introuvable (paramètre jk= ou vjk=)');
@@ -21,7 +33,12 @@ async function _fetchIndeedJob(url) {
   try { origin = new URL(url).origin; } catch {}
   const targetUrl = `${origin}/viewjob?jk=${jk}`;
 
-  const res = await fetch(`${_LI_WORKER}?url=${encodeURIComponent(targetUrl)}`);
+  let res;
+  try {
+    res = await _fetchAvecDelai(`${_LI_WORKER}?url=${encodeURIComponent(targetUrl)}`);
+  } catch {
+    throw new Error('Indeed a bloqué la récupération automatique — ouvre l\'annonce, copie tout son texte et colle-le ici');
+  }
   if (!res.ok) throw new Error(`Erreur ${res.status}`);
   const html = await res.text();
 
@@ -87,7 +104,8 @@ async function _fetchLinkedInJob(url) {
     if (tour > 0) await new Promise(r => setTimeout(r, 700));
     for (const u of [guestUrl, targetUrl]) {
       try {
-        const res = await fetch(`${_LI_WORKER}?url=${encodeURIComponent(u)}&_=${Date.now()}`);
+        // 10 s max par essai : 8 essais ne doivent jamais faire patienter plusieurs minutes
+        const res = await _fetchAvecDelai(`${_LI_WORKER}?url=${encodeURIComponent(u)}&_=${Date.now()}`, 10000);
         if (!res.ok) continue;
         const txt = await res.text();
         // Une vraie offre pèse des dizaines de Ko ; 0 ou ~800 o = refus déguisé
