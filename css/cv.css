@@ -308,11 +308,11 @@
 .cv-doc--ats .cv-phi-strong{ font-weight:700;color:#1D1D1F; }
 /* Bloc profil ATS : flux texte normal → copier-coller propre */
 .cv-doc--ats .cv-profile-highlight{
-  display:block;gap:0;font-size:11px;line-height:1.6;
-  padding-top:4px;padding-bottom:4px;
+  display:block;gap:0;font-size:11px;line-height:1.5;
+  border-left:none;padding:0;
 }
-/* Réduit l'écart avant la phrase d'accroche */
-.cv-doc--ats .cv-summary-text{ margin-top:4px!important; }
+/* Accroche collée au bloc profil (sans barre ni retrait) : gagne de la hauteur pour tenir sur 1 page */
+.cv-doc--ats .cv-summary-text{ margin-top:2px!important; }
 /* Surlignages dans les bullets / textes — garder à l'impression */
 .cv-doc--ats [data-cv-em]{
   -webkit-print-color-adjust:exact;print-color-adjust:exact;
