@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
 <link rel="stylesheet" href="css/components.css?v=43"/>
-<link rel="stylesheet" href="css/cv.css?v=65"/>
+<link rel="stylesheet" href="css/cv.css?v=67"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -444,6 +444,7 @@
             <div class="psub" style="margin-bottom:0">Format A4 — PDF texte lisible par les ATS</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-g" id="cv-edit-btn-main" onclick="toggleCVEditMode('cv-doc')">✏️ Modifier le CV</button>
             <button class="btn btn-g" id="analyze-cv-btn" onclick="analyzeCV()"><i data-lucide="scan-search" class="btn-icon-sm"></i>Analyser mon CV</button>
             <button class="btn btn-p" onclick="printCV()">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -711,7 +712,7 @@
     </div>
     <div id="split-job-link"></div>
     <button id="split-linkedin-btn" onclick="window._openLinkedInContact()" style="display:none;align-items:center;gap:5px;background:#0a66c2;color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;padding:5px 14px;font-weight:600;white-space:nowrap">in Trouver le recruteur</button>
-<button id="cv-edit-btn" onclick="toggleCVEditMode()" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">✏️ Modifier le CV</button>
+<button id="cv-edit-btn" onclick="toggleCVEditMode('cv-doc-split')" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">✏️ Modifier le CV</button>
     <button onclick="loadCVForCand(window._splitCandId, true)" style="background:none;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;color:var(--ink3);font-size:12.5px;padding:5px 14px;font-weight:600">⬇ PDF</button>
   </div>
   <!-- Two panels -->
@@ -733,10 +734,10 @@
 <script src="js/app.js?v=71"></script>
 <script src="js/profile.js?v=53"></script>
 <script src="js/import-cv.js?v=35"></script>
-<script src="js/cv.js?v=82"></script>
+<script src="js/cv.js?v=83"></script>
 <script src="js/analyze.js?v=39"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=180"></script>
+<script src="js/tracker.js?v=181"></script>
 <script src="js/lettre-reco.js?v=7"></script>
 <script src="js/feed.js?v=16"></script>
 <script src="js/modal.js?v=36"></script>

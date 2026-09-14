@@ -864,279 +864,148 @@ function _cleanOfferForAI(rawText) {
 
 
 
-// ── RE-RENDER CV PANNEAU DROIT (après update mots-clés) ────
-// Applique les overrides per-offre avant le rendu si disponibles
-let _pSnapshot = null;
+// ══════════════════════════════════════════════════════════
+//  OUTILS DU CV — COMMUNS À « MON CV » ET À LA FENÊTRE D'ANNONCE
+//  Un seul jeu d'outils (mise en valeur, mode édition, missions,
+//  masquage, compétences) qui agit sur l'un ou l'autre CV :
+//    #cv-doc       → page « Mon CV »
+//    #cv-doc-split → fenêtre d'annonce (copie de #cv-doc)
+//  Tout est enregistré dans le PROFIL : une modification faite d'un
+//  côté apparaît de l'autre. Il n'y a plus de modifications « par offre ».
+// ══════════════════════════════════════════════════════════
 
-function _getCVOverrides(candId) {
-  const c = ls('sc_cands', []).find(x => x.id === candId);
-  return c?.cv_overrides ? JSON.parse(JSON.stringify(c.cv_overrides)) : {};
+const _CV_VUES = {
+  'cv-doc':       { bouton: 'cv-edit-btn-main', zone: 'cv-content' },
+  'cv-doc-split': { bouton: 'cv-edit-btn',      zone: 'split-right-panel' }
+};
+
+function _annonceOuverte() {
+  const o = document.getElementById('split-modal-overlay');
+  return !!o && !o.classList.contains('hidden');
 }
 
-function _saveCVOverrides(candId, overrides) {
-  const cands = ls('sc_cands', []);
-  const idx = cands.findIndex(x => x.id === candId);
-  if (idx === -1) return;
-  cands[idx].cv_overrides = overrides;
-  ss('sc_cands', cands);
+// Re-dessine les deux vues à partir du profil
+function rafraichitVuesCV() {
+  if (typeof renderCV === 'function') renderCV();
+  if (_annonceOuverte()) _clonePourAnnonce();
 }
 
-function _applyOverridesToP(overrides) {
-  if (!overrides || !Object.keys(overrides).length) return false;
-  // Snapshot profond de l'état courant
-  _pSnapshot = {
-    summaryTarget:   P.summaryTarget,
-    experiences:     JSON.parse(JSON.stringify(P.experiences)),
-    _cvTarget:       _cvTarget,
-    domainesProfile: P.domainesProfile,
-    accrocheIntro:   P.accrocheIntro
-  };
-  // Titre du poste
-  if (overrides.title) {
-    _cvTarget = overrides.title;
-    localStorage.setItem('sc_cv_target', _cvTarget);
-  }
-  // Phrase d'accroche (partie libre) personnalisée pour l'offre
-  if (overrides.accrocheIntro !== undefined) {
-    P.accrocheIntro = overrides.accrocheIntro;
-  }
-  // Résumé personnalisé
-  if (overrides.summaryTarget !== undefined) {
-    P.summaryTarget = overrides.summaryTarget;
-  }
-  // Phrase d'accroche adaptée à l'offre
-  if (overrides.domainesProfile !== undefined) {
-    P.domainesProfile = overrides.domainesProfile;
-  }
-  // Expériences : masquées + overrides de contenu
-  if (overrides.hiddenExpIndices?.length || overrides.expOverrides) {
-    P.experiences = P.experiences
-      .map((e, origIdx) => ({ ...e, _origIdx: origIdx }))
-      .filter(e => !(overrides.hiddenExpIndices || []).includes(e._origIdx))
-      .map(e => {
-        const ov = overrides.expOverrides?.[e._origIdx];
-        if (!ov) return e;
-        const bullets = ov.overrideAllBullets !== undefined
-          ? ov.overrideAllBullets.map(t => ({ text: t, selected: true, required: false }))
-          : (e.bullets || []);
-        return {
-          ...e,
-          description: ov.description !== undefined ? ov.description : e.description,
-          bullets
-        };
-      });
-  }
-  return true;
-}
-
-function _restoreP() {
-  if (!_pSnapshot) return;
-  P.summaryTarget   = _pSnapshot.summaryTarget;
-  P.experiences     = _pSnapshot.experiences;
-  _cvTarget         = _pSnapshot._cvTarget;
-  P.domainesProfile = _pSnapshot.domainesProfile;
-  P.accrocheIntro   = _pSnapshot.accrocheIntro;
-  localStorage.setItem('sc_cv_target', _cvTarget);
-  _pSnapshot = null;
+// La fenêtre d'annonce affiche une copie exacte de « Mon CV »
+function _clonePourAnnonce() {
+  const rightPanel = document.getElementById('split-right-panel');
+  const cvDoc      = document.getElementById('cv-doc');
+  if (!rightPanel) return;
+  _exitCVEditMode('cv-doc-split');
+  rightPanel.innerHTML = cvDoc
+    ? `<div class="cv-annonce-cadre">${cvDoc.outerHTML.replace(/\bid="cv-doc"[^>]*/, 'id="cv-doc-split"')}</div>`
+    : `<div class="cv-annonce-vide">CV non disponible — complète ton profil.</div>`;
+  // Une copie HTML perd les clics « retirer » : on repose les mises en valeur
+  const split = document.getElementById('cv-doc-split');
+  if (split) appliqueMisesEnValeur(split);
 }
 
 function _refreshSplitCV() {
-  if (typeof renderCV !== 'function') return;
-  // Applique les overrides si une offre est ouverte
-  const candId   = window._splitCandId;
-  const overrides = candId ? _getCVOverrides(candId) : null;
-  const applied   = overrides && Object.keys(overrides).length ? _applyOverridesToP(overrides) : false;
-
-  renderCV();
-  if (applied) _restoreP();
-
-  const cvDoc      = document.getElementById('cv-doc');
-  const rightPanel = document.getElementById('split-right-panel');
-  if (!cvDoc || !rightPanel) return;
-  const cloneHtml = cvDoc.outerHTML.replace(/\bid="cv-doc"[^>]*/, 'id="cv-doc-split"');
-  rightPanel.innerHTML = `<div style="box-shadow:0 6px 32px rgba(0,0,0,.13);border-radius:6px;overflow:hidden">${cloneHtml}</div>`;
-
-  if (applied) renderCV(); // Restaure le cv-doc principal (sans overrides)
-
-  // Strip les spans statiques (renderBulletHtml) avant de reposer les interactifs
-  if (candId) setTimeout(() => {
-    const split = document.getElementById('cv-doc-split');
-    if (split) {
-      split.querySelectorAll('span[data-cv-em]').forEach(s => s.replaceWith(document.createTextNode(s.textContent)));
-    }
-    _applyEmphases(candId);
-  }, 0);
+  if (typeof renderCV === 'function') renderCV();
+  _clonePourAnnonce();
 }
 
-// ── MISE EN AVANT MANUELLE (sélection texte → badge ou souligné) ──────
-// Initialise la détection de sélection sur le panneau CV droit.
-// Utilise la délégation sur #split-right-panel (persiste entre re-renders).
-function _setupEmphasisSelection() {
-  const rightPanel = document.getElementById('split-right-panel');
-  if (!rightPanel || rightPanel._emphasisReady) return;
-  rightPanel._emphasisReady = true;
+// ── MISES EN VALEUR (surlignage jaune = texte, vert = chiffre) ──
+// Même affichage partout : retire les surlignages présents, repose ceux du profil.
+function appliqueMisesEnValeur(docEl) {
+  if (!docEl) return;
+  docEl.querySelectorAll('span[data-emphasis], span[data-cv-em]').forEach(sp =>
+    sp.replaceWith(document.createTextNode(sp.textContent)));
+  docEl.normalize();   // recolle les morceaux de texte, sinon une phrase coupée n'est plus trouvée
+  (P.emphases || []).forEach(em => {
+    let cible = docEl;
+    if (em.expIdx !== null && em.expIdx !== undefined) {
+      cible = docEl.querySelector(`.cv-exp[data-exp-idx="${em.expIdx}"]`) || docEl;
+    }
+    _wrapPhrase(cible, em.text, em.type);
+  });
+}
 
-  rightPanel.addEventListener('mouseup', () => {
-    // Petite pause pour laisser le navigateur finaliser la sélection
+function _enregistreMiseEnValeur(text, type, expIdx) {
+  P.emphases = (P.emphases || []).filter(em => em.text.toLowerCase() !== text.toLowerCase());
+  if (type !== 'remove') P.emphases.push({ text, type, expIdx });
+  ss('sc_profile', P);
+  rafraichitVuesCV();
+}
+
+// Sélection de texte dans un CV → barre de mise en valeur
+function _setupEmphasisSelection(docId) {
+  const vue  = _CV_VUES[docId];
+  const zone = vue && document.getElementById(vue.zone);
+  if (!zone || zone._emphasisReady) return;
+  zone._emphasisReady = true;
+
+  zone.addEventListener('mouseup', () => {
     setTimeout(() => {
-      const sel = window.getSelection();
+      const doc = document.getElementById(docId);
+      // En mode édition, sélectionner du texte sert à le modifier
+      if (!doc || doc.dataset.editing === 'true') return;
+      const sel  = window.getSelection();
       const text = (sel?.toString() || '').trim();
-
-      // Retire le toolbar si sélection trop courte (min 5 chars pour éviter les clics accidentels)
-      if (!text || text.length < 5) {
-        document.getElementById('emphasis-toolbar')?.remove();
-        return;
-      }
-
-      // Vérifie que la sélection est bien dans #cv-doc-split
-      const cvSplit = document.getElementById('cv-doc-split');
-      if (!cvSplit) return;
+      if (!text || text.length < 5) { document.getElementById('emphasis-toolbar')?.remove(); return; }
       const range = sel.getRangeAt(0);
-      if (!cvSplit.contains(range.commonAncestorContainer)) return;
-
+      if (!doc.contains(range.commonAncestorContainer)) return;
       _showEmphasisToolbar(text, range);
     }, 30);
   });
 }
 
-// Affiche la barre flottante de mise en avant
 function _showEmphasisToolbar(text, range) {
   document.getElementById('emphasis-toolbar')?.remove();
 
-  // Détecte dans quelle expérience la sélection a été faite (pour scope limité)
+  // La mise en valeur est limitée à l'expérience où la sélection a été faite
   const anchor = range.commonAncestorContainer;
-  const closestExp = (anchor.nodeType === 3 ? anchor.parentElement : anchor)
-    ?.closest?.('.cv-exp[data-exp-idx]');
-  const expIdx = closestExp ? parseInt(closestExp.dataset.expIdx) : null;
+  const exp    = (anchor.nodeType === 3 ? anchor.parentElement : anchor)?.closest?.('.cv-exp[data-exp-idx]');
+  const expIdx = exp ? parseInt(exp.dataset.expIdx) : null;
 
-  const rect = range.getBoundingClientRect();
-  const toolbar = document.createElement('div');
-  toolbar.id = 'emphasis-toolbar';
-  toolbar.style.cssText = [
-    `position:fixed;z-index:1400`,
-    `top:${Math.max(rect.top - 50, 8)}px`,
-    `left:${rect.left + rect.width / 2}px`,
-    `transform:translateX(-50%)`,
-    `background:white;border:1.5px solid #6366f1;border-radius:10px`,
-    `padding:6px 10px;box-shadow:0 6px 24px rgba(99,102,241,.22)`,
-    `display:flex;align-items:center;gap:7px;white-space:nowrap`
-  ].join(';');
+  const rect  = range.getBoundingClientRect();
+  const barre = document.createElement('div');
+  barre.id = 'emphasis-toolbar';
+  barre.className = 'cv-em-barre';
+  // Position calculée : seul style en ligne justifié ici
+  barre.style.top  = `${Math.max(rect.top - 50, 8)}px`;
+  barre.style.left = `${rect.left + rect.width / 2}px`;
+  barre.innerHTML = `
+    <span class="cv-em-barre-titre">Mettre en avant :</span>
+    <button data-em="hl"    class="cv-em-choix cv-em--texte">Texte</button>
+    <button data-em="hlnum" class="cv-em-choix cv-em--chiffre">Chiffre</button>
+    <span class="cv-em-barre-sep">|</span>
+    <button data-em="remove" class="cv-em-choix cv-em-choix--retirer" title="Retirer la mise en avant sur ce texte">✕</button>`;
+  document.body.appendChild(barre);
 
-  toolbar.innerHTML = `
-    <span style="font-size:11px;color:#6b7280;font-weight:700">Mettre en avant :</span>
-    <button data-em="pill"
-      style="background:#ede9fe;color:#5b21b6;border:1px solid #ddd6fe;border-radius:100px;padding:3px 11px;font-size:12px;font-weight:700;cursor:pointer">
-      💊 Badge
-    </button>
-    <button data-em="underline"
-      style="background:none;border:none;color:#111;font-size:12.5px;font-weight:800;border-bottom:2.5px solid #6366f1;padding:2px 4px 1px;cursor:pointer;line-height:1.2">
-      <u style="text-decoration:none">A</u>̲ Souligné
-    </button>
-    <button data-em="hl"
-      style="background:#FEF08A;color:#1D1D1F;border:1px solid #FACC15;border-radius:5px;padding:3px 11px;font-size:12px;font-weight:700;cursor:pointer">
-      🟡 Texte
-    </button>
-    <button data-em="hlnum"
-      style="background:#BBF7D0;color:#14532D;border:1px solid #4ADE80;border-radius:5px;padding:3px 11px;font-size:12px;font-weight:700;cursor:pointer">
-      🟢 Chiffre
-    </button>
-    <span style="color:#d1d5db;font-size:16px;line-height:1">|</span>
-    <button data-em="remove"
-      style="background:none;border:none;color:#9ca3af;font-size:11px;cursor:pointer;padding:2px 4px;font-weight:600"
-      title="Retirer la mise en avant sur ce texte">✕</button>`;
-
-  document.body.appendChild(toolbar);
-
-  // Fermeture au clic en dehors du toolbar
-  const _closeOnOutside = e => {
-    if (!toolbar.contains(e.target)) { toolbar.remove(); document.removeEventListener('mousedown', _closeOnOutside); }
-  };
-  setTimeout(() => document.addEventListener('mousedown', _closeOnOutside), 50);
-
-  // Clic sur une option
-  toolbar.querySelectorAll('button[data-em]').forEach(btn => {
+  barre.querySelectorAll('button[data-em]').forEach(btn => {
     btn.addEventListener('mousedown', e => {
       e.preventDefault();
-      const type = btn.dataset.em;
-      const candId = window._splitCandId;
-      if (!candId) return;
-
-      const overrides = _getCVOverrides(candId);
-      if (!overrides.emphases) overrides.emphases = [];
-
-      if (!P.emphases) P.emphases = [];
-      if (type === 'remove') {
-        P.emphases = P.emphases.filter(em => em.text.toLowerCase() !== text.toLowerCase());
-      } else {
-        P.emphases = P.emphases.filter(em => em.text.toLowerCase() !== text.toLowerCase());
-        P.emphases.push({ text, type, expIdx });
-      }
-      ss('sc_profile', P);
-      toolbar.remove();
+      barre.remove();
       window.getSelection()?.removeAllRanges();
-      _refreshSplitCV();
-      if (typeof renderCV === 'function') renderCV();
+      _enregistreMiseEnValeur(text, btn.dataset.em, expIdx);
     });
   });
 
-  // Ferme si clic ailleurs
-  const closeHandler = e => {
-    if (!toolbar.contains(e.target)) {
-      toolbar.remove();
-      document.removeEventListener('mousedown', closeHandler);
-    }
+  const fermeAilleurs = e => {
+    if (!barre.contains(e.target)) { barre.remove(); document.removeEventListener('mousedown', fermeAilleurs); }
   };
-  setTimeout(() => document.addEventListener('mousedown', closeHandler), 80);
+  setTimeout(() => document.addEventListener('mousedown', fermeAilleurs), 50);
 }
 
-// Applique les emphases sauvegardées sur #cv-doc-split
-// Chaque emphase est scopée à son expérience d'origine (em.expIdx)
-function _applyEmphases(candId) {
-  const emphases = P.emphases || [];
-  const cvSplit  = document.getElementById('cv-doc-split');
-  if (!cvSplit || !emphases.length) return;
-
-  emphases.forEach(em => {
-    let target = cvSplit;
-    if (em.expIdx !== null && em.expIdx !== undefined) {
-      target = cvSplit.querySelector(`.cv-exp[data-exp-idx="${em.expIdx}"]`) || cvSplit;
-    }
-    _wrapPhrase(target, em.text, em.type, candId);
-  });
-}
-
-// Entoure toutes les occurrences d'une phrase dans un container
-function _wrapPhrase(container, phrase, type, candId) {
+// Entoure les occurrences d'une phrase dans un conteneur
+function _wrapPhrase(container, phrase, type) {
   if (!phrase) return;
   const phraseLow = phrase.toLowerCase();
-
-  // Styles visuels — en mode ATS : surlignage jaune (texte) / vert (chiffres), pas de cases
-  const _ats = (P.cvTemplate === 'ats');
-  const hlYellow = 'background:#FEF08A;color:#1D1D1F;padding:0 3px;border-radius:2px;font-weight:700;cursor:pointer';
-  const hlGreen  = 'background:#BBF7D0;color:#14532D;padding:0 3px;border-radius:2px;font-weight:700;cursor:pointer';
-  // Couleur auto (legacy) selon présence d'un chiffre
-  const atsAuto  = /\d/.test(phrase) ? hlGreen : hlYellow;
-  const pillStyle       = _ats
-    ? atsAuto
-    : 'background:#ede9fe;color:#5b21b6;border-radius:100px;padding:1px 9px;font-weight:700;font-size:.92em;border:1px solid #ddd6fe;cursor:pointer';
-  const underlineStyle  = _ats
-    ? atsAuto
-    : 'font-weight:800;border-bottom:2.5px solid #6366f1;padding-bottom:1px;cursor:pointer';
-  // Types ATS explicites (choisis dans le toolbar)
-  const styleForType = t =>
-    t === 'hl'    ? hlYellow :
-    t === 'hlnum' ? hlGreen  :
-    t === 'pill'  ? pillStyle : underlineStyle;
+  // Anciens types (badge, souligné) : jaune pour du texte, vert s'il y a un chiffre
+  const chiffre = type === 'hlnum' || (type !== 'hl' && /\d/.test(phrase));
+  const classe  = 'cv-em ' + (chiffre ? 'cv-em--chiffre' : 'cv-em--texte');
 
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
     acceptNode: n => {
-      // Ignore les textes déjà dans un span d'emphase
-      if (n.parentElement?.dataset?.emphasis) return NodeFilter.FILTER_REJECT;
-      return n.textContent.toLowerCase().includes(phraseLow)
-        ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      if (n.parentElement?.closest('[data-emphasis], button, .cv-edit-ui')) return NodeFilter.FILTER_REJECT;
+      return n.textContent.toLowerCase().includes(phraseLow) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
     }
   });
-
   const nodes = [];
   let node;
   while ((node = walker.nextNode())) nodes.push(node);
@@ -1146,30 +1015,20 @@ function _wrapPhrase(container, phrase, type, candId) {
     const idx     = content.toLowerCase().indexOf(phraseLow);
     if (idx === -1) return;
 
-    const before = content.slice(0, idx);
-    const match  = content.slice(idx, idx + phrase.length);
-    const after  = content.slice(idx + phrase.length);
-
     const span = document.createElement('span');
     span.dataset.emphasis = type;
-    span.textContent      = match;
-    span.title            = '✕ Clic pour retirer';
-    span.style.cssText    = styleForType(type);
+    span.className        = classe;
+    span.textContent      = content.slice(idx, idx + phrase.length);
+    span.title            = 'Clic pour retirer la mise en valeur';
     span.onclick = e => {
+      // En mode édition, un clic sert à placer le curseur, pas à retirer
+      if (span.closest('[data-editing="true"]')) return;
       e.stopPropagation();
-      // 1. Suppression immédiate du span dans le DOM (feedback visuel instantané)
-      const frag = document.createTextNode(span.textContent);
-      span.parentNode?.replaceChild(frag, span);
-      // 2. Met à jour les overrides sauvegardés
-      const ov = _getCVOverrides(candId);
-      // Supprime du profil global (source unique de vérité)
-      if (!P.emphases) P.emphases = [];
-      P.emphases = P.emphases.filter(em => em.text.toLowerCase() !== phrase.toLowerCase());
-      ss('sc_profile', P);
-      // Re-render les deux vues
-      setTimeout(() => { _refreshSplitCV(); if (typeof renderCV === 'function') renderCV(); }, 0);
+      _enregistreMiseEnValeur(phrase, 'remove', null);
     };
 
+    const before = content.slice(0, idx);
+    const after  = content.slice(idx + phrase.length);
     const parent = textNode.parentNode;
     if (before) parent.insertBefore(document.createTextNode(before), textNode);
     parent.insertBefore(span, textNode);
@@ -1178,143 +1037,152 @@ function _wrapPhrase(container, phrase, type, candId) {
   });
 }
 
-// ── ÉDITION DU CV PER-OFFRE ─────────────────────────────────
-function toggleCVEditMode() {
-  const cvSplit = document.getElementById('cv-doc-split');
-  if (!cvSplit) return;
-  if (cvSplit.dataset.editing === 'true') {
-    _saveCVEditsFromDOM(window._splitCandId);
-  } else {
-    _enterCVEditMode();
+// ── MODE ÉDITION ────────────────────────────────────────────
+function toggleCVEditMode(docId = 'cv-doc-split') {
+  const doc = document.getElementById(docId);
+  if (!doc) return;
+  if (doc.dataset.editing === 'true') _saveCVEditsFromDOM(docId);
+  else _enterCVEditMode(docId);
+}
+
+// Une mission devient modifiable : texte éditable, poignée, bouton ×
+function _prepareMissionEditable(item) {
+  const texte = item.querySelector('.cv-bullet-text')
+             || [...item.children].find(el => el.tagName === 'SPAN' && !el.classList.contains('cv-bullet-dot'));
+  if (texte) {
+    texte.classList.add('cv-bullet-text', 'cv-editable');
+    texte.contentEditable = 'true';
+    // Texte d'origine : permet de retrouver la mission du profil si on la réécrit
+    if (!item.dataset.origText) item.dataset.origText = texte.textContent.trim();
+  }
+  if (!item.querySelector('.cv-edit-poignee')) {
+    const poignee = document.createElement('span');
+    poignee.className = 'cv-edit-poignee cv-edit-ui';
+    poignee.textContent = '⠿';
+    poignee.title = 'Glisser pour réordonner';
+    item.insertBefore(poignee, item.firstChild);
+  }
+  if (!item.querySelector('.cv-edit-suppr')) {
+    const rm = document.createElement('button');
+    rm.className = 'cv-edit-suppr cv-edit-ui';
+    rm.textContent = '×';
+    rm.title = 'Retirer cette mission du CV';
+    rm.onclick = e => { e.stopPropagation(); item.remove(); };
+    item.appendChild(rm);
   }
 }
 
-function _enterCVEditMode() {
-  const cvSplit = document.getElementById('cv-doc-split');
-  if (!cvSplit) return;
-  cvSplit.dataset.editing = 'true';
+function _enterCVEditMode(docId) {
+  const doc = document.getElementById(docId);
+  if (!doc) return;
+  doc.dataset.editing = 'true';
+  document.getElementById('emphasis-toolbar')?.remove();
 
-  // Bouton → "Enregistrer"
-  const btn = document.getElementById('cv-edit-btn');
-  if (btn) {
-    btn.textContent = '✓ Enregistrer';
-    btn.style.background = '#16a34a';
-    btn.style.color = 'white';
-    btn.style.borderColor = '#16a34a';
+  const btn = document.getElementById(_CV_VUES[docId]?.bouton);
+  if (btn) { btn.textContent = '✓ Enregistrer'; btn.classList.add('cv-edit-btn--actif'); }
+
+  // Les éléments d'interface sont placés autour du CV, jamais dedans
+  const ancre = docId === 'cv-doc-split' ? document.getElementById('split-right-panel') : doc;
+
+  const banniere = document.createElement('div');
+  banniere.className = 'cv-edit-banniere cv-edit-ui';
+  banniere.dataset.editUi = docId;
+  banniere.textContent = "✏️ Mode édition — clique sur un texte pour le modifier, masque un poste, ajoute ou réordonne des missions. Enregistré dans ton profil : « Mon CV » et toutes les annonces.";
+  ancre.parentElement.insertBefore(banniere, ancre);
+
+  // Postes déjà masqués : absents du CV, on propose de les réafficher
+  const masques = (P.experiences || []).map((e, i) => ({ e, i })).filter(x => x.e.cvMasque);
+  if (masques.length) {
+    const liste = document.createElement('div');
+    liste.className = 'cv-edit-masques cv-edit-ui';
+    liste.dataset.editUi = docId;
+    liste.innerHTML = '<span>Postes masqués :</span>' + masques.map(x =>
+      `<button class="cv-edit-reafficher" data-i="${x.i}">↺ ${esc(x.e.title || 'Poste')}${x.e.company ? ' — ' + esc(x.e.company) : ''}</button>`
+    ).join('');
+    liste.querySelectorAll('button[data-i]').forEach(b => b.onclick = () => {
+      const e = P.experiences[parseInt(b.dataset.i)];
+      if (e) { delete e.cvMasque; ss('sc_profile', P); }
+      _exitCVEditMode(docId);
+      rafraichitVuesCV();
+      _enterCVEditMode(docId);
+      toast('Poste réaffiché');
+    });
+    banniere.insertAdjacentElement('afterend', liste);
   }
 
-  // Bannière d'info
-  const banner = document.createElement('div');
-  banner.id = 'cv-edit-banner';
-  banner.style.cssText = 'background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:8px 14px;font-size:12px;color:#1d4ed8;margin-bottom:10px;font-weight:600;width:100%;max-width:680px;box-sizing:border-box';
-  banner.textContent = '✏️ Mode édition — cliquez sur les textes pour les modifier, masquez ou ajoutez des missions';
-  cvSplit.parentElement.insertBefore(banner, cvSplit.parentElement.querySelector('#split-right-panel'));
-
-  // ── Titre ──
-  const titleEl = cvSplit.querySelector('.cv-title-text');
-  if (titleEl) {
-    titleEl.contentEditable = 'true';
-    titleEl.style.cssText += ';outline:2px solid #6366f1;border-radius:3px;padding:1px 4px;min-width:40px';
-  }
-
-  // ── Résumé ──
-  const summaryEl = cvSplit.querySelector('.cv-summary-text');
-  if (summaryEl) {
-    summaryEl.contentEditable = 'true';
-    summaryEl.style.cssText += ';outline:2px solid #6366f1;border-radius:4px;padding:4px;min-height:32px';
-  }
+  // ── Accroche ──
+  const accroche = doc.querySelector('.cv-accroche');
+  if (accroche) { accroche.contentEditable = 'true'; accroche.classList.add('cv-editable'); }
 
   // ── Expériences ──
-  cvSplit.querySelectorAll('.cv-exp[data-exp-idx]').forEach(exp => {
-    exp.style.position = 'relative';
+  doc.querySelectorAll('.cv-exp[data-exp-idx]').forEach(exp => {
+    exp.classList.add('cv-exp--edition');
 
-    // Bouton "Masquer ce poste"
-    const hideBtn = document.createElement('button');
-    hideBtn.innerHTML = '× Masquer';
-    hideBtn.style.cssText = 'position:absolute;top:6px;right:6px;background:#fee2e2;border:none;border-radius:6px;color:#dc2626;font-size:11px;padding:3px 9px;cursor:pointer;font-weight:700;z-index:5';
-    hideBtn.onclick = () => { exp.style.display = 'none'; exp.dataset.hidden = 'true'; };
-    exp.appendChild(hideBtn);
+    const masquer = document.createElement('button');
+    masquer.className = 'cv-edit-masquer cv-edit-ui';
+    masquer.textContent = '× Masquer ce poste';
+    masquer.title = 'Retire ce poste du CV. Il reste dans « Mon Profil » et peut être réaffiché.';
+    masquer.onclick = () => {
+      const cache = exp.dataset.hidden === 'true';
+      exp.dataset.hidden = cache ? 'false' : 'true';
+      exp.classList.toggle('cv-exp--masque', !cache);
+      masquer.textContent = cache ? '× Masquer ce poste' : '↺ Réafficher ce poste';
+    };
+    exp.appendChild(masquer);
 
-    // Description modifiable
-    const descEl = exp.querySelector('.cv-edesc');
-    if (descEl) {
-      descEl.contentEditable = 'true';
-      descEl.style.cssText += ';outline:2px dashed #6366f1;border-radius:4px;padding:3px;min-height:24px';
-    }
+    const desc = exp.querySelector('.cv-edesc');
+    if (desc) { desc.contentEditable = 'true'; desc.classList.add('cv-editable'); }
 
-    // Bullets éditables + handle drag + bouton supprimer
-    exp.querySelectorAll('.cv-bullet-item').forEach(item => {
-      const textSpan = item.querySelector('span:not(.cv-bullet-dot)');
-      if (textSpan) {
-        textSpan.classList.add('cv-bullet-text');
-        textSpan.contentEditable = 'true';
-        textSpan.style.cssText += ';outline:1px dashed #6366f1;border-radius:3px;padding:0 2px';
-      }
-      // Handle drag
-      const handle = document.createElement('span');
-      handle.textContent = '⠿';
-      handle.style.cssText = 'cursor:grab;color:#94a3b8;font-size:14px;padding:0 5px 0 0;flex-shrink:0;user-select:none;line-height:1';
-      handle.title = 'Glisser pour réordonner';
-      item.insertBefore(handle, item.firstChild);
-      // Bouton supprimer
-      const rm = document.createElement('button');
-      rm.textContent = '×';
-      rm.style.cssText = 'background:none;border:none;color:#dc2626;cursor:pointer;font-weight:700;font-size:14px;padding:0 0 0 5px;line-height:1;vertical-align:middle;flex-shrink:0';
-      rm.onclick = e => { e.stopPropagation(); item.remove(); };
-      item.style.display = 'flex';
-      item.style.alignItems = 'baseline';
-      item.appendChild(rm);
-    });
-    // Activer le drag sort sur chaque liste de bullets
+    exp.querySelectorAll('.cv-bullet-item').forEach(_prepareMissionEditable);
     exp.querySelectorAll('.cv-bullets').forEach(ul => _initBulletDragSort(ul));
 
-    // Bouton "＋ Ajouter une mission"
-    const addBtn = document.createElement('button');
-    addBtn.innerHTML = '＋ Ajouter une mission';
-    addBtn.dataset.addMission = 'true';
-    addBtn.style.cssText = 'margin-top:8px;background:none;border:1.5px dashed #6366f1;border-radius:6px;color:#6366f1;font-size:11.5px;padding:4px 12px;cursor:pointer;font-weight:600;display:block;width:100%';
-    addBtn.onclick = e => { e.stopPropagation(); _showBulletPicker(exp, addBtn); };
-    exp.appendChild(addBtn);
+    const ajout = document.createElement('button');
+    ajout.className = 'cv-edit-ajout cv-edit-ui';
+    ajout.dataset.addMission = 'true';
+    ajout.textContent = '＋ Ajouter une mission';
+    ajout.onclick = e => { e.stopPropagation(); _showBulletPicker(exp, ajout); };
+    exp.appendChild(ajout);
   });
 
-  // ── Compétences et Outils — suppression en mode édition ──
-  const labelToKey = { 'Domaines':'subdomains', 'Outils SC':'tools', 'Bureautique':'informatique', 'Certifications':'certifs', 'Autres':'customSkills' };
-  cvSplit.querySelectorAll('.cv-skill-row').forEach(row => {
-    const labelEl = row.querySelector('.cv-skill-key');
-    // Lit uniquement le premier nœud texte (ignore le bouton "+" enfant)
-    const label   = labelEl ? [...labelEl.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim() : '';
-    const key     = labelToKey[label];
-    if (!key) return;
-
-    // .cv-skill-tag (classique/moderne) OU .cv-skill-plain (ATS)
-    row.querySelectorAll('.cv-skill-tag, .cv-skill-plain').forEach(tag => {
-      const val = tag.textContent.replace('✓','').replace(/×$/,'').trim();
-      tag.style.paddingRight = '4px';
+  // ── Compétences : suppression du profil ──
+  // Libellés du modèle unique → tableaux du profil (« Outils » regroupe deux listes)
+  const cles = { 'Domaines': ['subdomains'], 'Outils': ['tools', 'informatique'],
+                 'Certifications': ['certifs'], 'Autres compétences': ['customSkills'] };
+  doc.querySelectorAll('.cv-skill-row').forEach(row => {
+    const libelle  = (row.querySelector('.cv-skill-key')?.textContent || '').replace(/\s*:\s*$/, '').trim();
+    const tableaux = cles[libelle];
+    if (!tableaux) return;
+    row.querySelectorAll('.cv-skill-plain').forEach(tag => {
+      const val = tag.textContent.trim();
       const x = document.createElement('span');
+      x.className = 'cv-edit-suppr-competence cv-edit-ui';
       x.textContent = '×';
-      x.style.cssText = 'margin-left:4px;color:#dc2626;cursor:pointer;font-weight:700;font-size:11px;opacity:.7;vertical-align:1px';
-      x.title = 'Supprimer';
+      x.title = 'Supprimer de ton profil';
       x.onclick = e => {
         e.stopPropagation();
-        P[key] = (P[key] || []).filter(s => s !== val);
+        tableaux.forEach(k => { P[k] = (P[k] || []).filter(v => v !== val); });
         ss('sc_profile', P);
-        // Retire aussi la virgule séparatrice qui suit (mode ATS)
-        const next = tag.nextSibling;
-        if (next && next.nodeType === 3 && /^[\s,]+$/.test(next.textContent)) next.remove();
+        const suite = tag.nextSibling;
+        if (suite && suite.nodeType === 3 && /^[\s,]+$/.test(suite.textContent)) suite.remove();
         tag.remove();
       };
       tag.appendChild(x);
     });
   });
 
-  // Bouton "Réinitialiser"
-  const resetBtn = document.createElement('button');
-  resetBtn.id = 'cv-edit-reset-btn';
-  resetBtn.textContent = '↺ Réinitialiser toutes les modifications';
-  resetBtn.style.cssText = 'margin-top:14px;background:none;border:1.5px solid var(--border);border-radius:7px;color:var(--ink3);font-size:11.5px;padding:5px 14px;cursor:pointer;font-weight:600;width:100%;max-width:680px';
-  resetBtn.onclick = () => _resetCVOverrides(window._splitCandId);
-  const rightPanelParent = document.getElementById('split-right-panel').parentElement;
-  rightPanelParent.appendChild(resetBtn);
+  const annuler = document.createElement('button');
+  annuler.className = 'cv-edit-annuler cv-edit-ui';
+  annuler.dataset.editUi = docId;
+  annuler.textContent = '✕ Annuler les modifications non enregistrées';
+  annuler.onclick = () => { _exitCVEditMode(docId); rafraichitVuesCV(); };
+  ancre.insertAdjacentElement('afterend', annuler);
+}
+
+// « Mon CV » : la barre de mise en valeur est prête dès le chargement
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => _setupEmphasisSelection('cv-doc'));
+} else {
+  _setupEmphasisSelection('cv-doc');
 }
 
 // ── PICKER "AJOUTER UNE MISSION" ────────────────────────────
@@ -1325,7 +1193,7 @@ function _showBulletPicker(expEl, triggerBtn) {
   // Textes déjà présents dans ce bloc expérience (pour cocher)
   const currentTexts = new Set();
   expEl.querySelectorAll('.cv-bullet-item').forEach(item => {
-    const s = item.querySelector('span:not(.cv-bullet-dot)');
+    const s = item.querySelector('.cv-bullet-text');
     if (s) currentTexts.add(s.textContent.trim().toLowerCase());
   });
 
@@ -1447,7 +1315,7 @@ function _showBulletPicker(expEl, triggerBtn) {
     if (active) {
       // Retire le bullet du DOM
       expEl.querySelectorAll('.cv-bullet-item').forEach(item => {
-        const s = item.querySelector('span:not(.cv-bullet-dot)');
+        const s = item.querySelector('.cv-bullet-text');
         if (s && s.textContent.trim().toLowerCase() === txt.toLowerCase()) item.remove();
       });
     } else {
@@ -1483,7 +1351,7 @@ function _initBulletDragSort(ul) {
     if (li.dataset.dragInit) return;
     li.dataset.dragInit = '1';
 
-    const handle = li.querySelector('span[style*="grab"]');
+    const handle = li.querySelector('.cv-edit-poignee');
     if (handle) {
       handle.addEventListener('mousedown', () => { li.draggable = true; });
       handle.addEventListener('mouseup',   () => { li.draggable = false; });
@@ -1538,140 +1406,75 @@ function _commitEditBullet(expEl, text) {
   if (!ul) {
     ul = document.createElement('ul');
     ul.className = 'cv-bullets';
-    const addBtn = expEl.querySelector('button[data-add-mission]');
-    expEl.insertBefore(ul, addBtn || null);
+    expEl.insertBefore(ul, expEl.querySelector('button[data-add-mission]') || null);
   }
   const li = document.createElement('li');
   li.className = 'cv-bullet-item';
-  li.dataset.new = 'true';
-  li.style.display = 'flex';
-  li.style.alignItems = 'baseline';
-
-  const handle = document.createElement('span');
-  handle.textContent = '⠿';
-  handle.style.cssText = 'cursor:grab;color:#94a3b8;font-size:14px;padding:0 5px 0 0;flex-shrink:0;user-select:none;line-height:1';
-
-  const dot = document.createElement('span');
-  dot.className = 'cv-bullet-dot';
-  dot.textContent = '▸';
-
-  const textSpan = document.createElement('span');
-  textSpan.className = 'cv-bullet-text';
-  textSpan.contentEditable = 'true';
-  textSpan.style.cssText = 'outline:1px dashed #6366f1;border-radius:3px;padding:0 2px;flex:1';
-  textSpan.textContent = text;
-
-  const rm = document.createElement('button');
-  rm.textContent = '×';
-  rm.style.cssText = 'background:none;border:none;color:#dc2626;cursor:pointer;font-weight:700;font-size:14px;padding:0 0 0 5px;line-height:1;vertical-align:middle;flex-shrink:0';
-  rm.onclick = e => { e.stopPropagation(); li.remove(); };
-
-  li.appendChild(handle);
-  li.appendChild(dot);
-  li.appendChild(textSpan);
-  li.appendChild(rm);
+  li.innerHTML = `<span class="cv-bullet-dot">•</span><span class="cv-bullet-text">${esc(text)}</span>`;
   ul.appendChild(li);
+  _prepareMissionEditable(li);
   _initBulletDragSort(ul);
 }
 
-function _saveCVEditsFromDOM(candId) {
-  const cvSplit = document.getElementById('cv-doc-split');
-  if (!cvSplit) return;
+// Enregistre dans le PROFIL ce qui a été modifié dans l'un ou l'autre CV
+function _saveCVEditsFromDOM(docId) {
+  const doc = document.getElementById(docId);
+  if (!doc) return;
 
-  const overrides = _getCVOverrides(candId);
-
-  // ── Titre ──
-  const titleEl = cvSplit.querySelector('.cv-title-text');
-  if (titleEl) {
-    const t = titleEl.textContent.trim();
-    if (t) overrides.title = t;
+  // Accroche « INTRO, je vise un poste de POSTE. » : seule l'intro appartient
+  // au profil ; le poste vient du champ « Poste ciblé » ou de l'annonce.
+  const accroche = doc.querySelector('.cv-accroche');
+  if (accroche) {
+    const texte = accroche.textContent.trim();
+    const m     = texte.match(/^(.*?),?\s*je vise un poste de\s+.+$/i);
+    const intro = (m ? m[1] : texte).trim().replace(/[,.\s]+$/, '');
+    if (intro) P.accrocheIntro = intro;
   }
 
-  // ── Résumé / phrase d'accroche ──
-  const summaryEl = cvSplit.querySelector('.cv-summary-text');
-  if (summaryEl) {
-    const fullText = summaryEl.textContent.trim();
-    // Format "INTRO, je vise un poste de POSTE." → on sépare intro + poste
-    const m = fullText.match(/^(.*?),?\s*je vise un poste de\s+(.+?)\.?\s*$/i);
-    if (m) {
-      overrides.accrocheIntro = m[1].trim();
-      overrides.title         = m[2].trim();
-    } else {
-      overrides.summaryTarget = fullText;
+  doc.querySelectorAll('.cv-exp[data-exp-idx]').forEach(exp => {
+    const e = P.experiences[parseInt(exp.dataset.expIdx)];
+    if (!e) return;
+
+    // Masqué = absent du CV, conservé dans le profil
+    if (exp.dataset.hidden === 'true') { e.cvMasque = true; return; }
+    delete e.cvMasque;
+
+    const items = exp.querySelectorAll('.cv-bullet-item');
+    const desc  = exp.querySelector('.cv-edesc');
+    if (desc && !items.length) e.description = desc.textContent.trim();
+
+    // Missions : les missions visibles, dans leur ordre, deviennent la sélection
+    if (exp.querySelector('.cv-bullets')) {
+      const bullets  = e.bullets || [];
+      const retenues = [];
+      items.forEach(item => {
+        const txt = (item.querySelector('.cv-bullet-text')?.textContent || '').trim();
+        if (!txt) return;
+        const orig = (item.dataset.origText || '').trim();
+        let b = bullets.find(x => (x.text || '').trim() === orig && orig)
+             || bullets.find(x => (x.text || '').trim() === txt);
+        if (b) b.text = txt; else b = { text: txt };
+        b.selected = true;
+        if (!retenues.includes(b)) retenues.push(b);
+      });
+      // Les autres missions restent dans le profil, non sélectionnées
+      const autres = bullets.filter(b => !retenues.includes(b)).map(b => ({ ...b, selected: false, required: false }));
+      e.bullets = [...retenues, ...autres];
     }
-  }
-
-  // ── Expériences ──
-  const hiddenExpIndices = [];
-  const expOverrides = overrides.expOverrides || {};
-
-  cvSplit.querySelectorAll('.cv-exp[data-exp-idx]').forEach(exp => {
-    const origIdx = parseInt(exp.dataset.expIdx);
-
-    if (exp.dataset.hidden === 'true' || exp.style.display === 'none') {
-      hiddenExpIndices.push(origIdx);
-      return;
-    }
-
-    const ov = expOverrides[origIdx] || {};
-
-    // Description (si mode texte)
-    const descEl = exp.querySelector('.cv-edesc');
-    if (descEl) ov.description = descEl.textContent.trim();
-
-    // Bullets : sauvegarde de TOUS les bullets visibles (set complet)
-    const bulletTexts = [];
-    exp.querySelectorAll('.cv-bullet-item').forEach(item => {
-      const textSpan = item.querySelector('.cv-bullet-text') || item.querySelector('span:not(.cv-bullet-dot):not([style*="grab"])');
-      if (!textSpan) return;
-      const txt = textSpan.textContent.trim();
-      if (txt && txt !== 'Saisir la mission...') bulletTexts.push(txt);
-    });
-
-    // Vérifie si le set a changé vs l'original
-    const origBulletTexts = (P.experiences[origIdx]?.bullets || [])
-      .filter(b => b.required || b.selected)
-      .map(b => b.text || '');
-    if (JSON.stringify(bulletTexts) !== JSON.stringify(origBulletTexts)) {
-      ov.overrideAllBullets = bulletTexts;
-    } else {
-      delete ov.overrideAllBullets;
-    }
-
-    if (Object.keys(ov).length) expOverrides[origIdx] = ov;
-    else delete expOverrides[origIdx];
   });
 
-  overrides.hiddenExpIndices = hiddenExpIndices;
-  if (Object.keys(expOverrides).length) overrides.expOverrides = expOverrides;
-  else delete overrides.expOverrides;
-
-  _saveCVOverrides(candId, overrides);
-  _exitCVEditMode();
-  _refreshSplitCV();
-  toast('✓ Modifications enregistrées pour cette offre');
+  ss('sc_profile', P);
+  _exitCVEditMode(docId);
+  rafraichitVuesCV();
+  toast('✓ CV mis à jour — dans « Mon CV » et dans les annonces');
 }
 
-function _exitCVEditMode() {
-  const btn = document.getElementById('cv-edit-btn');
-  if (btn) {
-    btn.textContent = '✏️ Modifier le CV';
-    btn.style.background = 'none';
-    btn.style.color = 'var(--ink3)';
-    btn.style.borderColor = 'var(--border)';
-  }
-  document.getElementById('cv-edit-banner')?.remove();
-  document.getElementById('cv-edit-reset-btn')?.remove();
-  const cvSplit = document.getElementById('cv-doc-split');
-  if (cvSplit) cvSplit.dataset.editing = 'false';
-}
-
-function _resetCVOverrides(candId) {
-  if (!confirm('Réinitialiser toutes les modifications du CV pour cette offre ?')) return;
-  _saveCVOverrides(candId, {});
-  _exitCVEditMode();
-  _refreshSplitCV();
-  toast('CV réinitialisé');
+function _exitCVEditMode(docId) {
+  const btn = document.getElementById(_CV_VUES[docId]?.bouton);
+  if (btn) { btn.textContent = '✏️ Modifier le CV'; btn.classList.remove('cv-edit-btn--actif'); }
+  document.querySelectorAll(`[data-edit-ui="${docId}"]`).forEach(el => el.remove());
+  const doc = document.getElementById(docId);
+  if (doc) doc.dataset.editing = 'false';
 }
 
 
@@ -3551,9 +3354,6 @@ window._saveSplitPoste = function(candId, newPoste) {
   if (cands[idx].poste === val) return; // rien changé
   cands[idx].poste = val;
   if (cands[idx].analysis) cands[idx].analysis.poste = val;
-  // Met aussi à jour l'override de titre par offre (sinon le CV réaffiche l'ancien poste)
-  if (!cands[idx].cv_overrides) cands[idx].cv_overrides = {};
-  cands[idx].cv_overrides.title = val;
   ss('sc_cands', cands);
   // Met à jour le poste ciblé du CV + re-render
   _cvTarget = val;
@@ -3586,16 +3386,9 @@ async function openSplitView(candId) {
       : localStorage.removeItem('sc_deselected_skills');
   }
 
-  // Applique les overrides per-offre pour le rendu initial
-  const openOverrides = _getCVOverrides(candId);
-  const openApplied   = Object.keys(openOverrides).length ? _applyOverridesToP(openOverrides) : false;
+  // Même CV que « Mon CV » : une seule source, le profil
   renderCV();
-  if (openApplied) _restoreP();
-  const cvDoc = document.getElementById('cv-doc');
-  document.getElementById('split-right-panel').innerHTML = cvDoc
-    ? `<div style="box-shadow:0 6px 32px rgba(0,0,0,.13);border-radius:6px;overflow:hidden">${cvDoc.outerHTML.replace(/\bid="cv-doc"[^>]*/, 'id="cv-doc-split"')}</div>`
-    : `<div style="color:var(--ink3);padding:24px;font-size:13px">CV non disponible — complète ton profil.</div>`;
-  if (openApplied) renderCV(); // restaure cv-doc principal
+  _clonePourAnnonce();
 
   // ── Barre du haut ── (poste éditable directement)
   document.getElementById('split-modal-title').innerHTML =
@@ -3729,19 +3522,8 @@ async function openSplitView(candId) {
     });
   }
 
-  // ── Emphases manuelles ──
-  setTimeout(() => {
-    _setupEmphasisSelection();
-    // Strip les spans statiques de renderBulletHtml (data-cv-em) AVANT de
-    // reposer les interactifs (data-emphasis) — évite le badge en double
-    const _splitEl = document.getElementById('cv-doc-split');
-    if (_splitEl) {
-      _splitEl.querySelectorAll('span[data-cv-em]').forEach(s =>
-        s.replaceWith(document.createTextNode(s.textContent))
-      );
-    }
-    _applyEmphases(candId);
-  }, 200);
+  // ── Mises en valeur : mêmes outils que dans « Mon CV » ──
+  _setupEmphasisSelection('cv-doc-split');
 
   // ── Analyse IA : UNE SEULE tentative automatique par offre ──
   // Le marqueur est enregistré dans la candidature : même après un

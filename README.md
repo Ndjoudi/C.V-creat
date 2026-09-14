@@ -243,10 +243,15 @@ Fichiers : `js/bouton-favori.js` (le favori), `js/import-annonce.js` (la récept
 
 ## 9. Chantiers ouverts
 
-- **Outils réservés à la fenêtre d'annonce** : mise en valeur d'un passage
-  sélectionné, mode édition, choix des puces et poste modifiable n'existent pas
-  sur la page « Mon CV », qui a de son côté son propre sélecteur de compétences.
-  Le CV est le même partout ; ses outils d'édition ne le sont pas encore.
+- ~~Outils réservés à la fenêtre d'annonce~~ — **fait** : les outils du CV
+  (barre « Mettre en avant », mode édition, masquer / réafficher un poste,
+  ajouter / retirer / réordonner des missions, supprimer une compétence) sont
+  écrits une seule fois dans `js/tracker.js` (bloc « OUTILS DU CV — COMMUNS »)
+  et servent aux deux vues : `toggleCVEditMode('cv-doc')` pour « Mon CV »,
+  `toggleCVEditMode('cv-doc-split')` pour l'annonce. Tout est enregistré dans
+  le profil ; il n'y a plus de modifications propres à une offre
+  (`cv_overrides` n'est plus lu). Un poste masqué porte `cvMasque: true` :
+  absent du CV, conservé dans « Mon Profil ».
 - **Styles écrits en dur** : environ 800 `style="…"` (surtout dans
   `js/tracker.js` et `index.html`) et des couleurs répétées au lieu des
   variables. À convertir progressivement en classes en touchant chaque écran

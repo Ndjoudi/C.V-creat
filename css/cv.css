@@ -357,3 +357,80 @@
 .cv-emeta{ font-size:11px; color:#6E6E73; margin-top:1px; }
 .cv-doc--ats .cv-eco{ margin-top:1px; }
 .cv-doc--ats .cv-edu-row{ font-size:11.5px; color:#3A3A3C; padding:2px 0; border-bottom:none; }
+
+/* ══════════════════════════════════════════════════════════
+   OUTILS D'ÉDITION DU CV — communs à « Mon CV » et à l'annonce
+   Écran uniquement : tout élément marqué .cv-edit-ui est retiré du PDF.
+   ══════════════════════════════════════════════════════════ */
+
+/* Mises en valeur — gardées à l'impression (le texte reste lisible par l'ATS) */
+.cv-em{
+  padding:0 3px; border-radius:2px; font-weight:700; cursor:pointer;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+.cv-em--texte{ background:#FEF08A; color:#1D1D1F; }
+.cv-em--chiffre{ background:#BBF7D0; color:#14532D; }
+
+/* Barre flottante « Mettre en avant » */
+.cv-em-barre{
+  position:fixed; z-index:1400; transform:translateX(-50%);
+  display:flex; align-items:center; gap:7px; white-space:nowrap;
+  background:#fff; border:1.5px solid var(--border); border-radius:10px;
+  padding:6px 10px; box-shadow:0 6px 24px rgba(0,0,0,.14);
+}
+.cv-em-barre-titre{ font-size:11px; font-weight:700; color:var(--ink3); }
+.cv-em-barre-sep{ color:var(--border); }
+.cv-em-choix{
+  border:1px solid transparent; border-radius:5px;
+  padding:3px 11px; font-size:12px; font-weight:700; cursor:pointer;
+}
+.cv-em-choix.cv-em--texte{ border-color:#FACC15; }
+.cv-em-choix.cv-em--chiffre{ border-color:#4ADE80; }
+.cv-em-choix--retirer{ background:none; color:var(--ink3); font-weight:600; }
+
+/* Bouton « Modifier le CV » en mode édition */
+.cv-edit-btn--actif{
+  background:var(--teal-d)!important; color:#fff!important; border-color:var(--teal-d)!important;
+}
+
+/* Autour du CV */
+.cv-edit-banniere{
+  width:100%; max-width:794px; box-sizing:border-box; margin-bottom:10px; padding:8px 14px;
+  background:var(--teal-bg); border:1.5px solid var(--teal-border); border-radius:8px;
+  color:var(--teal-d); font-size:12px; font-weight:600;
+}
+.cv-edit-masques{
+  width:100%; max-width:794px; box-sizing:border-box; margin-bottom:10px;
+  display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+  font-size:12px; color:var(--ink3);
+}
+.cv-edit-reafficher,
+.cv-edit-annuler{
+  background:none; border:1.5px solid var(--border); border-radius:7px;
+  color:var(--ink2); font-size:11.5px; font-weight:600; padding:4px 11px; cursor:pointer;
+}
+.cv-edit-annuler{ width:100%; max-width:794px; box-sizing:border-box; margin-top:14px; }
+
+/* Dans le CV */
+.cv-exp--edition{ position:relative; }
+.cv-exp--masque{ opacity:.35; }
+.cv-edit-masquer{
+  position:absolute; top:4px; right:0;
+  background:var(--red-bg); border:none; border-radius:6px;
+  color:var(--red); font-size:11px; font-weight:700; padding:3px 9px; cursor:pointer;
+}
+.cv-editable{ outline:1px dashed var(--teal-border); border-radius:3px; padding:0 2px; }
+.cv-edit-poignee{ cursor:grab; color:var(--ink3); padding-right:5px; user-select:none; }
+.cv-edit-suppr,
+.cv-edit-suppr-competence{
+  background:none; border:none; color:var(--red); cursor:pointer; font-weight:700; padding-left:5px;
+}
+.cv-edit-ajout{
+  display:block; width:100%; margin-top:8px; padding:4px 12px;
+  background:none; border:1.5px dashed var(--teal-border); border-radius:6px;
+  color:var(--teal-d); font-size:11.5px; font-weight:600; cursor:pointer;
+}
+
+/* Cadre du CV dans la fenêtre d'annonce */
+.cv-annonce-cadre{ box-shadow:0 6px 32px rgba(0,0,0,.13); border-radius:6px; overflow:hidden; }
+.cv-annonce-vide{ padding:24px; color:var(--ink3); font-size:13px; }

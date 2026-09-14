@@ -1,55 +1,9 @@
-// ── RENDU BULLET AVEC EMPHASES DU PROFIL ──────────────────
-function renderBulletHtml(text, expIdx) {
-  const emphases = (P.emphases || []).filter(em =>
-    em.expIdx === expIdx || em.expIdx === null || em.expIdx === undefined
-  );
-  if (!emphases.length) return esc(text);
-
-  const _ats = (P.cvTemplate === 'ats');
-  // En ATS : surlignage jaune pour le texte, vert pour les chiffres (%, montants, KPI)
-  const atsTextStyle = 'background:#FEF08A;color:#1D1D1F;font-weight:700;padding:0 3px;border-radius:2px';
-  const atsNumStyle  = 'background:#BBF7D0;color:#14532D;font-weight:700;padding:0 3px;border-radius:2px';
-  const isNumberSeg  = t => /\d/.test(t);
-
-  const pillStyle      = _ats
-    ? atsTextStyle
-    : 'background:#ede9fe;color:#5b21b6;border-radius:100px;padding:1px 9px;font-weight:700;font-size:.92em;border:1px solid #ddd6fe';
-  const underlineStyle = _ats
-    ? atsTextStyle
-    : 'font-weight:800;border-bottom:2.5px solid #6366f1;padding-bottom:1px';
-
-  // Trie les emphases par position dans le texte (longest match first pour éviter chevauchements)
-  const sorted = [...emphases].sort((a, b) => b.text.length - a.text.length);
-
-  // Découpe le texte en segments (texte brut / spans)
-  let segments = [{ t: text, raw: true }];
-  sorted.forEach(em => {
-    const newSegs = [];
-    segments.forEach(seg => {
-      if (!seg.raw) { newSegs.push(seg); return; }
-      const lo = seg.t.toLowerCase();
-      const emLo = em.text.toLowerCase();
-      let idx = lo.indexOf(emLo);
-      if (idx === -1) { newSegs.push(seg); return; }
-      if (idx > 0) newSegs.push({ t: seg.t.slice(0, idx), raw: true });
-      newSegs.push({ t: seg.t.slice(idx, idx + em.text.length), raw: false, type: em.type });
-      const rest = seg.t.slice(idx + em.text.length);
-      if (rest) newSegs.push({ t: rest, raw: true });
-    });
-    segments = newSegs;
-  });
-
-  return segments.map(seg => {
-    if (seg.raw) return esc(seg.t);
-    let style;
-    if (seg.type === 'hl')         style = atsTextStyle;   // surlignage jaune explicite
-    else if (seg.type === 'hlnum') style = atsNumStyle;    // surlignage vert explicite
-    else {
-      style = seg.type === 'pill' ? pillStyle : underlineStyle;
-      if (_ats && isNumberSeg(seg.t)) style = atsNumStyle; // legacy : auto-vert si chiffre
-    }
-    return `<span data-cv-em="${seg.type}" style="${style}">${esc(seg.t)}</span>`;
-  }).join('');
+// ── RENDU D'UNE PUCE ───────────────────────────────────────
+// Texte simple : les mises en valeur sont posées après coup sur TOUT le CV
+// par appliqueMisesEnValeur() (tracker.js), à l'identique dans « Mon CV »
+// et dans la fenêtre d'annonce.
+function renderBulletHtml(text) {
+  return esc(text);
 }
 
 // ── MIGRATION : importe les emphases des overrides → P.emphases ────
@@ -343,6 +297,8 @@ function renderCV() {
 
   // Modèle unique, lisible par les ATS — règles détaillées dans le README
   const cvDoc = document.getElementById('cv-doc');
+  // Un nouveau rendu remplace le CV : on quitte proprement un mode édition en cours
+  if (cvDoc.dataset.editing === 'true' && typeof _exitCVEditMode === 'function') _exitCVEditMode('cv-doc');
   cvDoc.className = 'cv-doc cv-doc--ats';
 
   const displayTitle = _cvTarget || P.title;
@@ -383,14 +339,15 @@ function renderCV() {
     html += `<div class="cv-sec">
       <div class="cv-stitle">Profil</div>
       ${highlightBlock}
-      ${targetText ? `<div class="cv-summary-text">${targetHtml}</div>` : ''}
+      ${targetText ? `<div class="cv-summary-text cv-accroche">${targetHtml}</div>` : ''}
     </div>`;
   }
 
   // ── Expériences ──
-  if (P.experiences.length) {
+  if (P.experiences.some(e => !e.cvMasque)) {
     html += `<div class="cv-sec"><div class="cv-stitle">Expériences professionnelles</div>`;
     P.experiences.forEach((e, i) => {
+      if (e.cvMasque) return;   // masqué du CV, conservé dans le profil
       const activeBullets = (e.bullets || []).filter(b => b.required || b.selected);
       const expIdx = (typeof e._origIdx === 'number') ? e._origIdx : i;
       const bodyHtml = activeBullets.length
@@ -477,6 +434,8 @@ function renderCV() {
   }
 
   cvDoc.innerHTML = html;
+  // Mises en valeur du profil : identiques dans « Mon CV » et dans l'annonce
+  if (typeof appliqueMisesEnValeur === 'function') appliqueMisesEnValeur(cvDoc);
 }
 
 // ── ANALYSE DU CV ──────────────────────────────────────────
@@ -703,19 +662,10 @@ window._addFromPicker = function(key) {
   _syncSplitCV();
 };
 
-// Re-synchronise cv-doc-split avec cv-doc après un update
+// Re-synchronise la fenêtre d'annonce après une modification faite dans « Mon CV »
 function _syncSplitCV() {
-  const split = document.getElementById('cv-doc-split');
-  const main  = document.getElementById('cv-doc');
-  if (!split || !main) return;
-  // Synchronise la classe du template (cv-doc--ats / cv-doc--moderne)
-  split.className = main.className;
-  split.innerHTML = main.innerHTML;
-  // Strip les spans d'emphase statiques (renderBulletHtml) pour que
-  // _applyEmphases puisse reposer des spans interactifs proprement
-  split.querySelectorAll('span[data-cv-em]').forEach(span => {
-    span.replaceWith(document.createTextNode(span.textContent));
-  });
+  if (!document.getElementById('cv-doc-split')) return;
+  if (typeof _clonePourAnnonce === 'function') _clonePourAnnonce();
 }
 
 // Vrai titre du site, mémorisé une fois pour toutes. Sans ça, deux PDF
@@ -751,7 +701,7 @@ function printCV() {
   wrapper.innerHTML = `<div class="${_printClass}">${srcEl.innerHTML}</div>${_lettre}`;
 
   // Supprime les éléments interactifs (boutons +, toolbars) de la version imprimée
-  wrapper.querySelectorAll('button, #emphasis-toolbar, [id$="-picker"]').forEach(el => el.remove());
+  wrapper.querySelectorAll('button, #emphasis-toolbar, [id$="-picker"], .cv-edit-ui').forEach(el => el.remove());
 
   // Nom du fichier PDF = "Date - Poste - Entreprise"
   // Vaut pour la split view comme pour les boutons PDF (tableau, Feed)
