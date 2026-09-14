@@ -434,3 +434,20 @@
 /* Cadre du CV dans la fenêtre d'annonce */
 .cv-annonce-cadre{ box-shadow:0 6px 32px rgba(0,0,0,.13); border-radius:6px; overflow:hidden; }
 .cv-annonce-vide{ padding:24px; color:var(--ink3); font-size:13px; }
+
+/* ══════════════════════════════════════════════════════════
+   CV SUR UNE PAGE — espacements resserrés (modèle ATS)
+   ══════════════════════════════════════════════════════════ */
+/* Accroche : interligne normal, poste un peu moins haut (il agrandissait la ligne) */
+.cv-doc--ats .cv-summary-text{ line-height:1.5; }
+.cv-doc--ats .cv-summary-text .cv-accroche-poste{ font-size:13px; }
+/* Titres de rubrique plus proches de leur contenu */
+.cv-doc--ats .cv-stitle{ margin-bottom:5px; }
+/* Écart entre rubriques : 35 px → 14 px */
+.cv-doc--ats .cv-sec{ margin-bottom:0; padding-top:7px; margin-top:7px; }
+/* Profil → Expériences : petit écart, sans trait */
+.cv-doc--ats .cv-div + .cv-sec + .cv-sec{ margin-top:8px; }
+@media print{
+  /* Une rubrique entière ne saute plus en page 2 : seul un poste reste d'un seul bloc */
+  .cv-doc--ats .cv-sec{ page-break-inside:auto; break-inside:auto; }
+}
