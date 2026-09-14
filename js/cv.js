@@ -32,13 +32,14 @@ if (typeof P !== 'undefined' && P.domainesProfile && !P._v3_hookMigrated) {
 }
 
 // ── PROFILE HIGHLIGHT BUILDER ──────────────────────────────
-// Texte simple (plus de pastilles colorées) : chaque ligne est un bloc,
-// avec de vrais séparateurs « | » écrits dans le texte.
+// Texte simple (plus de pastilles colorées) : un seul paragraphe continu,
+// avec de vrais séparateurs « | » écrits dans le texte. Le retour à la ligne
+// se fait seulement quand la largeur est pleine (gain de place sur le CV).
 function buildProfileHighlight() {
   const sep    = '<span class="cv-sep"> | </span>';
   const lignes = [];
 
-  // Ligne 1 : Formation (depuis education[0])
+  // Formation (depuis education[0])
   const edu = P.education && P.education[0];
   if (edu && edu.degree) {
     const endYear = edu.year ? edu.year.trim().split(/\s*[-–—]\s*/).pop() : '';
@@ -49,7 +50,7 @@ function buildProfileHighlight() {
     lignes.push(`Fort(e) de <strong>${esc(P.yearsExp)} d'expérience</strong>`);
   }
 
-  // Ligne 2 : contrat, disponibilité, mobilité, permis
+  // Contrat, disponibilité, mobilité, permis — à la suite de la formation
   const infos = [];
   if (P.contratRecherche) infos.push(`Contrat recherché : <strong>${esc(P.contratRecherche)}</strong>`);
   if (P.disponibilite)    infos.push(`Disponibilité : <strong>${esc(P.disponibilite)}</strong>`);
@@ -61,7 +62,7 @@ function buildProfileHighlight() {
   if (infos.length) lignes.push(infos.join(sep));
 
   if (!lignes.length) return '';
-  return `<div class="cv-profile-highlight">${lignes.map(l => `<div class="cv-phi-line">${l}</div>`).join('')}</div>`;
+  return `<div class="cv-profile-highlight"><div class="cv-phi-line">${lignes.join(sep)}</div></div>`;
 }
 
 // ── MODÈLE UNIQUE ──────────────────────────────────────────
