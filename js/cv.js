@@ -314,7 +314,8 @@ function renderCV() {
     P.email    ? esc(P.email)    : '',
     P.phone    ? esc(P.phone)    : '',
     P.location ? esc(P.location) : '',
-    liTexte    ? `<a href="https://${esc(liTexte)}" class="cv-link">${esc(liTexte)}</a>` : ''
+    // Texte court « 🔗 LinkedIn » : l'adresse complète reste dans le lien cliquable du PDF
+    liTexte    ? `<a href="https://${esc(liTexte)}" class="cv-link cv-link--linkedin">🔗 LinkedIn</a>` : ''
   ].filter(Boolean).join(sep);
 
   let html = `

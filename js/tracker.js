@@ -911,23 +911,85 @@ function _refreshSplitCV() {
 
 // ── MISES EN VALEUR (surlignage jaune = texte, vert = chiffre) ──
 // Même affichage partout : retire les surlignages présents, repose ceux du profil.
+// Chaque mise en valeur est rangée avec l'endroit où elle a été faite
+// (poste, ligne, rubrique) : surligner « Octobre 2026 » dans le Profil ne
+// surligne pas la même date dans une expérience.
+
+// Lignes du CV qui délimitent une mise en valeur (la plus proche l'emporte)
+const _EM_PARTIES = ['cv-etitle', 'cv-eco', 'cv-emeta', 'cv-edesc', 'cv-bullets',
+  'cv-accroche', 'cv-profile-highlight', 'cv-hd', 'cv-edu-row', 'cv-skill-row', 'cv-summary-text'];
+
+// Endroit d'une sélection : { expIdx, partie, rubrique }
+function _zoneDe(node) {
+  const el = node && (node.nodeType === 3 ? node.parentElement : node);
+  if (!el) return { expIdx: null, partie: null, rubrique: null };
+  const exp      = el.closest('.cv-exp[data-exp-idx]');
+  const partieEl = el.closest(_EM_PARTIES.map(c => '.' + c).join(','));
+  const partie   = partieEl ? _EM_PARTIES.find(c => partieEl.classList.contains(c)) : null;
+  const titre    = el.closest('.cv-sec')?.querySelector('.cv-stitle');
+  return {
+    expIdx:   exp ? parseInt(exp.dataset.expIdx) : null,
+    partie:   partie || null,
+    rubrique: titre ? titre.textContent.trim() : null
+  };
+}
+
+function _memeZone(a, b) {
+  return (a.expIdx ?? null) === (b.expIdx ?? null)
+      && (a.partie ?? null) === (b.partie ?? null)
+      && (a.rubrique ?? null) === (b.rubrique ?? null);
+}
+
+// Conteneurs où poser une mise en valeur
+function _ciblesMiseEnValeur(docEl, em) {
+  let racines;
+  if (em.expIdx !== null && em.expIdx !== undefined) {
+    const exp = docEl.querySelector(`.cv-exp[data-exp-idx="${em.expIdx}"]`);
+    racines = exp ? [exp] : [];          // poste masqué : rien à surligner
+  } else if (em.rubrique) {
+    racines = [...docEl.querySelectorAll('.cv-sec')]
+      .filter(sec => sec.querySelector('.cv-stitle')?.textContent.trim() === em.rubrique);
+  } else {
+    racines = [docEl];
+  }
+  if (!em.partie) return racines;
+  return racines.flatMap(r => [
+    ...(r.classList.contains(em.partie) ? [r] : []),
+    ...r.querySelectorAll('.' + em.partie)
+  ]);
+}
+
 function appliqueMisesEnValeur(docEl) {
   if (!docEl) return;
   docEl.querySelectorAll('span[data-emphasis], span[data-cv-em]').forEach(sp =>
     sp.replaceWith(document.createTextNode(sp.textContent)));
   docEl.normalize();   // recolle les morceaux de texte, sinon une phrase coupée n'est plus trouvée
   (P.emphases || []).forEach(em => {
-    let cible = docEl;
-    if (em.expIdx !== null && em.expIdx !== undefined) {
-      cible = docEl.querySelector(`.cv-exp[data-exp-idx="${em.expIdx}"]`) || docEl;
-    }
-    _wrapPhrase(cible, em.text, em.type);
+    // Hors d'une expérience, ne jamais déborder dans les expériences
+    // (couvre aussi les anciennes mises en valeur enregistrées sans endroit)
+    const horsExperiences = em.expIdx === null || em.expIdx === undefined;
+    _ciblesMiseEnValeur(docEl, em).forEach(c => _wrapPhrase(c, em, horsExperiences));
   });
 }
 
-function _enregistreMiseEnValeur(text, type, expIdx) {
-  P.emphases = (P.emphases || []).filter(em => em.text.toLowerCase() !== text.toLowerCase());
-  if (type !== 'remove') P.emphases.push({ text, type, expIdx });
+function _enregistreMiseEnValeur(text, type, zone) {
+  const t    = text.toLowerCase();
+  const meme = em => em.text.toLowerCase() === t && _memeZone(em, zone);
+  const liste = P.emphases || [];
+  if (type === 'remove') {
+    // ✕ : retire à cet endroit ; à défaut (ancienne mise en valeur), partout
+    P.emphases = liste.some(meme) ? liste.filter(em => !meme(em)) : liste.filter(em => em.text.toLowerCase() !== t);
+  } else {
+    P.emphases = liste.filter(em => !meme(em));
+    P.emphases.push({ text, type, ...zone });
+  }
+  ss('sc_profile', P);
+  rafraichitVuesCV();
+}
+
+// Clic sur un surlignage : retire celui-là seulement
+function _retireMiseEnValeur(em) {
+  P.emphases = (P.emphases || []).filter(x => x !== em);
   ss('sc_profile', P);
   rafraichitVuesCV();
 }
@@ -957,10 +1019,8 @@ function _setupEmphasisSelection(docId) {
 function _showEmphasisToolbar(text, range) {
   document.getElementById('emphasis-toolbar')?.remove();
 
-  // La mise en valeur est limitée à l'expérience où la sélection a été faite
-  const anchor = range.commonAncestorContainer;
-  const exp    = (anchor.nodeType === 3 ? anchor.parentElement : anchor)?.closest?.('.cv-exp[data-exp-idx]');
-  const expIdx = exp ? parseInt(exp.dataset.expIdx) : null;
+  // La mise en valeur est limitée à l'endroit où la sélection a été faite
+  const zone = _zoneDe(range.commonAncestorContainer);
 
   const rect  = range.getBoundingClientRect();
   const barre = document.createElement('div');
@@ -982,7 +1042,7 @@ function _showEmphasisToolbar(text, range) {
       e.preventDefault();
       barre.remove();
       window.getSelection()?.removeAllRanges();
-      _enregistreMiseEnValeur(text, btn.dataset.em, expIdx);
+      _enregistreMiseEnValeur(text, btn.dataset.em, zone);
     });
   });
 
@@ -992,9 +1052,11 @@ function _showEmphasisToolbar(text, range) {
   setTimeout(() => document.addEventListener('mousedown', fermeAilleurs), 50);
 }
 
-// Entoure les occurrences d'une phrase dans un conteneur
-function _wrapPhrase(container, phrase, type) {
+// Entoure les occurrences d'une mise en valeur dans un conteneur
+function _wrapPhrase(container, em, horsExperiences = false) {
+  const phrase = em && em.text;
   if (!phrase) return;
+  const type      = em.type;
   const phraseLow = phrase.toLowerCase();
   // Anciens types (badge, souligné) : jaune pour du texte, vert s'il y a un chiffre
   const chiffre = type === 'hlnum' || (type !== 'hl' && /\d/.test(phrase));
@@ -1003,6 +1065,7 @@ function _wrapPhrase(container, phrase, type) {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
     acceptNode: n => {
       if (n.parentElement?.closest('[data-emphasis], button, .cv-edit-ui')) return NodeFilter.FILTER_REJECT;
+      if (horsExperiences && n.parentElement?.closest('.cv-exp')) return NodeFilter.FILTER_REJECT;
       return n.textContent.toLowerCase().includes(phraseLow) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
     }
   });
@@ -1024,7 +1087,7 @@ function _wrapPhrase(container, phrase, type) {
       // En mode édition, un clic sert à placer le curseur, pas à retirer
       if (span.closest('[data-editing="true"]')) return;
       e.stopPropagation();
-      _enregistreMiseEnValeur(phrase, 'remove', null);
+      _retireMiseEnValeur(em);
     };
 
     const before = content.slice(0, idx);

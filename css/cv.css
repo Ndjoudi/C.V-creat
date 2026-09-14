@@ -455,3 +455,9 @@
 /* En-tête : poste ciblé au-dessus du nom (choix de l'utilisateur, voir README) */
 .cv-doc--ats .cv-hd-main .cv-ats-poste{ margin-bottom:2px; }
 .cv-doc--ats .cv-hd-main .cv-nm{ margin-bottom:4px; }
+
+/* Lien LinkedIn de l'en-tête : bleu officiel LinkedIn, gardé à l'impression */
+.cv-link--linkedin{
+  color:#0A66C2; font-weight:600;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
