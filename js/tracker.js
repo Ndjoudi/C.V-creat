@@ -75,9 +75,31 @@ async function _fetchLinkedInJob(url) {
   if (!jobId) throw new Error('ID du poste introuvable dans ce lien');
 
   const targetUrl = `https://www.linkedin.com/jobs/view/${jobId}`;
-  const res = await fetch(`${_LI_WORKER}?url=${encodeURIComponent(targetUrl)}`);
-  if (!res.ok) throw new Error(`Erreur ${res.status}`);
-  const html = await res.text();
+
+  // LinkedIn limite le réseau Cloudflare (le worker) : environ 1 requête
+  // sur 6 passe, sur la page classique comme sur l'API "guest". On alterne
+  // donc les deux adresses sur quelques tours, avec une pause pour ne pas
+  // aggraver la limitation. Au pire ~5 s d'attente avant le repli.
+  const guestUrl = `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${jobId}`;
+  const TOURS = 4;
+  let html = '';
+  tours: for (let tour = 0; tour < TOURS; tour++) {
+    if (tour > 0) await new Promise(r => setTimeout(r, 700));
+    for (const u of [guestUrl, targetUrl]) {
+      try {
+        const res = await fetch(`${_LI_WORKER}?url=${encodeURIComponent(u)}&_=${Date.now()}`);
+        if (!res.ok) continue;
+        const txt = await res.text();
+        // Une vraie offre pèse des dizaines de Ko ; 0 ou ~800 o = refus déguisé
+        if (txt.length > 1000) { html = txt; break tours; }
+      } catch {}
+    }
+  }
+  // LinkedIn répond "429 — trop de requêtes" à tout le réseau Cloudflare :
+  // attendre ne change rien, le copier-coller est la vraie solution.
+  if (html.length < 1000) {
+    throw new Error('LinkedIn a bloqué la récupération automatique — ouvre l\'annonce, copie tout son texte et colle-le ici');
+  }
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -90,13 +112,24 @@ async function _fetchLinkedInJob(url) {
 
   const toStr = v => !v ? '' : Array.isArray(v) ? v[0] || '' : String(v);
 
+  // La réponse "guest" n'a ni JSON-LD ni <h1> : titre en <h2> et contrat
+  // dans la liste des critères ("Type d'emploi").
+  const critere = (libelle) => {
+    for (const li of doc.querySelectorAll('.description__job-criteria-item')) {
+      const h = li.querySelector('.description__job-criteria-subheader')?.textContent || '';
+      if (libelle.test(h)) return li.querySelector('.description__job-criteria-text')?.textContent?.trim() || '';
+    }
+    return '';
+  };
+
   const title    = toStr(structured?.title)
-                 || doc.querySelector('h1')?.textContent?.trim() || '';
+                 || doc.querySelector('.top-card-layout__title, .topcard__title, h1')?.textContent?.trim() || '';
   const company  = toStr(structured?.hiringOrganization?.name)
                  || doc.querySelector('.topcard__org-name-link,.company-name')?.textContent?.trim() || '';
   const location = toStr(structured?.jobLocation?.[0]?.address?.addressLocality)
                  || doc.querySelector('.topcard__flavor--bullet,.job-location')?.textContent?.trim() || '';
-  const contract = toStr(Array.isArray(structured?.employmentType) ? structured.employmentType[0] : structured?.employmentType);
+  const contract = toStr(Array.isArray(structured?.employmentType) ? structured.employmentType[0] : structured?.employmentType)
+                 || critere(/type d.emploi|employment type/i);
 
   // Description → on priorise le HTML DOM (mise en forme conservée) sur le JSON-LD (texte brut)
   const domDescEl = doc.querySelector('.show-more-less-html__markup')
@@ -214,7 +247,8 @@ async function _runJobFetch(url, source) {
     _liLastJob = job;
 
     if (!job.descText || job.descText.length < 50) {
-      throw new Error('Description vide — LinkedIn a peut-être bloqué la requête');
+      // Message utile plutôt qu'un diagnostic : la solution de repli existe déjà
+      throw new Error(`${label} a bloqué la récupération automatique — ouvre l'annonce, copie tout son texte et colle-le ici`);
     }
 
     // Stocke la description pour addCandFromDash()
