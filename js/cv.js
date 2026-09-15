@@ -738,8 +738,11 @@ function printCV() {
   const titreDefini = document.title;
   // Attend que les images (photo, lettre scannée) soient prêtes : sinon
   // l'impression peut partir avec une page 2 blanche.
+  // Attente limitée à 1,5 s : si le navigateur ne répond pas (onglet en
+  // arrière-plan), l'impression part quand même.
   const _images = [...wrapper.querySelectorAll('img')].map(img => img.decode().catch(() => {}));
-  Promise.all(_images).then(() => setTimeout(() => {
+  const _delaiMax = new Promise(r => setTimeout(r, 1500));
+  Promise.race([Promise.all(_images), _delaiMax]).then(() => setTimeout(() => {
     window.print();
     // Restaure le titre du site — mais seulement si un autre PDF n'a pas
     // déjà pris la main entre-temps.

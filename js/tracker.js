@@ -587,25 +587,38 @@ async function runPasteAnalysis() {
   }
 }
 
+// ── PRÉPARER LE CV POUR UNE OFFRE ──────────────────────────
+// UNE seule préparation, utilisée par la fenêtre d'annonce ET par tous les
+// boutons PDF (tableau de bord, suivi, fenêtre d'analyse, annonce, Feed) :
+//   • poste ciblé sans la mention (H/F) ;
+//   • compétences mises en avant = analyse IA + ajouts manuels de CETTE offre,
+//     moins les compétences retirées à la main pour cette offre.
+// Ainsi le PDF est identique quel que soit le bouton utilisé.
+function _prepareCVPourCand(c) {
+  const a = c.analysis || {};
+  const target = a.poste || c.poste;
+  _cvTarget = typeof cleanJobTitle === 'function' ? cleanJobTitle(target) : target;
+  localStorage.setItem('sc_cv_target', _cvTarget);
+
+  const baseIA = [...(a.keywords_present || []), ...(a.must_have || []), ...(a.nice_to_have || [])].filter(Boolean);
+  _matchedSkills = [...new Set([...baseIA, ...(c.manual_matched_skills || [])])];
+  localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
+
+  // Réinitialisé à chaque offre : les retraits d'une autre offre ne s'appliquent pas ici
+  if (typeof _deselectedSkills !== 'undefined') {
+    _deselectedSkills = [...(c.manual_deselected_skills || [])];
+    _deselectedSkills.length
+      ? localStorage.setItem('sc_deselected_skills', JSON.stringify(_deselectedSkills))
+      : localStorage.removeItem('sc_deselected_skills');
+  }
+}
+
 // ── CHARGER LE CV POUR UNE CANDIDATURE ─────────────────────
 function loadCVForCand(candId, andPrint = false) {
   const c = ls('sc_cands', []).find(x => x.id === candId);
   if (!c) return;
 
-  // Injecter le poste ciblé — sans la mention de mixité (H/F)
-  const target = c.analysis?.poste || c.poste;
-  _cvTarget = typeof cleanJobTitle === 'function' ? cleanJobTitle(target) : target;
-  localStorage.setItem('sc_cv_target', _cvTarget);
-
-  // Injecter les compétences matchées
-  if (c.analysis) {
-    _matchedSkills = [
-      ...(c.analysis.keywords_present || []),
-      ...(c.analysis.must_have        || []),
-      ...(c.analysis.nice_to_have     || [])
-    ].filter(Boolean);
-    localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
-  }
+  _prepareCVPourCand(c);
 
   closeAnalysisModal();
 
@@ -3432,22 +3445,9 @@ async function openSplitView(candId) {
   if (!c) return;
   window._splitCandId = candId;
 
-  // ── CV adapté — panneau droit (sync) ──
+  // ── CV adapté — panneau droit : même préparation que les boutons PDF ──
   const a = c.analysis || {};
-  _cvTarget = a.poste || c.poste;
-  localStorage.setItem('sc_cv_target', _cvTarget);
-  // Base IA + sélections manuelles persistées par candidature
-  const _aiBase = [...(a.keywords_present||[]),...(a.must_have||[]),...(a.nice_to_have||[])].filter(Boolean);
-  const _manualAdded    = c.manual_matched_skills   || [];
-  const _manualDeselect = c.manual_deselected_skills || [];
-  _matchedSkills = [...new Set([..._aiBase, ..._manualAdded])];
-  localStorage.setItem('sc_matched_skills', JSON.stringify(_matchedSkills));
-  if (typeof _deselectedSkills !== 'undefined') {
-    _deselectedSkills = [..._manualDeselect];
-    _deselectedSkills.length
-      ? localStorage.setItem('sc_deselected_skills', JSON.stringify(_deselectedSkills))
-      : localStorage.removeItem('sc_deselected_skills');
-  }
+  _prepareCVPourCand(c);
 
   // Même CV que « Mon CV » : une seule source, le profil
   renderCV();
