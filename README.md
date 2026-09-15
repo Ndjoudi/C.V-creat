@@ -168,15 +168,15 @@ code** du site et la **vraie mise en page d'impression**.
    coller dans un éditeur de texte brut : **c'est ce que lit un ATS.**
 
 3. Vérifier :
-   - [ ] La première ligne est le nom
-   - [ ] Le LinkedIn apparaît en toutes lettres
+   - [ ] La première ligne est le poste visé, puis le nom (choix assumé, voir tableau ci-dessus)
+   - [ ] « 🔗 LinkedIn » est présent (l'adresse est dans le lien, pas dans le texte)
    - [ ] E-mail, téléphone, ville et LinkedIn sont séparés par ` | `
    - [ ] Chaque intitulé de poste est seul sur sa ligne
    - [ ] Les dates d'expérience sont complètes
    - [ ] Les libellés de compétences sont lisibles (« Domaines : … »)
    - [ ] Aucun symbole parasite (✉ ☎ ▸ ×)
    - [ ] Aucune catégorie de compétences vide
-   - [ ] La lettre de recommandation apparaît en page 2, en texte lisible
+   - [ ] La lettre de recommandation apparaît en page 2 : en texte lisible (PDF texte) ou en image (scan), jamais de texte caché
 
 Le fichier `_resultat-ats.pdf` est ignoré par Git.
 
@@ -237,6 +237,8 @@ Fichiers : `js/bouton-favori.js` (le favori), `js/import-annonce.js` (la récept
 | 2026-09-14 | **Photo conservée** sur le CV | Choix personnel ; elle ne perturbe pas l'extraction du texte |
 | 2026-09-14 | **PDF uniquement** (pas d'export Word) | Un PDF texte bien construit passe la grande majorité des ATS |
 | 2026-09-14 | **Lettre de recommandation en texte visible** en page 2 | La version image + texte caché risquait d'être signalée comme tromperie |
+| 2026-09-15 | **Lettre scannée jointe en image** (sans texte caché) | Un scan d'imprimante n'a pas de texte à extraire : l'image, ignorée par l'ATS, reste lisible par le recruteur. 3 pages max, 150 ppp, rendu pdf.js en mode `print` (fonctionne onglet caché) |
+| 2026-09-15 | **« 🔗 LinkedIn »** en bleu au lieu de l'adresse | Choix de l'utilisateur ; l'adresse reste dans le lien du PDF |
 | 2026-09-14 | Import Indeed/LinkedIn par **bouton favori** | Toute lecture côté serveur est bloquée (section 7) |
 
 ---

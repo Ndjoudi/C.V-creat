@@ -736,12 +736,15 @@ function printCV() {
   }
 
   const titreDefini = document.title;
-  setTimeout(() => {
+  // Attend que les images (photo, lettre scannée) soient prêtes : sinon
+  // l'impression peut partir avec une page 2 blanche.
+  const _images = [...wrapper.querySelectorAll('img')].map(img => img.decode().catch(() => {}));
+  Promise.all(_images).then(() => setTimeout(() => {
     window.print();
     // Restaure le titre du site — mais seulement si un autre PDF n'a pas
     // déjà pris la main entre-temps.
     setTimeout(() => {
       if (document.title === titreDefini) document.title = originalTitle;
     }, 1000);
-  }, 80);
+  }, 80));
 }
