@@ -1,17 +1,55 @@
 // ── CV IMPORT ──────────────────────────────────────────────
 let _importedData = null;
 
-async function importCVFromText() {
-  const text = document.getElementById('import-cv-txt').value.trim();
-  if (!text) { toast('Colle d\'abord le texte de ton CV'); return; }
-  if (text.length < 100) { toast('Le texte semble trop court — colle l\'intégralité du CV'); return; }
+// Le CV arrive en PDF : on en extrait le texte avec le lecteur PDF déjà
+// embarqué pour la lettre de recommandation (js/lettre-reco.js), puis
+// l'IA remplit le profil. Aucun copier-coller.
+async function importeCVdepuisPDF(input) {
+  const f = input.files && input.files[0];
+  if (input.value !== undefined) input.value = '';   // permet de redéposer le même fichier
+  if (!f) return;
+  if (!/\.pdf$/i.test(f.name))   { toast('Dépose un fichier PDF'); return; }
+  if (f.size > 12 * 1024 * 1024) { toast('PDF trop lourd (12 Mo maximum)'); return; }
 
-  const btn   = document.getElementById('import-cv-btn');
+  const ldg   = document.getElementById('import-cv-loading');
+  const errEl = document.getElementById('import-cv-error');
+  const prev  = document.getElementById('import-cv-preview');
+  const nomEl = document.getElementById('import-cv-fichier');
+
+  if (nomEl) nomEl.textContent = f.name;
+  ldg.classList.remove('hidden');
+  errEl.classList.add('hidden');
+  prev.classList.add('hidden');
+
+  try {
+    const pdfjs = await _chargePdfJs();
+    const doc   = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    const texte = await _texteDuDocument(doc);
+    if (!texte || texte.length < 100) {
+      throw new Error("Aucun texte lisible dans ce PDF — c'est sans doute un scan. Exporte ton CV en PDF depuis Word ou ton logiciel de CV, puis redépose-le.");
+    }
+    await _analyseTexteCV(texte);
+  } catch (e) {
+    errEl.textContent = e.message || String(e);
+    errEl.classList.remove('hidden');
+  } finally {
+    ldg.classList.add('hidden');
+  }
+}
+
+// Glisser-déposer : même chemin que le bouton « Choisir un fichier »
+function _importCVdepuisGlisser(ev) {
+  ev.preventDefault();
+  document.getElementById('import-cv-zone')?.classList.remove('cv-depot--actif');
+  const f = ev.dataTransfer?.files?.[0];
+  if (f) importeCVdepuisPDF({ files: [f] });
+}
+
+async function _analyseTexteCV(text) {
   const ldg   = document.getElementById('import-cv-loading');
   const errEl = document.getElementById('import-cv-error');
   const prev  = document.getElementById('import-cv-preview');
 
-  btn.disabled = true; btn.textContent = 'Extraction en cours...';
   ldg.classList.remove('hidden');
   errEl.classList.add('hidden');
   prev.classList.add('hidden');
@@ -46,7 +84,8 @@ Réponds UNIQUEMENT en JSON valide sans markdown ni backticks :
 {"firstName":"","lastName":"","email":"","phone":"","location":"","linkedin":"","title":"","yearsExp":"","summary":"","experiences":[{"title":"","company":"","duration":"","location":"","description":""}],"education":[{"degree":"","school":"","year":"","mention":""}],"languages":[{"name":"","level":""}],"subdomains":[],"tools":[],"certifs":[],"sectors":[],"customSkills":[]}`;
 
   try {
-    const raw  = await callGroq(prompt, { maxTokens: 3000, temperature: 0.1 });
+    // Même bascule automatique que l'analyse d'offre : Gemini puis Groq
+    const { text: raw } = await callAIAuto(prompt, { maxTokens: 3000, temperature: 0.1 });
     const data = safeParseJSON(raw);
 
     // Générer des IDs pour les tableaux
@@ -64,12 +103,10 @@ Réponds UNIQUEMENT en JSON valide sans markdown ni backticks :
     prev.classList.remove('hidden');
     toast('CV analysé — vérifie les informations');
   } catch (e) {
-    errEl.textContent = groqErrorMessage(e);
+    errEl.textContent = typeof groqErrorMessage === 'function' ? groqErrorMessage(e) : (e.message || String(e));
     errEl.classList.remove('hidden');
   } finally {
     ldg.classList.add('hidden');
-    btn.disabled = false;
-    btn.textContent = 'Extraire avec l\'IA';
   }
 }
 
@@ -112,7 +149,8 @@ function applyImportedCV() {
   });
 
   document.getElementById('import-cv-preview').classList.add('hidden');
-  document.getElementById('import-cv-txt').value = '';
+  const nomEl = document.getElementById('import-cv-fichier');
+  if (nomEl) nomEl.textContent = '';
   _importedData = null;
 
   toast('Profil importé');

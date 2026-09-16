@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
-<link rel="stylesheet" href="css/components.css?v=43"/>
+<link rel="stylesheet" href="css/components.css?v=44"/>
 <link rel="stylesheet" href="css/cv.css?v=73"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
@@ -221,18 +221,20 @@
       <div id="tab-import">
         <div class="card card-hi" style="margin-bottom:16px">
           <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px;display:flex;align-items:center;gap:8px"><i data-lucide="file-up" style="width:17px;height:17px;flex-shrink:0"></i>Importer ton CV existant</div>
-          <div style="font-size:13px;color:var(--ink3);line-height:1.65">Copie-colle le texte de ton CV (depuis Word, PDF, LinkedIn...). L'IA extrait automatiquement toutes les informations et remplit ton profil. Tu pourras vérifier et corriger avant de valider.</div>
+          <div style="font-size:13px;color:var(--ink3);line-height:1.65">Dépose ton CV en PDF : l'IA en extrait toutes les informations et remplit ton profil. Tu pourras vérifier et corriger avant de valider.</div>
         </div>
         <div class="card">
-          <div class="fg-row" style="margin-bottom:10px">
-            <label class="lb">Texte de ton CV</label>
-            <span style="font-size:11px;color:var(--ink3)">Ctrl+A dans ton PDF puis colle ici</span>
-          </div>
-          <textarea class="inp" id="import-cv-txt" rows="14" placeholder="Jean Dupont&#10;Responsable Supply Chain | 8 ans d'expérience&#10;jean.dupont@email.com · +33 6 12 34 56 78 · Paris&#10;&#10;EXPÉRIENCES&#10;Responsable Approvisionnement — Carrefour (2020-2024)&#10;• Gestion de 3 000 références fournisseurs...&#10;&#10;COMPÉTENCES&#10;SAP MM, Excel avancé, Power BI..."></textarea>
-          <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <button class="btn btn-p" id="import-cv-btn" onclick="importCVFromText()"><i data-lucide="sparkles" class="btn-icon-sm"></i>Extraire avec l'IA</button>
-            <button class="btn btn-g" onclick="document.getElementById('import-cv-txt').value=''">Effacer</button>
-            <span style="font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:5px"><i data-lucide="alert-triangle" style="width:12px;height:12px;flex-shrink:0"></i>Tes données actuelles seront remplacées</span>
+          <div id="import-cv-zone" class="cv-depot"
+            ondragover="event.preventDefault();this.classList.add('cv-depot--actif')"
+            ondragleave="this.classList.remove('cv-depot--actif')"
+            ondrop="_importCVdepuisGlisser(event)">
+            <div class="cv-depot-titre">Dépose ton CV en PDF ici</div>
+            <label class="btn btn-p" style="cursor:pointer;margin:0">
+              <i data-lucide="file-up" class="btn-icon-sm"></i>Choisir un fichier PDF
+              <input type="file" accept="application/pdf,.pdf" hidden onchange="importeCVdepuisPDF(this)">
+            </label>
+            <div id="import-cv-fichier" class="cv-depot-fichier"></div>
+            <div class="cv-depot-note">PDF texte (Word exporté, LinkedIn…) — un scan ne peut pas être lu. Tes données actuelles seront remplacées.</div>
           </div>
         </div>
         <div id="import-cv-loading" class="ldg hidden"><div class="sp"></div>L'IA analyse ton CV et extrait les informations...</div>
@@ -733,7 +735,7 @@
 <script src="js/api.js?v=39"></script>
 <script src="js/app.js?v=71"></script>
 <script src="js/profile.js?v=53"></script>
-<script src="js/import-cv.js?v=35"></script>
+<script src="js/import-cv.js?v=36"></script>
 <script src="js/cv.js?v=90"></script>
 <script src="js/analyze.js?v=39"></script>
 <script src="js/history.js?v=35"></script>
@@ -743,7 +745,7 @@
 <script src="js/modal.js?v=36"></script>
 <script src="js/navigation.js?v=1"></script>
 <script src="js/import-annonce.js?v=3"></script>
-<script src="js/bouton-favori.js?v=4"></script>
+<script src="js/bouton-favori.js?v=6"></script>
 
 </body>
 </html>

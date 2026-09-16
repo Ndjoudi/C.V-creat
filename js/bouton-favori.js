@@ -1,5 +1,7 @@
 // ── BOUTON FAVORI « ENVOYER À SUPPLY COPILOT » ─────────────
 // Un favori (bookmarklet) à glisser dans la barre du navigateur.
+// Fonctionne aussi en vue « liste à gauche, détail à droite » : le détail
+// est parfois dans un cadre interne (iframe), qui est lu lui aussi.
 // Sur une offre Indeed ou LinkedIn déjà ouverte, un clic lit l'annonce
 // DANS TON NAVIGATEUR (donc sans blocage anti-robot ni connexion requise),
 // la copie dans le presse-papiers et ouvre l'app qui la reçoit.
@@ -10,8 +12,15 @@ function _boutonFavoriCode(appUrl) {
   return `(function(){
 var APP=${JSON.stringify(appUrl)},MARQ='@@SUPPLY-COPILOT@@';
 function nettoie(e){if(!e)return'';var c=e.cloneNode(true);c.querySelectorAll('style,script,button,svg').forEach(function(x){x.remove()});return c.textContent.replace(/\\s+/g,' ').trim();}
-function t(sels){for(var i=0;i<sels.length;i++){var v=nettoie(document.querySelector(sels[i]));if(v)return v;}return'';}
-function bloc(sels){for(var i=0;i<sels.length;i++){var e=document.querySelector(sels[i]);if(e&&e.innerText&&e.innerText.trim().length>50)return e.innerText.trim();}return'';}
+function docs(){var L=[document],f=document.querySelectorAll('iframe');
+for(var i=0;i<f.length;i++){try{var dd=f[i].contentDocument;if(dd&&dd.body)L.push(dd);}catch(e){}}
+return L;}
+function t(sels){var D=docs();for(var j=0;j<D.length;j++){for(var i=0;i<sels.length;i++){var v=nettoie(D[j].querySelector(sels[i]));if(v)return v;}}return'';}
+function bloc(sels){var D=docs();for(var j=0;j<D.length;j++){for(var i=0;i<sels.length;i++){var e=D[j].querySelector(sels[i]);if(e&&e.innerText&&e.innerText.trim().length>50)return e.innerText.trim();}}return'';}
+function blocSecours(){var D=docs(),m='';
+for(var j=0;j<D.length;j++){var c=D[j].querySelectorAll('[id*="escription"],[class*="escription"],[id*="job-details"],[class*="job-details"],[class*="jobDescription"]');
+for(var i=0;i<c.length;i++){var t=c[i].innerText?c[i].innerText.trim():'';if(t.length>m.length&&t.length<40000)m=t;}}
+return m.length>200?m:'';}
 var h=location.hostname,q=new URLSearchParams(location.search),d={};
 if(/indeed\\./.test(h)){
 d.source='indeed';
@@ -32,7 +41,8 @@ d.location=t(['.job-details-jobs-unified-top-card__primary-description-container
 d.url=id?'https://www.linkedin.com/jobs/view/'+id:location.href;
 d.descText=bloc(['#job-details','.jobs-description__content','.jobs-box__html-content','.show-more-less-html__markup']);
 }else{alert('Ouvre d\\'abord une offre Indeed ou LinkedIn, puis clique sur ce favori.');return;}
-if(!d.descText){alert('Description introuvable : clique d\\'abord sur l\\'offre pour afficher son détail, puis réessaie.');return;}
+if(!d.descText)d.descText=blocSecours();
+if(!d.descText){alert('Description introuvable sur cette page.\\n\\nLu : '+(d.title||'(pas de titre)')+' / '+(d.company||'(pas d\\'entreprise)')+'\\n\\nOuvre l\\'offre en plein écran (pas la liste de résultats), attends qu\\'elle s\\'affiche, puis réessaie.');return;}
 var oct=new TextEncoder().encode(JSON.stringify(d)),s='';for(var i=0;i<oct.length;i++)s+=String.fromCharCode(oct[i]);
 var b64=btoa(s).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
 function copie(txt){try{navigator.clipboard.writeText(txt);return;}catch(e){}var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}ta.remove();}
