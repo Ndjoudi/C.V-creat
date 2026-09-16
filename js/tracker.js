@@ -630,7 +630,9 @@ function posteSimplifie(titre) {
 // Ainsi le PDF est identique quel que soit le bouton utilisé.
 function _prepareCVPourCand(c) {
   const a = c.analysis || {};
-  const target = a.poste || c.poste;
+  // Le poste enregistré (celui du tableau de bord, modifiable) passe en
+  // premier : l'IA reprend parfois l'accroche de l'annonce comme intitulé.
+  const target = c.poste || a.poste;
   _cvTarget = typeof cleanJobTitle === 'function' ? cleanJobTitle(target) : target;
   localStorage.setItem('sc_cv_target', _cvTarget);
 
@@ -3637,8 +3639,9 @@ async function openSplitView(candId) {
 
   // ── Données structurées — depuis l'analyse locale (0 API) ──
   let jobInfo = {
-    title:        a.poste        || c.poste    || '',
-    company:      a.entreprise   || c.company  || '',
+    // Poste et entreprise enregistrés d'abord : les mêmes que le tableau de bord et le CV
+    title:        c.poste    || a.poste       || '',
+    company:      c.company  || a.entreprise  || '',
     location:     a.location     || c.jobLocation  || '',
     salary:       a.salary       || c.jobSalary    || '',
     contractType: a.contractType || c.jobContract  || '',
