@@ -17,6 +17,11 @@ for(var i=0;i<f.length;i++){try{var dd=f[i].contentDocument;if(dd&&dd.body)L.pus
 return L;}
 function t(sels){var D=docs();for(var j=0;j<D.length;j++){for(var i=0;i<sels.length;i++){var v=nettoie(D[j].querySelector(sels[i]));if(v)return v;}}return'';}
 function bloc(sels){var D=docs();for(var j=0;j<D.length;j++){for(var i=0;i<sels.length;i++){var e=D[j].querySelector(sels[i]);if(e&&e.innerText&&e.innerText.trim().length>50)return e.innerText.trim();}}return'';}
+function titreDeLaPage(){var D=docs(),r={poste:'',entreprise:''};
+for(var j=0;j<D.length;j++){var s=(D[j].title||'').replace(/\\s*\\|.*$/,'').replace(/\\s*-\\s*(job post|Indeed\\.com|LinkedIn).*$/i,'').trim();
+var p=s.split(/\\s+-\\s+/);if(p.length>=2&&p[0].length>2){r.poste=p[0].trim();r.entreprise=p[1].trim();return r;}
+if(!r.poste&&p[0]&&p[0].length>2)r.poste=p[0].trim();}
+return r;}
 function blocSecours(){var D=docs(),m='';
 for(var j=0;j<D.length;j++){var c=D[j].querySelectorAll('[id*="escription"],[class*="escription"],[id*="job-details"],[class*="job-details"],[class*="jobDescription"]');
 for(var i=0;i<c.length;i++){var t=c[i].innerText?c[i].innerText.trim():'';if(t.length>m.length&&t.length<40000)m=t;}}
@@ -24,9 +29,10 @@ return m.length>200?m:'';}
 var h=location.hostname,q=new URLSearchParams(location.search),d={};
 if(/indeed\\./.test(h)){
 d.source='indeed';
-d.title=t(['[data-testid="jobsearch-JobInfoHeader-title"]','.jobsearch-JobInfoHeader-title','h1']).replace(/\\s*-\\s*job post$/i,'');
-d.company=t(['[data-testid="inlineHeader-companyName"]','[data-company-name="true"]']);
-d.location=t(['[data-testid="inlineHeader-companyLocation"]','[data-testid="job-location"]','#jobLocationText']);
+d.title=t(['[data-testid="jobsearch-JobInfoHeader-title"]','.jobsearch-JobInfoHeader-title','[data-testid="simpler-jobTitle"]','.jobsearch-JobInfoHeader-title-container h1','.vjs-highlight .jobTitle','h2.jobTitle span[title]','h1']).replace(/\\s*-\\s*job post$/i,'');
+d.company=t(['[data-testid="inlineHeader-companyName"]','[data-company-name="true"]','[data-testid="simpler-companyName"]','.jobsearch-CompanyInfoContainer a','.vjs-highlight [data-testid="company-name"]','.vjs-highlight .companyName']);
+d.location=t(['[data-testid="inlineHeader-companyLocation"]','[data-testid="job-location"]','#jobLocationText','[data-testid="simpler-jobLocation"]','.vjs-highlight .companyLocation']);
+if(!d.title||!d.company){var ti=titreDeLaPage();if(!d.title)d.title=ti.poste;if(!d.company)d.company=ti.entreprise;}
 var sj=t(['#salaryInfoAndJobType']);
 if(sj){var p=sj.split(/\\s+-\\s+/);if(p.length>1){d.salary=p[0];d.contract=p.slice(1).join(' - ');}else if(/€/.test(sj)){d.salary=sj;}else{d.contract=sj;}}
 var jk=q.get('vjk')||q.get('jk');

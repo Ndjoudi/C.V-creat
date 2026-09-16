@@ -55,7 +55,13 @@ async function importeAnnonce(job, auto = false) {
   if (!auto) return;
   const id = addCandFromDash({ sansAnalyse: true });
   if (id === null) {
-    _importConfirme('⚠ Enregistrement impossible', 'Poste ou entreprise introuvable sur la page', true);
+    // Dit ce qui a été reçu : on voit tout de suite quel élément manque
+    const recu = [
+      'Poste : '       + (job.title   || '(vide)'),
+      'Entreprise : '  + (job.company || '(vide)'),
+      'Description : ' + (job.descText ? job.descText.length + ' caractères' : '(vide)')
+    ].join(' — ');
+    _importConfirme('⚠ Enregistrement impossible', recu + '. Complète le poste et l\'entreprise dans le tableau de bord.', true);
     return;
   }
   const c = ls('sc_cands', []).slice(-1)[0];
