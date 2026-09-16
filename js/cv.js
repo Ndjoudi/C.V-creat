@@ -705,7 +705,7 @@ function printCV() {
   // Supprime les éléments interactifs (boutons +, toolbars) de la version imprimée
   wrapper.querySelectorAll('button, #emphasis-toolbar, [id$="-picker"], .cv-edit-ui').forEach(el => el.remove());
 
-  // Nom du fichier PDF = "Date - Poste - Entreprise"
+  // Nom du fichier PDF = "Date - Numéro - Prénom NOM - Poste"
   // Vaut pour la split view comme pour les boutons PDF (tableau, Feed)
   // Même précaution que plus haut : _splitCandId garde la dernière annonce
   // consultée même après fermeture. On ne s'y fie que si elle est à l'écran,
@@ -729,13 +729,22 @@ function printCV() {
           dateStr = c.date; // garde la date telle quelle si pas parsable
         }
       }
-      const posteNet = typeof cleanJobTitle === 'function' ? cleanJobTitle(c.poste) : c.poste;
-      const parts = [dateStr, posteNet, c.company].filter(Boolean);
+      // « date - numéro - Prénom NOM - poste » : les CV se classent dans
+      // l'ordre d'ajout, et le recruteur retrouve ton nom sur le fichier.
+      const numero   = typeof numeroCandidature === 'function' ? numeroCandidature(candId) : '';
+      const identite = [P.firstName, P.lastName ? P.lastName.toUpperCase() : ''].filter(Boolean).join(' ');
+      const posteNet = typeof posteSimplifie === 'function'
+        ? posteSimplifie(c.poste)
+        : (typeof cleanJobTitle === 'function' ? cleanJobTitle(c.poste) : c.poste);
+      const parts = [dateStr, numero, identite, posteNet].filter(Boolean);
       if (parts.length) document.title = parts.join(' - ');
     }
   }
 
   const titreDefini = document.title;
+  // Un PDF relancé aussitôt annule la remise à zéro du titre encore en
+  // attente : sinon le second fichier prendrait le nom du site.
+  if (window._restaureTitre) clearTimeout(window._restaureTitre);
   // Attend que les images (photo, lettre scannée) soient prêtes : sinon
   // l'impression peut partir avec une page 2 blanche.
   // Attente limitée à 1,5 s : si le navigateur ne répond pas (onglet en
@@ -746,7 +755,7 @@ function printCV() {
     window.print();
     // Restaure le titre du site — mais seulement si un autre PDF n'a pas
     // déjà pris la main entre-temps.
-    setTimeout(() => {
+    window._restaureTitre = setTimeout(() => {
       if (document.title === titreDefini) document.title = originalTitle;
     }, 1000);
   }, 80));

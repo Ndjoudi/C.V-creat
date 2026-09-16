@@ -239,6 +239,7 @@ Fichiers : `js/bouton-favori.js` (le favori), `js/import-annonce.js` (la récept
 | 2026-09-14 | **Lettre de recommandation en texte visible** en page 2 | La version image + texte caché risquait d'être signalée comme tromperie |
 | 2026-09-15 | **Lettre scannée jointe en image** (sans texte caché) | Un scan d'imprimante n'a pas de texte à extraire : l'image, ignorée par l'ATS, reste lisible par le recruteur. 3 pages max, 150 ppp, rendu pdf.js en mode `print` (fonctionne onglet caché) |
 | 2026-09-15 | **« 🔗 LinkedIn »** en bleu au lieu de l'adresse | Choix de l'utilisateur ; l'adresse reste dans le lien du PDF |
+| 2026-09-16 | **Nom du PDF : `date - numéro - Prénom NOM - poste`** | Les CV se classent dans l'ordre d'ajout et le recruteur retrouve le nom du candidat sur le fichier. Le numéro est enregistré sur la candidature (`numero`) : il ne change plus, même après suppression d'une offre. Poste raccourci à 40 caractères, sans (H/F) ni parenthèses — `numeroCandidature()` et `posteSimplifie()` dans `js/tracker.js` |
 | 2026-09-14 | Import Indeed/LinkedIn par **bouton favori** | Toute lecture côté serveur est bloquée (section 7) |
 
 ---

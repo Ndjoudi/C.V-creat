@@ -587,6 +587,40 @@ async function runPasteAnalysis() {
   }
 }
 
+// ── NUMÉRO D'UNE CANDIDATURE ───────────────────────────────
+// Numéro d'ordre d'ajout, utilisé dans le nom du fichier PDF.
+// Il est ENREGISTRÉ sur la candidature : il ne bouge plus, même si tu
+// supprimes une offre plus ancienne. Les offres déjà ajoutées sont
+// numérotées une fois pour toutes, dans leur ordre d'ajout.
+function numeroCandidature(candId) {
+  const cands = ls('sc_cands', []);
+  let maxi = cands.reduce((m, c) => Math.max(m, parseInt(c.numero) || 0), 0);
+  let modifie = false;
+  cands.forEach(c => {
+    if (!c.numero) { c.numero = ++maxi; modifie = true; }
+  });
+  if (modifie) ss('sc_cands', cands);
+  const c = cands.find(x => x.id === candId);
+  return c ? String(c.numero).padStart(3, '0') : '';
+}
+
+// Titre de poste court pour le nom du fichier : sans (H/F), sans le
+// contenu des parenthèses « (TRICE) », et pas plus de 40 caractères.
+function posteSimplifie(titre) {
+  let t = typeof cleanJobTitle === 'function' ? cleanJobTitle(titre || '') : (titre || '');
+  t = t.replace(/\s*[\(\[][^)\]]*[\)\]]/g, ' ')
+       .replace(/[\/\\:*?"<>|]/g, ' ')      // caractères interdits dans un nom de fichier
+       .replace(/\s{2,}/g, ' ')
+       .replace(/\s*[-–—·,]\s*$/, '')
+       .trim();
+  if (t.length > 40) {
+    const coupe = t.slice(0, 40);
+    const espace = coupe.lastIndexOf(' ');
+    t = (espace > 20 ? coupe.slice(0, espace) : coupe).trim();
+  }
+  return t;
+}
+
 // ── PRÉPARER LE CV POUR UNE OFFRE ──────────────────────────
 // UNE seule préparation, utilisée par la fenêtre d'annonce ET par tous les
 // boutons PDF (tableau de bord, suivi, fenêtre d'analyse, annonce, Feed) :
