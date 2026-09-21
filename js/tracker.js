@@ -1533,12 +1533,13 @@ function _saveCVEditsFromDOM(docId) {
   const doc = document.getElementById(docId);
   if (!doc) return;
 
-  // Accroche « INTRO, je vise un poste de POSTE. » : seule l'intro appartient
+  // Accroche « INTRO, <liaison> POSTE. » : seule l'intro appartient
   // au profil ; le poste vient du champ « Poste ciblé » ou de l'annonce.
   const accroche = doc.querySelector('.cv-accroche');
   if (accroche) {
     const texte = accroche.textContent.trim();
-    const m     = texte.match(/^(.*?),?\s*je vise un poste de\s+.+$/i);
+    const liaison = _liaisonAccroche().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const m     = texte.match(new RegExp('^(.*?),?\\s*' + liaison + '\\s*.+$', 'i'));
     const intro = (m ? m[1] : texte).trim().replace(/[,.\s]+$/, '');
     if (intro) P.accrocheIntro = intro;
   }
@@ -1576,6 +1577,10 @@ function _saveCVEditsFromDOM(docId) {
   });
 
   ss('sc_profile', P);
+  // Le formulaire « Mon Profil » doit refléter ces changements : sinon, à la
+  // prochaine saisie dans le profil, ses anciennes valeurs les écraseraient.
+  if (typeof loadProfileToForm === 'function') loadProfileToForm();
+  if (typeof renderExpList     === 'function') renderExpList();
   _exitCVEditMode(docId);
   rafraichitVuesCV();
   toast('✓ CV mis à jour — dans « Mon CV » et dans les annonces');
@@ -1823,13 +1828,13 @@ function _renderDecodePanelHtml(data, isLoading, provider, model, offerText) {
       <input id="phrase-competences" type="text"
         placeholder="tes compétences clés…"
         style="border:none;border-bottom:1.5px dashed #94a3b8;outline:none;background:transparent;font-size:12.5px;color:var(--ink);width:200px;padding:1px 4px"/>
-      <span style="white-space:nowrap">, je vise un poste de</span>
+      <span style="white-space:nowrap">, ${esc(_liaisonAccroche())}</span>
       <strong id="phrase-poste-display" style="color:#2563eb">${esc(_phrasePoste)}</strong>
       <span>.</span>
       <button onclick="
         const comp = document.getElementById('phrase-competences').value.trim();
         const post = document.getElementById('phrase-poste-display').textContent.trim();
-        const phrase = 'Fort de 5 ans en logistique e-commerce, ' + comp + ', je vise un poste de ' + post + '.';
+        const phrase = 'Fort de 5 ans en logistique e-commerce, ' + comp + ', ' + _liaisonEtPoste(post) + '.';
         navigator.clipboard.writeText(phrase);
         this.textContent='✓ Copié !';this.style.background='#16a34a';
         setTimeout(()=>{this.textContent='Copier';this.style.background='#0ea5e9'},1600)"

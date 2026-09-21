@@ -5,7 +5,7 @@ const FIELD_MAP = {
   yexp:'yearsExp', mobility:'mobility', summaryTarget:'summaryTarget',
   permis:'permis', disponibilite:'disponibilite', contratRecherche:'contratRecherche',
   domainesProfile:'domainesProfile', hobbies:'hobbies',
-  accrocheIntro:'accrocheIntro'
+  accrocheIntro:'accrocheIntro', accrocheLiaison:'accrocheLiaison'
 };
 
 // Supprime les balises HTML résiduelles (phase rich-editor)

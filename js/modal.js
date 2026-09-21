@@ -139,7 +139,7 @@ Réponds UNIQUEMENT avec les bullet points (un par ligne, commençant par •).`
       const competences = data.competences || '';
       const titre       = data.titre       || '';
       const yearsExp    = P.yearsExp || '5 ans';
-      modalState.generated = `Fort de ${yearsExp} en logistique e-commerce, ${competences}, je vise un poste de ${titre}.`;
+      modalState.generated = `Fort de ${yearsExp} en logistique e-commerce, ${competences}, ${_liaisonEtPoste(titre)}.`;
     } else {
       modalState.generated = raw;
     }

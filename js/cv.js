@@ -220,13 +220,30 @@ function renderDescription(text) {
 }
 
 // ── HELPER — construit la phrase d'accroche complète ───────
+// ── LIAISON AVANT LE POSTE ─────────────────────────────────
+// « …, je vise un poste de Responsable Logistique. » : la partie entre
+// l'intro et le poste est modifiable dans Mon Profil (P.accrocheLiaison).
+// Tout le site passe par ces deux fonctions.
+const LIAISON_ACCROCHE_DEFAUT = 'je vise un poste de';
+
+function _liaisonAccroche() {
+  const l = (P.accrocheLiaison || '').trim().replace(/[,.\s]+$/, '');
+  return l || LIAISON_ACCROCHE_DEFAUT;
+}
+
+// Liaison + poste : « de Responsable » mais « d'Agent », sans espace après l'apostrophe
+function _liaisonEtPoste(poste) {
+  const l = _liaisonAccroche();
+  return /['’]$/.test(l) ? `${l}${poste}` : `${l} ${poste}`;
+}
+
 function _buildAccrocheText() {
   const poste = (typeof _cvTarget !== 'undefined' ? _cvTarget : '') || P.title || '[poste ciblé]';
   // 1. Champ accrocheIntro (nouveau, prioritaire)
   const intro = (P.accrocheIntro || '').trim();
   if (intro) {
     const clean = intro.replace(/[,.\s]+$/, ''); // enlève virgule/point final
-    return `${clean}, je vise un poste de ${poste}.`;
+    return `${clean}, ${_liaisonEtPoste(poste)}.`;
   }
   // 2. Fallback auto depuis yearsExp + domainesProfile
   const y = P.yearsExp || '', d = P.domainesProfile || '';
@@ -234,7 +251,7 @@ function _buildAccrocheText() {
     let t = '';
     if (y) t += `Fort(e) de ${y}`;
     if (d) t += (y ? ' en ' : 'En ') + d;
-    t += `, je vise un poste de ${poste}.`;
+    t += `, ${_liaisonEtPoste(poste)}.`;
     return t;
   }
   // 3. Fallback : summaryTarget legacy
@@ -269,10 +286,10 @@ function _updateAccrochePreview() {
   if (!prev || !prevP) return;
   if (intro) {
     const clean = intro.replace(/[,.\s]+$/, '');
-    prev.textContent  = clean + ', je vise un poste de ';
+    prev.textContent  = clean + ', ' + _liaisonEtPoste('');
     prevP.textContent = poste + '.';
   } else {
-    prev.textContent  = '[ta phrase], je vise un poste de ';
+    prev.textContent  = '[ta phrase], ' + _liaisonEtPoste('');
     prevP.textContent = poste + '.';
   }
 }
