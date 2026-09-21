@@ -663,3 +663,56 @@ select.inp{cursor:pointer}
 .rp-b{ color:#60A5FA; }
 .rp-o{ color:#FBBF24; }
 .rp-k{ color:#9CA3AF; }
+
+/* ── ZONE DE DÉPÔT D'UN FICHIER (import du CV) ───────────── */
+.cv-depot{
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  padding:26px 20px; text-align:center;
+  border:2px dashed var(--border); border-radius:12px; background:var(--bg);
+  transition:border-color .15s, background .15s;
+}
+.cv-depot--actif{ border-color:var(--teal); background:var(--teal-bg); }
+.cv-depot-titre{ font-size:14px; font-weight:700; color:var(--ink); }
+.cv-depot-fichier{ font-size:12.5px; font-weight:600; color:var(--teal-d); }
+.cv-depot-note{ font-size:11.5px; color:var(--ink3); line-height:1.5; max-width:420px; }
+
+/* ── QUESTIONS DE CANDIDATURE (fenêtre de l'annonce) ────── */
+.qc-bloc{ border:1.5px solid var(--border); border-radius:12px; overflow:hidden; }
+.qc-entete{
+  display:flex; align-items:center; gap:7px; padding:8px 12px;
+  background:var(--bg2); border-bottom:1px solid var(--border); font-size:13px;
+}
+.qc-titre{ font-size:12px; font-weight:700; color:var(--ink); }
+.qc-corps{ padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
+.qc-raccourcis{ display:flex; flex-wrap:wrap; gap:6px; }
+.qc-raccourci{
+  background:var(--bg); border:1px solid var(--border); border-radius:100px;
+  padding:3px 10px; font-size:11px; color:var(--ink2); cursor:pointer;
+}
+.qc-raccourci:hover{ border-color:var(--teal-border); color:var(--teal-d); }
+.qc-question{ font-size:12.5px; resize:vertical; }
+.qc-ligne{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.qc-limite{ display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink3); }
+.qc-limite .inp{ width:90px; padding:4px 8px; font-size:12px; }
+.qc-infos summary{ font-size:11.5px; font-weight:600; color:var(--ink2); cursor:pointer; }
+.qc-infos .inp{ margin-top:6px; font-size:12px; }
+.qc-aide{ font-size:10.5px; color:var(--ink3); margin-top:4px; line-height:1.5; }
+.qc-item{ border-top:1px solid var(--border); padding-top:10px; }
+.qc-item-q{ font-size:12px; font-weight:700; color:var(--ink); margin-bottom:6px; }
+.qc-limite-rappel{ font-weight:500; color:var(--ink3); }
+.qc-reponse{
+  font-size:12.5px; line-height:1.65; color:var(--ink); white-space:pre-wrap;
+  background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+  padding:10px 12px; outline:none; cursor:text;
+}
+.qc-reponse:focus{ border-color:var(--teal-border); }
+.qc-attente{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink3); padding:8px 0; }
+.qc-attente .sp{ width:13px; height:13px; }
+.qc-erreur{
+  font-size:12px; color:var(--red); background:var(--red-bg);
+  border:1px solid var(--red-border); border-radius:8px; padding:8px 10px;
+}
+.qc-actions{ display:flex; align-items:center; gap:6px; margin-top:6px; }
+.qc-compte{ font-size:11px; color:var(--ink3); margin-right:auto; }
+.qc-compte--trop{ color:var(--red); font-weight:700; }
+.qc-mini{ font-size:11px; padding:3px 10px; }

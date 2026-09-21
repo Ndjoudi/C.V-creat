@@ -2497,7 +2497,7 @@ function _renderCoverLetterBlock(candId, cached) {
     return `<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px">
       ${header}
       <div style="padding:14px 16px;font-size:12px;color:var(--ink3);text-align:center">
-        Génère ta lettre de motivation + réponses aux questions fréquentes des formulaires
+        Génère ta lettre de motivation (les questions du formulaire sont juste en dessous)
       </div>
     </div>`;
   }
@@ -2515,9 +2515,9 @@ function _renderCoverLetterBlock(candId, cached) {
 }
 
 function _renderCoverLetterResult(d) {
+  // Les questions de formulaire ont leur propre bloc (« Questions de candidature »)
   const tabs = [
     { id:'lettre',   label:'✉️ Lettre' },
-    { id:'formules', label:'📋 Formulaire' },
   ];
 
   const tabBar = `<div style="display:flex;gap:0;border-bottom:1.5px solid var(--border);margin-bottom:14px">
@@ -2552,39 +2552,233 @@ function _renderCoverLetterResult(d) {
       </div>
     </div>`;
 
-  // ── Réponses formulaire ──
-  const formItems = [
-    { key:'pourquoi_poste',     label:'Pourquoi ce poste ?' },
-    { key:'pourquoi_entreprise',label:'Pourquoi cette entreprise ?' },
-    { key:'pitch_60s',          label:'Parlez-nous de vous (60s)' },
-    { key:'pretentions',        label:'Prétentions salariales' },
-    { key:'disponibilite',      label:'Disponibilité' },
-  ];
+  return `
+    ${tabBar}
+    <div id="lm-panel-lettre">${lettreHtml}</div>`;
+}
 
-  const formulaireHtml = formItems.map(item => {
-    const val = (d.formulaire||{})[item.key];
-    if (!val) return '';
-    return `<div style="margin-bottom:12px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0891b2;margin-bottom:5px">${item.label}</div>
-      <div style="position:relative">
-        <div id="lm-form-${item.key}" contenteditable="true"
-          style="font-size:12px;line-height:1.6;color:var(--ink);background:var(--bg2);border-radius:7px;padding:9px 11px;border:1px solid var(--border);white-space:pre-wrap;outline:none;cursor:text;transition:border-color .15s"
-          onfocus="this.style.borderColor='#0891b2'"
-          onblur="this.style.borderColor='var(--border)';window._saveLMEdit('${d._candId||''}','form.${item.key}',this.innerText)"
-          >${esc(val)}</div>
-        <button onclick="window._copyLM('lm-form-${item.key}')"
-          style="position:absolute;top:6px;right:7px;background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:10px;color:var(--ink3);cursor:pointer">
-          copier
-        </button>
+// ══════════════════════════════════════════════════════════
+//  QUESTIONS DE CANDIDATURE
+//  Les questions ouvertes des formulaires (« Pourquoi nous ? », « Ce qui
+//  me motive à travailler pour votre enseigne »…). Tu colles la question,
+//  l'IA répond avec TOUT le contexte : offre complète, CV complet, poste,
+//  entreprise, points forts de l'analyse, et tes notes sur l'entreprise.
+//  Stocké par candidature : c.questions = [{ id, question, limite, reponse,
+//  date, ia }], notes dans c.companyNotes.
+// ══════════════════════════════════════════════════════════
+
+const QC_RACCOURCIS = [
+  'Pourquoi ce poste ?',
+  'Pourquoi notre entreprise ?',
+  'Ce qui me motive à travailler pour votre enseigne',
+  'Parlez-nous de vous',
+  'Quelles sont vos prétentions salariales ?',
+  'Quelle est votre disponibilité ?'
+];
+const _qcEnCours = new Set();       // réponses en cours de rédaction (non enregistré)
+
+function _qcCand(candId) {
+  return ls('sc_cands', []).find(x => x.id === candId) || null;
+}
+
+// Modifie une candidature et enregistre
+function _qcMaj(candId, fn) {
+  const cands = ls('sc_cands', []);
+  const c = cands.find(x => x.id === candId);
+  if (!c) return null;
+  fn(c);
+  ss('sc_cands', cands);
+  return c;
+}
+
+function _renderQuestionsBlock(candId) {
+  const c = _qcCand(candId) || {};
+  const notes = c.companyNotes || '';
+  return `<div class="qc-bloc">
+    <div class="qc-entete"><span>💬</span><span class="qc-titre">Questions de candidature</span></div>
+    <div class="qc-corps">
+      <div class="qc-raccourcis">
+        ${QC_RACCOURCIS.map(q => `<button class="qc-raccourci" data-q="${esc(q)}"
+          onclick="const t=document.getElementById('qc-question');t.value=this.dataset.q;t.focus()">${esc(q)}</button>`).join('')}
+      </div>
+      <textarea id="qc-question" class="inp qc-question" rows="2"
+        placeholder="Colle ici la question du formulaire…"></textarea>
+      <div class="qc-ligne">
+        <label class="qc-limite">Limite
+          <input id="qc-limite" class="inp" type="number" min="50" step="50" placeholder="aucune"> caractères
+        </label>
+        <button class="btn btn-p" onclick="window._qcAjoute('${candId}')">Répondre</button>
+      </div>
+      <details class="qc-infos"${notes ? ' open' : ''}>
+        <summary>Ce que je sais de l'entreprise (optionnel)</summary>
+        <textarea class="inp" rows="2" placeholder="Ex. : j'y fais mes courses depuis des années ; ouverture de 3 entrepôts en 2026 annoncée sur LinkedIn…"
+          onblur="window._qcSaveInfos('${candId}', this.value)">${esc(notes)}</textarea>
+        <div class="qc-aide">1 ou 2 éléments vrais rendent la réponse crédible. Sans eux, l'IA s'en tient à l'offre et n'invente rien sur l'entreprise.</div>
+      </details>
+      <div id="qc-liste">${_qcListeHtml(candId)}</div>
+    </div>
+  </div>`;
+}
+
+function _qcListeHtml(candId) {
+  const qs = (_qcCand(candId)?.questions || []).slice().reverse();   // la plus récente en haut
+  return qs.map(q => {
+    const enCours = _qcEnCours.has(q.id);
+    const n = (q.reponse || '').trim().length;
+    const trop = q.limite && n > q.limite;
+    const corps = enCours
+      ? `<div class="qc-attente"><span class="sp"></span>Rédaction en cours…</div>`
+      : q.erreur
+        ? `<div class="qc-erreur">⚠ ${esc(q.erreur)}</div>`
+        : `<div class="qc-reponse" id="qc-rep-${q.id}" contenteditable="true"
+            oninput="window._qcCompte('${q.id}', ${q.limite || 0})"
+            onblur="window._qcSaveEdit('${candId}','${q.id}',this.innerText)">${esc(q.reponse || '')}</div>`;
+    return `<div class="qc-item">
+      <div class="qc-item-q">${esc(q.question)}${q.limite ? ` <span class="qc-limite-rappel">· ${q.limite} caractères max</span>` : ''}</div>
+      ${corps}
+      <div class="qc-actions">
+        <span class="qc-compte${trop ? ' qc-compte--trop' : ''}" id="qc-compte-${q.id}">${enCours ? '' : n + ' caractères'}</span>
+        <button class="btn btn-g qc-mini" onclick="window._qcCopie('${q.id}')" ${enCours || q.erreur ? 'disabled' : ''}>Copier</button>
+        <button class="btn btn-g qc-mini" onclick="window._qcRepondre('${candId}','${q.id}')" ${enCours ? 'disabled' : ''}>↺ Régénérer</button>
+        <button class="btn-del qc-mini" onclick="window._qcSupprime('${candId}','${q.id}')" title="Supprimer">×</button>
       </div>
     </div>`;
   }).join('');
-
-  return `
-    ${tabBar}
-    <div id="lm-panel-lettre">${lettreHtml}</div>
-    <div id="lm-panel-formules" style="display:none">${formulaireHtml}</div>`;
 }
+
+function _qcRafraichit(candId) {
+  const el = document.getElementById('qc-liste');
+  if (el && window._splitCandId === candId) el.innerHTML = _qcListeHtml(candId);
+}
+
+window._qcAjoute = function(candId) {
+  const champ  = document.getElementById('qc-question');
+  const question = (champ?.value || '').trim();
+  if (question.length < 5) { toast('Colle d\'abord la question du formulaire'); return; }
+  const limite = parseInt(document.getElementById('qc-limite')?.value) || null;
+  const q = { id: Date.now().toString(36), question, limite, reponse: '', date: new Date().toISOString() };
+  _qcMaj(candId, c => { c.questions = [...(c.questions || []), q]; });
+  champ.value = '';
+  window._qcRepondre(candId, q.id);
+};
+
+// Contexte complet envoyé à l'IA
+function _qcPrompt(c, q) {
+  const a      = c.analysis || {};
+  const offre  = (c.jobDescription || '').replace(/[ \t]{3,}/g, ' ').trim().slice(0, 6000);
+  const nom    = [P.firstName, P.lastName].filter(Boolean).join(' ');
+  const forts  = (a.points_forts || []).slice(0, 5).join(' ; ');
+  const cadre  = [
+    P.contratRecherche ? `Contrat recherché : ${P.contratRecherche}` : '',
+    P.disponibilite    ? `Disponibilité : ${P.disponibilite}` : '',
+    P.mobility         ? `Mobilité : ${P.mobility}` : '',
+    c.jobSalary        ? `Salaire indiqué dans l'offre : ${c.jobSalary}` : ''
+  ].filter(Boolean).join('\n');
+  const longueur = q.limite
+    ? `${q.limite} caractères MAXIMUM, espaces compris (vise environ ${Math.round(q.limite * 0.9)}).`
+    : `Entre 500 et 900 caractères.`;
+
+  return `Tu aides un candidat à répondre à une question ouverte d'un formulaire de candidature en ligne.
+
+QUESTION DU FORMULAIRE :
+« ${q.question} »
+
+LONGUEUR : ${longueur}
+
+POSTE : ${c.poste || a.poste || ''}
+ENTREPRISE : ${c.company || a.entreprise || ''}
+
+TEXTE COMPLET DE L'OFFRE :
+${offre || '(non disponible)'}
+
+CE QUE LE CANDIDAT SAIT DE L'ENTREPRISE :
+${(c.companyNotes || '').trim() || "(rien de plus que l'offre)"}
+
+POINTS FORTS DU CANDIDAT POUR CETTE OFFRE (analyse) :
+${forts || '(non disponible)'}
+
+CV DU CANDIDAT (${nom}) :
+${_buildCVText()}
+${cadre}
+
+RÈGLES :
+- Réponds à la première personne, en français, avec un ton naturel, sincère et direct.
+- Relie des faits RÉELS du CV (postes, missions, chiffres) à des éléments CONCRETS de l'offre.
+- N'invente RIEN : aucune expérience, aucun chiffre, aucun fait sur l'entreprise (valeurs, projets, actualités, magasins) qui ne figure ni dans l'offre ni dans ce que le candidat sait de l'entreprise.
+- Pas de formules creuses (« passionné par », « rejoindre une entreprise dynamique », « leader du marché »).
+- Respecte strictement la longueur.
+- Réponds UNIQUEMENT par le texte de la réponse : pas de titre, pas de guillemets, pas de phrase d'introduction.`;
+}
+
+// Coupe proprement à la dernière phrase complète sous la limite
+function _qcCoupe(texte, limite) {
+  if (!limite || texte.length <= limite) return texte;
+  const debut = texte.slice(0, limite);
+  const fin = Math.max(debut.lastIndexOf('. '), debut.lastIndexOf('! '), debut.lastIndexOf('? '), debut.lastIndexOf('.'));
+  return (fin > limite * 0.5 ? debut.slice(0, fin + 1) : debut).trim();
+}
+
+window._qcRepondre = async function(candId, qId) {
+  const c = _qcCand(candId);
+  const q = c?.questions?.find(x => x.id === qId);
+  if (!q || _qcEnCours.has(qId)) return;
+  _qcEnCours.add(qId);
+  _qcMaj(candId, cc => { const x = cc.questions.find(y => y.id === qId); if (x) delete x.erreur; });
+  _qcRafraichit(candId);
+
+  try {
+    const { text, provider } = await callAIAuto(_qcPrompt(c, q), { maxTokens: 900, temperature: 0.5 });
+    const propre = (text || '').trim()
+      .replace(/^["«“]\s*/, '').replace(/\s*["»”]$/, '')
+      .replace(/^(réponse|voici (ma|une) réponse)\s*:\s*/i, '');
+    if (!propre) throw new Error('Réponse vide — réessaie');
+    _qcMaj(candId, cc => {
+      const x = cc.questions.find(y => y.id === qId);
+      if (x) { x.reponse = _qcCoupe(propre, x.limite); x.ia = provider; }
+    });
+    toast('✓ Réponse rédigée — relis-la avant de la copier');
+  } catch (e) {
+    _qcMaj(candId, cc => {
+      const x = cc.questions.find(y => y.id === qId);
+      if (x) x.erreur = e.message || String(e);
+    });
+  } finally {
+    _qcEnCours.delete(qId);
+    _qcRafraichit(candId);
+  }
+};
+
+window._qcSaveEdit = function(candId, qId, texte) {
+  _qcMaj(candId, c => {
+    const x = (c.questions || []).find(y => y.id === qId);
+    if (x) x.reponse = (texte || '').trim();
+  });
+};
+
+window._qcCompte = function(qId, limite) {
+  const rep = document.getElementById('qc-rep-' + qId);
+  const el  = document.getElementById('qc-compte-' + qId);
+  if (!rep || !el) return;
+  const n = rep.innerText.trim().length;
+  el.textContent = n + ' caractères';
+  el.classList.toggle('qc-compte--trop', !!limite && n > limite);
+};
+
+window._qcCopie = function(qId) {
+  const txt = document.getElementById('qc-rep-' + qId)?.innerText.trim() || '';
+  if (!txt) return;
+  navigator.clipboard.writeText(txt).then(() => toast('📋 Réponse copiée'));
+};
+
+window._qcSupprime = function(candId, qId) {
+  if (!confirm('Supprimer cette question et sa réponse ?')) return;
+  _qcMaj(candId, c => { c.questions = (c.questions || []).filter(x => x.id !== qId); });
+  _qcRafraichit(candId);
+};
+
+window._qcSaveInfos = function(candId, texte) {
+  _qcMaj(candId, c => { c.companyNotes = (texte || '').trim(); });
+};
 
 // ── SAUVEGARDE ÉDITION LETTRE ────────────────────────────────
 window._saveLMEdit = function(candId, field, value) {
@@ -2807,32 +3001,26 @@ window._genCoverLetter = async function(candId) {
   const c      = cands.find(x => x.id === candId) || {};
   const a      = c.analysis || {};
   const cvText = _buildCVText();
-  const offer  = (c.rawOffer || c.description || '').slice(0, 2000);
+  // Texte de l'offre : enregistré dans jobDescription (rawOffer/description n'existent pas)
+  const offer  = (c.jobDescription || c.rawOffer || c.description || '').slice(0, 4000);
   const nom    = [P.firstName, P.lastName ? P.lastName.toUpperCase() : ''].filter(Boolean).join(' ') || '';
   const salK   = c.salary_brut_k ? c.salary_brut_k + 'K€ brut/an' : 'à définir selon le package';
 
-  const prompt = `Tu es un expert en recrutement France. Génère une lettre de motivation + réponses formulaire.
+  const prompt = `Tu es un expert en recrutement France. Génère une lettre de motivation.
 
 PROFIL :
-${cvText.slice(0, 1000)}
+${cvText.slice(0, 4000)}
 Nom : ${nom}
 
 OFFRE :
 Poste : ${c.poste || a.poste || ''}
-Entreprise : ${c.entreprise || a.entreprise || ''}
-${offer ? `Extrait :\n${offer.slice(0,800)}` : ''}
+Entreprise : ${c.company || a.entreprise || ''}
+${offer ? `Texte de l'offre :\n${offer}` : ''}
 Points forts matchés : ${(a.points_forts||[]).slice(0,3).join(', ')}
 
 Réponds UNIQUEMENT en JSON valide :
 {
-  "lettre": "lettre complète prête à envoyer (200-250 mots, ton confiant 'Je vous choisis' pas suppliant, intro accroche → match → preuve concrète du CV → CTA, PAS de 'passionné par' ni langue corporate, en français)",
-  "formulaire": {
-    "pourquoi_poste": "3-4 phrases spécifiques au poste (pas générique)",
-    "pourquoi_entreprise": "2-3 phrases avec un élément concret sur l'entreprise",
-    "pitch_60s": "pitch de 60 secondes parlé, naturel, basé sur le CV réel",
-    "pretentions": "réponse courte et professionnelle incluant ${salK}",
-    "disponibilite": "réponse courte (préavis typique 1-3 mois)"
-  }
+  "lettre": "lettre complète prête à envoyer (200-250 mots, ton confiant 'Je vous choisis' pas suppliant, intro accroche → match → preuve concrète du CV → CTA, PAS de 'passionné par' ni langue corporate, en français, aucun fait inventé)"
 }`;
 
   try {
@@ -3038,7 +3226,7 @@ ${cvText.slice(0, 1200)}
 
 OFFRE CIBLÉE :
 Poste : ${c.poste || a.poste || ''}
-Entreprise : ${c.entreprise || a.entreprise || ''}
+Entreprise : ${c.company || a.entreprise || ''}
 Séniorité : ${a.seniorite || ''}
 ${offerText ? `Extrait offre :\n${offerText}` : ''}
 ${(a.lacunes||[]).length ? `Lacunes identifiées : ${a.lacunes.map(l=>l.competence||l).join(', ')}` : ''}
@@ -3239,7 +3427,7 @@ window._fetchMarketSalary = async function(candId) {
   const prompt = `Tu es un expert RH France. Analyse le marché salarial pour ce poste.
 
 POSTE : ${c.poste || a.poste || ''}
-ENTREPRISE : ${c.entreprise || a.entreprise || ''}
+ENTREPRISE : ${c.company || a.entreprise || ''}
 SECTEUR : ${a.domaine || ''}
 SÉNIORITÉ : ${a.seniorite || ''}
 EXTRAIT OFFRE : ${offer.slice(0, 800)}
@@ -3415,7 +3603,7 @@ ${cvText.slice(0, 800)}
 
 OFFRE :
 Poste : ${c.poste || a.poste || ''}
-Entreprise : ${c.entreprise || a.entreprise || ''}
+Entreprise : ${c.company || a.entreprise || ''}
 Extrait : ${offerSnippet}
 
 TYPE DE CONTACT : ${typeLabels[contactType]}
@@ -3580,6 +3768,9 @@ async function openSplitView(candId) {
     </div>
     <div id="split-coverletter-block" style="margin-bottom:20px">
       ${_renderCoverLetterBlock(candId, a.cover_letter || null)}
+    </div>
+    <div id="split-questions-block" style="margin-bottom:20px">
+      ${_renderQuestionsBlock(candId)}
     </div>
     <div id="split-linkedin-block" style="margin-bottom:20px">
       ${_renderLinkedInBlock(candId, (() => { const msgs = a.linkedin_msgs || c.linkedin_msgs; return msgs ? Object.values(msgs).slice(-1)[0] : null; })())}
