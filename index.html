@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
-<link rel="stylesheet" href="css/components.css?v=45"/>
+<link rel="stylesheet" href="css/components.css?v=47"/>
 <link rel="stylesheet" href="css/cv.css?v=73"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
@@ -126,11 +126,15 @@
       <div class="page-header" style="margin-bottom:14px;align-items:center">
         <div class="ptitle" id="dash-title" style="font-size:18px;font-weight:800;letter-spacing:-.3px">Bonjour</div>
         <div style="display:flex;gap:6px;flex-shrink:0">
-          <a href="https://fr.indeed.com/jobs?q=&l=%C3%8Ele-de-France&from=searchOnHP%2Cwhereautocomplete&vjk=2d9490b69ecbdb98" target="_blank" rel="noopener"
-            style="display:inline-flex;align-items:center;gap:5px;background:#2164f3;color:white;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            Indeed
-          </a>
+          <!-- Menu déroulant : une recherche Indeed par catégorie (js/recherches-indeed.js) -->
+          <div class="ri-menu" id="ri-menu">
+            <button type="button" class="ri-bouton" onclick="basculeMenuIndeed(event)" aria-haspopup="true" aria-expanded="false"
+              style="display:inline-flex;align-items:center;gap:5px;background:#2164f3;color:white;border:none;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Indeed <span class="ri-fleche">▾</span>
+            </button>
+            <div class="ri-panneau" id="ri-panneau" hidden></div>
+          </div>
           <a href="https://fr.indeed.com/jobs?q=&l=Val-de-Marne&radius=25&from=searchOnDesktopSerp%2Cwhereautocomplete&vjk=82e7d0f3f333bb42&advn=974789213537331" target="_blank" rel="noopener"
             style="display:inline-flex;align-items:center;gap:5px;background:#1a56db;color:white;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -751,6 +755,7 @@
 <script src="js/navigation.js?v=1"></script>
 <script src="js/import-annonce.js?v=4"></script>
 <script src="js/bouton-favori.js?v=7"></script>
+<script src="js/recherches-indeed.js?v=2"></script>
 
 </body>
 </html>

@@ -716,3 +716,23 @@ select.inp{cursor:pointer}
 .qc-compte{ font-size:11px; color:var(--ink3); margin-right:auto; }
 .qc-compte--trop{ color:var(--red); font-weight:700; }
 .qc-mini{ font-size:11px; padding:3px 10px; }
+
+/* ── MENU « INDEED » DU TABLEAU DE BORD ──────────────────── */
+.ri-menu{ position:relative; display:inline-block; }
+.ri-fleche{ font-size:10px; margin-left:1px; }
+.ri-panneau{
+  position:absolute; top:calc(100% + 6px); left:0; z-index:500;
+  width:260px; max-height:380px; overflow-y:auto; padding:6px;
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.14);
+}
+.ri-groupe{
+  font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--ink3); margin:8px 6px 3px;
+}
+.ri-lien{
+  display:block; padding:5px 8px; border-radius:6px;
+  font-size:12px; color:var(--ink2); text-decoration:none;
+}
+.ri-lien:hover{ background:var(--teal-bg); color:var(--teal-d); }
+.ri-lien--tout{ font-weight:700; color:var(--ink); }
