@@ -59,7 +59,7 @@ site : il est déployé séparément sur Cloudflare.
 | `js/analyze.js` | Analyse d'une offre |
 | `js/tracker.js` | Candidatures, récupération d'annonces, **fenêtre d'annonce** (split view) |
 | `js/lettre-reco.js` | Lettre de recommandation ajoutée en page 2 du PDF |
-| `js/recherches-indeed.js` | Menu déroulant du bouton bleu « Indeed » (tableau de bord) : « Toutes les offres » + un lien par catégorie supply chain, mêmes filtres que la recherche de l'utilisateur (Île-de-France, tri par date, contrats) |
+| `js/recherches-indeed.js` | Menus déroulants des boutons « Indeed » et « LinkedIn » (tableau de bord) : mêmes catégories supply chain pour les deux sites, avec les filtres habituels (Indeed : Île-de-France, tri par date, contrats ; LinkedIn : geoId Île-de-France, tri par date, 7 derniers jours). Retient la date du dernier clic par site et catégorie (`sc_indeed_clics`, clés `site:motclé`) : vert si lancée aujourd'hui, rouge sinon |
 | `js/feed.js` | Écran « Feed » |
 | `js/navigation.js` | Bouton retour du navigateur dans l'app |
 | `js/import-annonce.js` | Réception d'une annonce envoyée par le bouton favori |

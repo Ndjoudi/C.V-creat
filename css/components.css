@@ -731,8 +731,13 @@ select.inp{cursor:pointer}
   color:var(--ink3); margin:8px 6px 3px;
 }
 .ri-lien{
-  display:block; padding:5px 8px; border-radius:6px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:5px 8px; border-radius:6px;
   font-size:12px; color:var(--ink2); text-decoration:none;
 }
+/* Date du dernier clic : vert = fait aujourd'hui, rouge = à faire */
+.ri-etat{ font-size:10px; color:var(--ink3); white-space:nowrap; }
+.ri-etat--fait{ color:var(--green); font-weight:700; }
+.ri-etat--oublie{ color:var(--red); font-weight:700; }
 .ri-lien:hover{ background:var(--teal-bg); color:var(--teal-d); }
 .ri-lien--tout{ font-weight:700; color:var(--ink); }
