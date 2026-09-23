@@ -31,6 +31,62 @@ if (typeof P !== 'undefined' && P.domainesProfile && !P._v3_hookMigrated) {
   if (typeof ss === 'function') ss('sc_profile', P);
 }
 
+// ── PÉRIODES LISIBLES PAR LES ATS ──────────────────────────
+// Les lecteurs automatiques de CV (formulaires de candidature) ne
+// reconnaissent pas « Sept 2018 – Sept 2021 » : ils attendent des chiffres
+// et un tiret simple. On convertit en « 09/2018 - 09/2021 ».
+// Si la période n'est pas reconnue, on garde le texte de l'utilisateur.
+const MOIS_FR = {
+  janv:1, jan:1, fevr:2, fev:2, mars:3, mar:3, avr:4, avril:4, mai:5,
+  juin:6, juil:7, juill:7, aout:8, sept:9, sep:9, oct:10, octo:10,
+  nov:11, dec:12, déc:12
+};
+const PERIODE_EN_COURS = /(aujourd|présent|present|en cours|actuel|now|today|ce jour)/i;
+
+function _moisEnChiffre(mot) {
+  const cle = mot.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // enlève les accents
+    .replace(/\.$/, '');
+  for (const [k, v] of Object.entries(MOIS_FR)) {
+    if (cle.startsWith(k)) return v;
+  }
+  return null;
+}
+
+// « Sept 2018 » → « 09/2018 » ; « 2018 » → « 2018 » ; sinon null
+function _dateAts(morceau) {
+  const txt = (morceau || '').trim();
+  if (!txt) return null;
+  if (PERIODE_EN_COURS.test(txt)) return 'Présent';
+
+  let m = txt.match(/^(\d{1,2})\s*[\/.\-]\s*(\d{4})$/);           // 09/2018
+  if (m) return String(+m[1]).padStart(2, '0') + '/' + m[2];
+
+  m = txt.match(/^([A-Za-zÀ-ÿ.]+)\s+(\d{4})$/);                   // Sept 2018
+  if (m) {
+    const mois = _moisEnChiffre(m[1]);
+    if (mois) return String(mois).padStart(2, '0') + '/' + m[2];
+  }
+
+  m = txt.match(/^(\d{4})$/);                                     // 2018
+  if (m) return m[1];
+
+  return null;
+}
+
+function formatePeriodeAts(duration) {
+  const txt = (duration || '').trim();
+  if (!txt) return '';
+  const bouts = txt.split(/\s*(?:–|—|-|à|au|to)\s+/i);            // sépare début et fin
+  if (bouts.length !== 2) {
+    const seul = _dateAts(txt);
+    return seul || txt;
+  }
+  const debut = _dateAts(bouts[0]);
+  const fin   = _dateAts(bouts[1]);
+  return (debut && fin) ? `${debut} - ${fin}` : txt;
+}
+
 // ── PROFILE HIGHLIGHT BUILDER ──────────────────────────────
 // Texte simple (plus de pastilles colorées) : un seul paragraphe continu,
 // avec de vrais séparateurs « | » écrits dans le texte. Le retour à la ligne
@@ -374,8 +430,11 @@ function renderCV() {
         : renderDescription(e.description);
       // L'intitulé reste SEUL sur sa ligne : collé au contrat et au rattachement,
       // l'ATS lisait « Poste CDI Rattaché au… » comme un seul titre de poste
-      const lieu = [e.company, e.sector, e.location, e.duration].filter(Boolean).map(esc).join(sep);
+      // Ordre attendu par les lecteurs automatiques : entreprise, lieu, dates
+      const lieu = [e.company, e.location, formatePeriodeAts(e.duration)]
+        .filter(Boolean).map(esc).join(sep);
       const meta = [
+        e.sector       ? esc(e.sector) : '',
         e.contractType ? esc(e.contractType) : '',
         e.reportingTo  ? `Rattaché directement au ${esc(e.reportingTo)}` : ''
       ].filter(Boolean).join(sep);

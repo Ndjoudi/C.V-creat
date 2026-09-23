@@ -137,6 +137,8 @@ extrayant le texte des PDF générés par l'app.
 | Séparateurs **écrits dans le texte** (` \| `) | Un séparateur ajouté par le CSS (`::before`) n'existe pas pour l'ATS : l'e-mail était collé au téléphone |
 | Intitulé du poste **seul sur sa ligne** | Collé au contrat et au rattachement, il était lu « Poste CDI Rattaché au… » |
 | Pas d'espacement de lettres (`letter-spacing`) sur les libellés | L'ATS lisait « D O M A I N E S » |
+| **Dates en chiffres** : `09/2018 - 09/2021`, tiret simple (`formatePeriodeAts` dans `js/cv.js`) | Les lecteurs de formulaires ne reconnaissent ni « Sept 2018 » ni le tiret long, et laissaient les dates vides |
+| **Ligne sous l'intitulé = entreprise, lieu, dates** (le secteur passe avec le contrat) | Ordre attendu par les lecteurs automatiques ; le lieu noyé au milieu n'était pas repris |
 | Pas de `display:flex` sur des lignes de texte | En flex, les espaces entre deux morceaux de texte disparaissent (« Fin de cursusMaster ») |
 | Pas d'icônes ni de symboles (✉ ☎ ▸ ×) | Ils polluent le texte extrait |
 | Aucun bouton ni élément d'interface dans le PDF | Les `<button>` sont retirés par `printCV()` ; tout autre élément cliquable doit l'être aussi |
@@ -248,6 +250,7 @@ Fichiers : `js/bouton-favori.js` (le favori), `js/import-annonce.js` (la récept
 | 2026-09-21 | **Liaison de l'accroche modifiable** (« je vise un poste de ») | Champ « Avant le poste visé » dans Mon Profil (`P.accrocheLiaison`, vide = phrase par défaut). Une seule source : `_liaisonAccroche()` / `_liaisonEtPoste()` dans `js/cv.js`, utilisées par le CV, l'aperçu, le mode édition, le générateur et la « Phrase profil ». Après une apostrophe finale (« d' »), le poste est collé sans espace |
 | 2026-09-21 | **Le formulaire Mon Profil se met à jour après le mode édition du CV** | Sans ça, une saisie dans le profil réécrivait les anciennes valeurs par-dessus les modifications faites dans le CV |
 | 2026-09-21 | **Bloc « Questions de candidature »** dans la fenêtre de l'annonce (remplace l'onglet « Formulaire » de la lettre) | Question collée + limite de caractères optionnelle ; l'IA (`callAIAuto`) reçoit l'offre complète, le CV complet (`_buildCVText`), poste, entreprise, points forts et les notes « Ce que je sais de l'entreprise » (`c.companyNotes`). Consigne : ne rien inventer. Réponse coupée à la dernière phrase sous la limite. Stocké dans `c.questions` |
+| 2026-09-23 | **Dates et lieu lisibles par les formulaires de candidature** | Un formulaire (type Workday) remplissait titre, entreprise et missions mais laissait dates et lieu vides. Périodes converties en `MM/AAAA - MM/AAAA` (« Présent » si en cours, texte conservé si non reconnu) et ligne réordonnée en entreprise · lieu · dates |
 | 2026-09-21 | **Les générateurs IA reçoivent enfin l'offre et l'entreprise** | La lettre lisait `c.rawOffer`/`c.description` (jamais remplis) au lieu de `c.jobDescription`, et 4 prompts lisaient `c.entreprise` au lieu de `c.company` |
 | 2026-09-14 | Import Indeed/LinkedIn par **bouton favori** | Toute lecture côté serveur est bloquée (section 7) |
 
