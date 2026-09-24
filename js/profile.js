@@ -170,11 +170,18 @@ function renderExpList() {
     const opts = CONTRACT_TYPES.map(t => '<option' + (ct === t ? ' selected' : '') + '>' + t + '</option>').join('');
     const bullets = e.bullets || [];
     const bulletsHtml = bullets.length
-      ? bullets.map(b =>
+      ? bullets.map((b, bi) =>
           '<div class="bullet-item" id="bi-' + b.id + '">' +
             '<button class="bullet-req-btn ' + (b.required ? 'is-req' : '') + '" onclick="toggleRequired(\'' + e.id + '\',\'' + b.id + '\')" title="' + (b.required ? 'Toujours affiché' : 'Affiché si sélectionné') + '">' +
               (b.required ? '★' : '○') +
             '</button>' +
+            // Ordre des réalisations : c'est celui du CV
+            '<span class="bullet-move">' +
+              '<button class="bullet-move-btn" title="Monter"' + (bi === 0 ? ' disabled' : '') +
+                ' onclick="deplaceBullet(\'' + e.id + '\',\'' + b.id + '\',-1)">▲</button>' +
+              '<button class="bullet-move-btn" title="Descendre"' + (bi === bullets.length - 1 ? ' disabled' : '') +
+                ' onclick="deplaceBullet(\'' + e.id + '\',\'' + b.id + '\',1)">▼</button>' +
+            '</span>' +
             '<span class="bullet-item-text" id="bt-' + b.id + '" contenteditable="true" onblur="updBulletText(\'' + e.id + '\',\'' + b.id + '\',this.textContent)">' + esc(b.text) + '</span>' +
             '<button onclick="delBullet(\'' + e.id + '\',\'' + b.id + '\')" class="bullet-del-btn">×</button>' +
           '</div>'
@@ -273,6 +280,21 @@ function delBullet(expId, bId) {
   exp.bullets = (exp.bullets || []).filter(b => b.id !== bId);
   ss('sc_profile', P);
   renderExpList();
+}
+
+// Monte (sens = -1) ou descend (sens = 1) une réalisation dans la liste.
+// L'ordre du profil est celui du CV : on le redessine dans la foulée.
+function deplaceBullet(expId, bId, sens) {
+  const exp = P.experiences.find(e => e.id === expId);
+  if (!exp || !exp.bullets) return;
+  const i = exp.bullets.findIndex(b => b.id === bId);
+  const j = i + sens;
+  if (i === -1 || j < 0 || j >= exp.bullets.length) return;
+  [exp.bullets[i], exp.bullets[j]] = [exp.bullets[j], exp.bullets[i]];
+  ss('sc_profile', P);
+  renderExpList();
+  if (typeof renderCV      === 'function') renderCV();
+  if (typeof _syncSplitCV  === 'function') _syncSplitCV();
 }
 
 function updBulletText(expId, bId, text) {

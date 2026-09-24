@@ -1,7 +1,8 @@
-// ── RACCOURCIS DE RECHERCHE (INDEED ET LINKEDIN) ───────────
-// Menus déroulants des boutons bleus « Indeed » et « LinkedIn » du tableau
-// de bord : un clic sur une catégorie ouvre la recherche correspondante
-// dans un nouvel onglet. Mêmes catégories pour les deux sites.
+// ── RACCOURCIS DE RECHERCHE (INDEED, LINKEDIN, HELLOWORK) ──
+// Menus déroulants des boutons « Indeed », « LinkedIn » et « HelloWork » du
+// tableau de bord : un clic sur une catégorie ouvre la recherche
+// correspondante dans un nouvel onglet. Mêmes catégories pour les trois
+// sites, suivi des clics séparé par site.
 // Filtres repris de la recherche de l'utilisateur : Île-de-France,
 // tri par date, types de contrat (sc=…). Seul le mot-clé change.
 // Pour ajouter une catégorie : une ligne dans RECHERCHES_INDEED.
@@ -54,7 +55,19 @@ function lienLinkedIn(motCle) {
   return 'https://www.linkedin.com/jobs/search/?keywords=' + encodeURIComponent(motCle) + LINKEDIN_FILTRES;
 }
 
-// Un seul moteur pour les deux menus : mêmes catégories, même suivi
+// HelloWork : filtres repris de la recherche de l'utilisateur — Île-de-France
+// dans un rayon de 20 km, CDI + intérim + fonctionnaire + freelance,
+// tri par pertinence, offres des 7 derniers jours (d=w).
+const HELLOWORK_FILTRES =
+  '&k_autocomplete=&l=Ile-de-France&l_autocomplete=&st=relevance' +
+  '&c=CDI&c=Travail_temp&c=Fonctionnaire&c=Freelance' +
+  '&cod=all&msa=0&ray=20&d=w';
+
+function lienHelloWork(motCle) {
+  return 'https://www.hellowork.com/fr-fr/emploi/recherche.html?k=' + encodeURIComponent(motCle) + HELLOWORK_FILTRES;
+}
+
+// Un seul moteur pour les trois menus : mêmes catégories, même suivi
 const SITES_RECHERCHE = {
   indeed: {
     lien: lienIndeed,
@@ -64,6 +77,11 @@ const SITES_RECHERCHE = {
   linkedin: {
     lien: lienLinkedIn,
     tout: 'https://www.linkedin.com/jobs/search/?keywords=supply%20chain' + LINKEDIN_FILTRES,
+    libelleTout: 'Toutes les offres « supply chain »'
+  },
+  hellowork: {
+    lien: lienHelloWork,
+    tout: 'https://www.hellowork.com/fr-fr/emploi/recherche.html?k=supply%20chain' + HELLOWORK_FILTRES,
     libelleTout: 'Toutes les offres « supply chain »'
   }
 };

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
-<link rel="stylesheet" href="css/components.css?v=49"/>
+<link rel="stylesheet" href="css/components.css?v=54"/>
 <link rel="stylesheet" href="css/cv.css?v=73"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
@@ -91,8 +91,8 @@
           <div class="sb-frole" id="sb-prole"></div>
         </div>
         <div class="sb-actions">
-          <button class="btn-icon" onclick="exportAllData()" title="Exporter"><i data-lucide="upload"></i></button>
-          <button class="btn-icon" onclick="importAllData()" title="Importer"><i data-lucide="download"></i></button>
+          <button class="btn-icon" onclick="sauvegardeMaintenant()" title="Sauvegarder mes données (fichier)"><i data-lucide="upload"></i></button>
+          <button class="btn-icon" onclick="restaureDepuisFichier()" title="Restaurer une sauvegarde"><i data-lucide="download"></i></button>
         </div>
         <div id="api-keys-panel" style="margin-top:10px;padding:10px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
           <div style="font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px">🔑 Clés API</div>
@@ -104,8 +104,8 @@
       <!-- Icônes seules (collapsed) -->
       <div class="sb-ft-icons">
         <button class="btn-icon" onclick="resetKey()" title="Changer la clé"><i data-lucide="key-round"></i></button>
-        <button class="btn-icon" onclick="exportAllData()" title="Exporter"><i data-lucide="upload"></i></button>
-        <button class="btn-icon" onclick="importAllData()" title="Importer"><i data-lucide="download"></i></button>
+        <button class="btn-icon" onclick="sauvegardeMaintenant()" title="Sauvegarder mes données (fichier)"><i data-lucide="upload"></i></button>
+        <button class="btn-icon" onclick="restaureDepuisFichier()" title="Restaurer une sauvegarde"><i data-lucide="download"></i></button>
       </div>
     </div>
   </div>
@@ -154,6 +154,15 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
             LinkedIn 94
           </a>
+          <!-- Menu déroulant : une recherche HelloWork par catégorie (js/recherches-indeed.js) -->
+          <div class="ri-menu" id="ri-menu-hellowork">
+            <button type="button" class="ri-bouton" onclick="basculeMenuRecherche('hellowork', event)" aria-haspopup="true" aria-expanded="false"
+              style="display:inline-flex;align-items:center;gap:5px;background:#16205B;color:white;border:none;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              HelloWork <span class="ri-fleche">▾</span>
+            </button>
+            <div class="ri-panneau ri-panneau--droite" id="ri-panneau-hellowork" hidden></div>
+          </div>
         </div>
       </div>
 
@@ -746,20 +755,21 @@
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
 <script src="js/api.js?v=39"></script>
-<script src="js/app.js?v=71"></script>
-<script src="js/profile.js?v=54"></script>
+<script src="js/app.js?v=74"></script>
+<script src="js/sauvegarde.js?v=3"></script>
+<script src="js/profile.js?v=55"></script>
 <script src="js/import-cv.js?v=36"></script>
 <script src="js/cv.js?v=92"></script>
 <script src="js/analyze.js?v=39"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=188"></script>
+<script src="js/tracker.js?v=189"></script>
 <script src="js/lettre-reco.js?v=9"></script>
 <script src="js/feed.js?v=16"></script>
 <script src="js/modal.js?v=37"></script>
 <script src="js/navigation.js?v=1"></script>
-<script src="js/import-annonce.js?v=4"></script>
-<script src="js/bouton-favori.js?v=7"></script>
-<script src="js/recherches-indeed.js?v=6"></script>
+<script src="js/import-annonce.js?v=5"></script>
+<script src="js/bouton-favori.js?v=8"></script>
+<script src="js/recherches-indeed.js?v=8"></script>
 
 </body>
 </html>

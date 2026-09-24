@@ -118,7 +118,10 @@ function esc(s) {
 }
 
 // ── PROFILE STATE ──────────────────────────────────────────
-let P = ls('sc_profile', DEF_PROFILE);
+// Complété avec DEF_PROFILE : un profil restauré depuis une vieille
+// sauvegarde peut manquer de champs, et le site plantait au démarrage
+// (page blanche) en parcourant P.experiences inexistant.
+let P = { ...DEF_PROFILE, ...(ls('sc_profile', null) || {}) };
 if (!P.emphases) P.emphases = [];
 // Migrate old profiles missing newer fields
 ['customSkills','education','languages','informatique'].forEach(k => { if (!P[k]) P[k] = []; });
@@ -456,6 +459,8 @@ function refreshDash() {
       ? `<span style="background:#e0f0ff;color:#0a66c2;border:1px solid #bfdbfe;border-radius:100px;padding:2px 9px;font-size:11px;font-weight:700">LinkedIn</span>`
       : c.jobSource === 'indeed'
       ? `<span style="background:#e8eeff;color:#2164f3;border:1px solid #c7d2fe;border-radius:100px;padding:2px 9px;font-size:11px;font-weight:700">Indeed</span>`
+      : c.jobSource === 'hellowork'
+      ? `<span style="background:#e6e8f5;color:#16205B;border:1px solid #c3c8e4;border-radius:100px;padding:2px 9px;font-size:11px;font-weight:700">HelloWork</span>`
       : `<span style="opacity:.3;font-size:12px">—</span>`;
 
     let sep = '';
@@ -513,10 +518,10 @@ function refreshDash() {
   // filterChips remplacés par statCards cliquables (ci-dessus)
 
   // ── Chips source ──
-  const sourceChips = ['Tous','linkedin','indeed'].map(s => {
+  const sourceChips = ['Tous','linkedin','indeed','hellowork'].map(s => {
     const active = s === _dashFilterSource;
-    const label = s === 'Tous' ? 'Toutes sources' : s === 'linkedin' ? 'LinkedIn' : 'Indeed';
-    const col = s === 'linkedin' ? '#0a66c2' : s === 'indeed' ? '#2164f3' : 'var(--ink3)';
+    const label = s === 'Tous' ? 'Toutes sources' : s === 'linkedin' ? 'LinkedIn' : s === 'indeed' ? 'Indeed' : 'HelloWork';
+    const col = s === 'linkedin' ? '#0a66c2' : s === 'indeed' ? '#2164f3' : s === 'hellowork' ? '#16205B' : 'var(--ink3)';
     const count = s === 'Tous' ? cands.length : cands.filter(c => c.jobSource === s).length;
     return `<span onclick="setDashFilterSource('${s}')" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
       ${active ? `background:${col==='var(--ink3)'?'#374151':col};color:white;border:1.5px solid transparent;` : `background:transparent;color:var(--ink3);border:1.5px solid var(--border);`}"
@@ -545,41 +550,4 @@ function refreshDash() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-// ── EXPORT ALL DATA ─────────────────────────────────────────
-function exportAllData() {
-  const data = { profile: P, candidatures: ls('sc_cands', []), historique: ls('sc_history', []), exported: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'supply-copilot-backup.json';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast('Sauvegarde téléchargée');
-}
-
-// ── IMPORT ALL DATA ─────────────────────────────────────────
-function importAllData() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  input.onchange = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        if (!data.profile) throw new Error('Fichier invalide');
-        if (!confirm('Remplacer toutes tes données actuelles par ce fichier ?')) return;
-        if (data.profile)       { ss('sc_profile', data.profile); P = data.profile; }
-        if (data.candidatures)  ss('sc_cands', data.candidatures);
-        if (data.historique)    ss('sc_history', data.historique);
-        showApp();
-        toast('Données importées');
-      } catch {
-        toast('Fichier JSON invalide');
-      }
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-}
+// Sauvegarde et restauration : voir js/sauvegarde.js

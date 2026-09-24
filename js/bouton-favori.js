@@ -2,7 +2,8 @@
 // Un favori (bookmarklet) à glisser dans la barre du navigateur.
 // Fonctionne aussi en vue « liste à gauche, détail à droite » : le détail
 // est parfois dans un cadre interne (iframe), qui est lu lui aussi.
-// Sur une offre Indeed ou LinkedIn déjà ouverte, un clic lit l'annonce
+// Sur une offre Indeed, LinkedIn ou HelloWork déjà ouverte, un clic lit
+// l'annonce (HelloWork : via la fiche structurée JSON-LD de la page)
 // DANS TON NAVIGATEUR (donc sans blocage anti-robot ni connexion requise),
 // la copie dans le presse-papiers et ouvre l'app qui la reçoit.
 // Format d'échange : voir import-annonce.js (IMPORT_MARQUEUR + base64url).
@@ -22,6 +23,13 @@ for(var j=0;j<D.length;j++){var s=(D[j].title||'').replace(/\\s*\\|.*$/,'').repl
 var p=s.split(/\\s+-\\s+/);if(p.length>=2&&p[0].length>2){r.poste=p[0].trim();r.entreprise=p[1].trim();return r;}
 if(!r.poste&&p[0]&&p[0].length>2)r.poste=p[0].trim();}
 return r;}
+function ficheStructuree(){var D=docs();
+for(var j=0;j<D.length;j++){var sc=D[j].querySelectorAll('script[type="application/ld+json"]');
+for(var i=0;i<sc.length;i++){var o;try{o=JSON.parse(sc[i].textContent)}catch(e){continue}
+var L=o['@graph']||(o instanceof Array?o:[o]);
+for(var k=0;k<L.length;k++){var T=L[k]&&L[k]['@type'];
+if(T==='JobPosting'||(T instanceof Array&&T.indexOf('JobPosting')>=0))return L[k];}}}
+return null;}
 function blocSecours(){var D=docs(),m='';
 for(var j=0;j<D.length;j++){var c=D[j].querySelectorAll('[id*="escription"],[class*="escription"],[id*="job-details"],[class*="job-details"],[class*="jobDescription"]');
 for(var i=0;i<c.length;i++){var t=c[i].innerText?c[i].innerText.trim():'';if(t.length>m.length&&t.length<40000)m=t;}}
@@ -46,7 +54,26 @@ d.company=t(['.job-details-jobs-unified-top-card__company-name','.jobs-unified-t
 d.location=t(['.job-details-jobs-unified-top-card__primary-description-container .tvm__text','.topcard__flavor--bullet']);
 d.url=id?'https://www.linkedin.com/jobs/view/'+id:location.href;
 d.descText=bloc(['#job-details','.jobs-description__content','.jobs-box__html-content','.show-more-less-html__markup']);
-}else{alert('Ouvre d\\'abord une offre Indeed ou LinkedIn, puis clique sur ce favori.');return;}
+}else if(/hellowork\\./.test(h)){
+d.source='hellowork';
+var F=ficheStructuree();
+if(F){
+d.title=F.title||'';
+d.company=(F.hiringOrganization&&F.hiringOrganization.name)||'';
+var LL=F.jobLocation;if(LL instanceof Array)LL=LL[0];
+var A=(LL&&LL.address)||{};
+d.location=[A.addressLocality,A.postalCode].filter(Boolean).join(' ');
+var V=F.baseSalary&&F.baseSalary.value;
+if(V){var mn=V.minValue,mx=V.maxValue;d.salary=String(V.value||(mn&&mx?mn+' - '+mx:(mn||mx||'')))+(V.unitText?' / '+V.unitText:'');}
+d.url=F.url||location.href;
+d.descText=(F.description||'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\\s+/g,' ').trim();
+}
+if(!d.title)d.title=t(['h1']);
+if(!d.company)d.company=t(['[data-cy="companyName"]','[itemprop="hiringOrganization"]']);
+if(!d.url)d.url=location.href;
+var CT=(document.body.innerText.match(/\\b(CDI|CDD|Int[ée]rim|Alternance|Stage|Freelance)\\b/)||[])[1];
+if(CT&&!d.contract)d.contract=CT;
+}else{alert('Ouvre d\\'abord une offre Indeed, LinkedIn ou HelloWork, puis clique sur ce favori.');return;}
 if(!d.descText)d.descText=blocSecours();
 if(!d.descText){alert('Description introuvable sur cette page.\\n\\nLu : '+(d.title||'(pas de titre)')+' / '+(d.company||'(pas d\\'entreprise)')+'\\n\\nOuvre l\\'offre en plein écran (pas la liste de résultats), attends qu\\'elle s\\'affiche, puis réessaie.');return;}
 var oct=new TextEncoder().encode(JSON.stringify(d)),s='';for(var i=0;i<oct.length;i++)s+=String.fromCharCode(oct[i]);

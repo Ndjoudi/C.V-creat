@@ -24,13 +24,14 @@ function _importValide(d) {
   if (!d || typeof d !== 'object') return null;
   const s = v => (typeof v === 'string' ? v.trim() : '');
   const job = {
-    source:   /linkedin/i.test(d.source) ? 'linkedin' : 'indeed',
+    source:   /linkedin/i.test(d.source) ? 'linkedin'
+            : /hellowork/i.test(d.source) ? 'hellowork' : 'indeed',
     title:    s(d.title).slice(0, 200),
     company:  s(d.company).slice(0, 200),
     location: s(d.location).slice(0, 200),
     contract: s(d.contract).slice(0, 120),
     salary:   s(d.salary).slice(0, 120),
-    url:      /^https:\/\/([a-z]+\.)?(indeed|linkedin)\.com\//i.test(s(d.url)) ? s(d.url) : '',
+    url:      /^https:\/\/([a-z0-9-]+\.)*(indeed|linkedin|hellowork)\.(com|fr)\//i.test(s(d.url)) ? s(d.url) : '',
     descText: s(d.descText).slice(0, 20000)
   };
   return job.descText.length >= 50 ? job : null;

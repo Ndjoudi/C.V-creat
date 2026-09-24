@@ -196,9 +196,11 @@ function _showSourceBadge(source) {
   if (!el) return;
   if (!source) { el.innerHTML = ''; return; }
   const conf = {
-    linkedin: { bg: '#0a66c2', label: 'LinkedIn détecté' },
-    indeed:   { bg: '#2164f3', label: 'Indeed détecté'   },
+    linkedin:  { bg: '#0a66c2', label: 'LinkedIn détecté'  },
+    indeed:    { bg: '#2164f3', label: 'Indeed détecté'    },
+    hellowork: { bg: '#16205B', label: 'HelloWork détecté' },
   }[source];
+  if (!conf) { el.innerHTML = ''; return; }
   el.innerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;background:${conf.bg};color:white;border-radius:100px;padding:2px 9px;font-size:10.5px;font-weight:700">✓ ${conf.label}</span>`;
 }
 
@@ -255,13 +257,17 @@ let _liLastJob = null;
 async function _runJobFetch(url, source, jobDejaLu = null) {
   const status  = document.getElementById('dash-paste-status');
   const preview = document.getElementById('dash-linkedin-preview');
-  const label   = source === 'indeed' ? 'Indeed' : 'LinkedIn';
+  const label   = source === 'indeed' ? 'Indeed' : source === 'hellowork' ? 'HelloWork' : 'LinkedIn';
 
   status.style.color = 'var(--ink3)';
   status.innerHTML = `<span class="sp" style="width:12px;height:12px;display:inline-block;margin-right:6px;vertical-align:-2px"></span>Récupération ${label}…`;
   if (preview) preview.style.display = 'none';
 
   try {
+    // HelloWork ne se lit que depuis sa page, avec le bouton favori
+    if (!jobDejaLu && source === 'hellowork') {
+      throw new Error("Ouvre l'offre sur HelloWork et clique sur le bouton favori « Envoyer à Supply Copilot »");
+    }
     const job = jobDejaLu
       || (source === 'indeed'
         ? await _fetchIndeedJob(url)

@@ -726,6 +726,8 @@ select.inp{cursor:pointer}
   background:var(--card); border:1px solid var(--border); border-radius:10px;
   box-shadow:0 10px 30px rgba(0,0,0,.14);
 }
+/* Dernier bouton de la rangée : le menu s'ouvre vers la gauche */
+.ri-panneau--droite{ left:auto; right:0; }
 .ri-groupe{
   font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
   color:var(--ink3); margin:8px 6px 3px;
@@ -741,3 +743,23 @@ select.inp{cursor:pointer}
 .ri-etat--oublie{ color:var(--red); font-weight:700; }
 .ri-lien:hover{ background:var(--teal-bg); color:var(--teal-d); }
 .ri-lien--tout{ font-weight:700; color:var(--ink); }
+
+/* ── BANDEAU DE SAUVEGARDE AUTOMATIQUE ──────────────────── */
+.sv-bandeau{
+  position:fixed; z-index:900; left:50%; bottom:18px; transform:translateX(-50%);
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  width:min(560px, calc(100vw - 32px)); padding:10px 14px;
+  background:var(--green-bg); border:1.5px solid var(--green); border-radius:10px;
+  box-shadow:0 8px 28px rgba(0,0,0,.14);
+  font-size:12.5px; color:var(--ink);
+}
+.sv-mini{ font-size:11.5px; padding:3px 10px; }
+
+/* ── DÉPLACEMENT DES RÉALISATIONS (profil) ──────────────── */
+.bullet-move{ display:flex; flex-direction:column; gap:1px; flex-shrink:0; }
+.bullet-move-btn{
+  background:none; border:none; cursor:pointer; padding:1px 6px;
+  font-size:11px; line-height:1.1; color:var(--ink3);
+}
+.bullet-move-btn:hover:not(:disabled){ color:var(--ink); }
+.bullet-move-btn:disabled{ opacity:.2; cursor:default; }
