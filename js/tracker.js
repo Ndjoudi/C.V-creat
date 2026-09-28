@@ -1265,7 +1265,8 @@ function _enterCVEditMode(docId) {
   // ── Compétences : suppression du profil ──
   // Libellés du modèle unique → tableaux du profil (« Outils » regroupe deux listes)
   const cles = { 'Domaines': ['subdomains'], 'Outils': ['tools', 'informatique'],
-                 'Certifications': ['certifs'], 'Autres compétences': ['customSkills'] };
+                 'Certifications': ['certifs'], 'Compétences techniques': ['customSkills'],
+                 'Savoir-être': ['savoirEtre'], 'Autres compétences': ['customSkills'] };
   doc.querySelectorAll('.cv-skill-row').forEach(row => {
     const libelle  = (row.querySelector('.cv-skill-key')?.textContent || '').replace(/\s*:\s*$/, '').trim();
     const tableaux = cles[libelle];
@@ -2044,7 +2045,7 @@ function _buildCVText() {
   const skills = [
     ...(P.technicalSkills||[]), ...(P.softSkills||[]),
     ...(P.tools||[]),           ...(P.subdomains||[]),
-    ...(P.customSkills||[])
+    ...(P.customSkills||[]),    ...(P.savoirEtre||[])
   ].filter(Boolean);
   if (skills.length) lines.push(`\nCompétences : ${skills.join(', ')}`);
 

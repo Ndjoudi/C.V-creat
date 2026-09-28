@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/base.css?v=36"/>
-<link rel="stylesheet" href="css/components.css?v=54"/>
+<link rel="stylesheet" href="css/components.css?v=60"/>
 <link rel="stylesheet" href="css/cv.css?v=73"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
@@ -323,7 +323,7 @@
           <!-- Phrase d'accroche (dynamique) -->
           <div class="fg" style="margin-bottom:0">
             <div class="fg-row">
-              <label class="lb">Phrase d'accroche <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--teal)">— partie libre</span></label>
+              <label class="lb">Phrase d'accroche <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--teal)">— partie libre, propre au CV affiché</span></label>
               <button class="btn-ai" onclick="prefillAccroche()">⚡ Pré-remplir</button>
             </div>
             <textarea class="inp" id="p-accrocheIntro" rows="2"
@@ -331,6 +331,7 @@
               oninput="saveProfile();renderCV();_updateAccrochePreview()"></textarea>
             <div class="fg-row" style="margin-top:10px">
               <label class="lb" for="p-accrocheLiaison">Avant le poste visé <span style="font-size:9.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--teal)">— vide = « je vise un poste de »</span></label>
+              <button class="btn btn-p btn-xs" id="p-liaison-bouton" onclick="basculeAffichageLiaison()">✓ Affichée</button>
             </div>
             <input class="inp" id="p-accrocheLiaison" type="text" placeholder="je vise un poste de"
               oninput="saveProfile();renderCV();_updateAccrochePreview();if(typeof _syncSplitCV==='function')_syncSplitCV()">
@@ -399,12 +400,22 @@
         </div>
 
         <div class="card">
-          <div class="ctitle-row"><span class="ctitle">Compétences personnalisées</span><button class="btn-ai" onclick="showAddChip('custom')">+ Ajouter</button></div>
+          <div class="ctitle-row"><span class="ctitle">Compétences techniques</span><button class="btn-ai" onclick="showAddChip('custom')">+ Ajouter</button></div>
           <div class="chips" id="chips-custom"></div>
           <div id="add-chip-custom" class="hidden" style="margin-top:10px;display:flex;gap:8px">
-            <input class="inp" id="add-chip-custom-inp" placeholder="Ex: Gestion de projet Agile, RGPD, Lean..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('customSkills','custom')"/>
+            <input class="inp" id="add-chip-custom-inp" placeholder="Ex: Gestion des stocks, inventaires tournants, Lean..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('customSkills','custom')"/>
             <button class="btn btn-p" onclick="saveAddChip('customSkills','custom')">Ajouter</button>
             <button class="btn btn-g" onclick="hideAddChip('custom')">Annuler</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="ctitle-row"><span class="ctitle">Savoir-être</span><button class="btn-ai" onclick="showAddChip('savoiretre')">+ Ajouter</button></div>
+          <div class="chips" id="chips-savoiretre"></div>
+          <div id="add-chip-savoiretre" class="hidden" style="margin-top:10px;display:flex;gap:8px">
+            <input class="inp" id="add-chip-savoiretre-inp" placeholder="Ex: Management d'équipe, rigueur, sens du terrain..." style="flex:1" onkeydown="if(event.key==='Enter')saveAddChip('savoirEtre','savoiretre')"/>
+            <button class="btn btn-p" onclick="saveAddChip('savoirEtre','savoiretre')">Ajouter</button>
+            <button class="btn btn-g" onclick="hideAddChip('savoiretre')">Annuler</button>
           </div>
         </div>
 
@@ -476,6 +487,8 @@
             </button>
           </div>
         </div>
+        <!-- Versions du CV (js/versions-cv.js) -->
+        <div id="cv-versions-bar" class="cvv-bar"></div>
         <!-- Poste ciblé -->
         <div style="background:var(--card);border:1.5px solid var(--teal-border);border-radius:14px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
@@ -755,14 +768,15 @@
 
 <!-- ── SCRIPTS (order matters) ──────────────────────────── -->
 <script src="js/api.js?v=39"></script>
-<script src="js/app.js?v=74"></script>
+<script src="js/app.js?v=76"></script>
 <script src="js/sauvegarde.js?v=3"></script>
-<script src="js/profile.js?v=55"></script>
-<script src="js/import-cv.js?v=36"></script>
-<script src="js/cv.js?v=92"></script>
-<script src="js/analyze.js?v=39"></script>
+<script src="js/profile.js?v=56"></script>
+<script src="js/import-cv.js?v=37"></script>
+<script src="js/cv.js?v=95"></script>
+<script src="js/versions-cv.js?v=6"></script>
+<script src="js/analyze.js?v=40"></script>
 <script src="js/history.js?v=35"></script>
-<script src="js/tracker.js?v=189"></script>
+<script src="js/tracker.js?v=191"></script>
 <script src="js/lettre-reco.js?v=9"></script>
 <script src="js/feed.js?v=16"></script>
 <script src="js/modal.js?v=37"></script>

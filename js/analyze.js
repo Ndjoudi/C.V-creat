@@ -308,7 +308,7 @@ async function doAnalyzeCore(offerText, containerEl) {
   const profileSkills = [
     ...(p.technicalSkills||[]), ...(p.softSkills||[]),
     ...(p.tools||[]), ...(p.languages||[]),
-    ...(p.subdomains||[]), ...(p.customSkills||[])
+    ...(p.subdomains||[]), ...(p.customSkills||[]), ...(p.savoirEtre||[])
   ].filter(Boolean);
 
   // ── 3. Extraction locale des exigences (0 token, 0 API) ──

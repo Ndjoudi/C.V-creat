@@ -73,7 +73,8 @@ function renderChips() {
   renderChipGroup('chips-certs',  CERTS,        'certifs');
   renderChipGroup('chips-sects',  SECTS,        'sectors');
   renderChipGroup('chips-info',   INFORMATIQUE, 'informatique');
-  renderChipGroup('chips-custom', [],           'customSkills');
+  renderChipGroup('chips-custom',   [], 'customSkills');
+  renderChipGroup('chips-savoiretre', [], 'savoirEtre');
   updateSBProfile();
 }
 

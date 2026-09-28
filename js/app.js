@@ -56,7 +56,7 @@ const DEF_PROFILE = {
   firstName:'',lastName:'',email:'',phone:'',location:'',linkedin:'',
   title:'',yearsExp:'',mobility:'',summaryTarget:'',
   permis:'',disponibilite:'',contratRecherche:'',domainesProfile:'',hobbies:'',photo:'',
-  subdomains:[],tools:[],certifs:[],sectors:[],customSkills:[],informatique:[],
+  subdomains:[],tools:[],certifs:[],sectors:[],customSkills:[],savoirEtre:[],informatique:[],
   experiences:[],education:[],languages:[],
   emphases:[],
   highlightConfig:{ formation:true, contrat:true, dispo:true, mobility:true, permis:false }
@@ -124,7 +124,7 @@ function esc(s) {
 let P = { ...DEF_PROFILE, ...(ls('sc_profile', null) || {}) };
 if (!P.emphases) P.emphases = [];
 // Migrate old profiles missing newer fields
-['customSkills','education','languages','informatique'].forEach(k => { if (!P[k]) P[k] = []; });
+['customSkills','savoirEtre','education','languages','informatique'].forEach(k => { if (!P[k]) P[k] = []; });
 ['linkedin','mobility','permis','disponibilite','contratRecherche','domainesProfile','hobbies','photo','summaryTarget'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
 // Migration v3 : domainesProfile est désormais généré automatiquement par offre (split view)
 if (!P._v3_hookMigrated) { P.domainesProfile = ''; P._v3_hookMigrated = true; ss('sc_profile', P); }
@@ -362,7 +362,8 @@ function initNav() {
 function goTo(id) {
   document.querySelectorAll('.ni').forEach(n => n.classList.toggle('on', n.dataset.sc === id));
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + id));
-  if (id === 'cv')     { renderCV(); if (typeof renderLettreReco === 'function') renderLettreReco(); }
+  if (id === 'cv')     { renderCV(); if (typeof renderLettreReco === 'function') renderLettreReco();
+                         if (typeof renderVersionsCV === 'function') renderVersionsCV(); }
   if (id === 'feed')     ouvreFeed();
   if (id === 'dash')     refreshDash();
   if (id === 'tracker')  renderTracker();

@@ -282,6 +282,33 @@ function renderDescription(text) {
 // Tout le site passe par ces deux fonctions.
 const LIAISON_ACCROCHE_DEFAUT = 'je vise un poste de';
 
+// Affichage de « je vise un poste de … » : réglable dans Mon Profil.
+// Masqué, le CV garde uniquement la phrase d'accroche libre.
+function liaisonAffichee() {
+  return P.accrocheLiaisonAffichee !== false;
+}
+
+function basculeAffichageLiaison() {
+  P.accrocheLiaisonAffichee = !liaisonAffichee();
+  ss('sc_profile', P);
+  _majBoutonLiaison();
+  _updateAccrochePreview();
+  renderCV();
+  if (typeof _syncSplitCV === 'function') _syncSplitCV();
+}
+
+function _majBoutonLiaison() {
+  const b = document.getElementById('p-liaison-bouton');
+  if (!b) return;
+  const on = liaisonAffichee();
+  b.textContent = on ? '✓ Affichée' : 'Masquée';
+  b.classList.toggle('btn-p', on);
+  b.classList.toggle('btn-g', !on);
+  b.title = on ? 'Cliquer pour retirer cette phrase du CV' : 'Cliquer pour afficher cette phrase sur le CV';
+  const champ = document.getElementById('p-accrocheLiaison');
+  if (champ) champ.disabled = !on;
+}
+
 function _liaisonAccroche() {
   const l = (P.accrocheLiaison || '').trim().replace(/[,.\s]+$/, '');
   return l || LIAISON_ACCROCHE_DEFAUT;
@@ -299,7 +326,7 @@ function _buildAccrocheText() {
   const intro = (P.accrocheIntro || '').trim();
   if (intro) {
     const clean = intro.replace(/[,.\s]+$/, ''); // enlève virgule/point final
-    return `${clean}, ${_liaisonEtPoste(poste)}.`;
+    return liaisonAffichee() ? `${clean}, ${_liaisonEtPoste(poste)}.` : `${clean}.`;
   }
   // 2. Fallback auto depuis yearsExp + domainesProfile
   const y = P.yearsExp || '', d = P.domainesProfile || '';
@@ -307,7 +334,7 @@ function _buildAccrocheText() {
     let t = '';
     if (y) t += `Fort(e) de ${y}`;
     if (d) t += (y ? ' en ' : 'En ') + d;
-    t += `, ${_liaisonEtPoste(poste)}.`;
+    t += liaisonAffichee() ? `, ${_liaisonEtPoste(poste)}.` : '.';
     return t;
   }
   // 3. Fallback : summaryTarget legacy
@@ -340,14 +367,15 @@ function _updateAccrochePreview() {
   const prev  = document.getElementById('accroche-preview-text');
   const prevP = document.getElementById('accroche-preview-poste');
   if (!prev || !prevP) return;
-  if (intro) {
-    const clean = intro.replace(/[,.\s]+$/, '');
-    prev.textContent  = clean + ', ' + _liaisonEtPoste('');
-    prevP.textContent = poste + '.';
+  const base = intro ? intro.replace(/[,.\s]+$/, '') : '[ta phrase]';
+  if (!liaisonAffichee()) {
+    prev.textContent  = base + '.';
+    prevP.textContent = '';
   } else {
-    prev.textContent  = '[ta phrase], ' + _liaisonEtPoste('');
+    prev.textContent  = base + ', ' + _liaisonEtPoste('');
     prevP.textContent = poste + '.';
   }
+  _majBoutonLiaison();
 }
 
 // ── CV TARGET ──────────────────────────────────────────────
@@ -463,7 +491,15 @@ function renderCV() {
   }
 
   // ── Compétences : listes séparées par des virgules ──
-  const hasSkills = P.subdomains.length || P.tools.length || P.certifs.length || P.customSkills.length || P.informatique.length;
+  // Compétences affichées = communes (profil) + propres à la version active
+  const comp = (cle) => (typeof competencesCV === 'function' ? competencesCV(cle) : (P[cle] || []));
+  const compDomaines = comp('subdomains');
+  const compOutils   = [...comp('tools'), ...(P.informatique || [])];
+  const compCertifs  = comp('certifs');
+  const compTechniques = comp('customSkills');   // clé d'origine, libellé changé
+  const compSavoirEtre = comp('savoirEtre');
+  const hasSkills = compDomaines.length || compOutils.length || compCertifs.length
+                 || compTechniques.length || compSavoirEtre.length;
   if (hasSkills) {
     html += `<div class="cv-sec"><div class="cv-stitle">Compétences</div>`;
 
@@ -483,10 +519,11 @@ function renderCV() {
     const ligne = (label, items, key) =>
       `<div class="cv-skill-row${items.length ? '' : ' cv-skill-row--vide'}">${plus(key)}<span class="cv-skill-key">${label} :</span> ${items.map(tagEl).join(', ')}</div>`;
 
-    html += ligne('Domaines', P.subdomains, 'subdomains');
-    html += ligne('Outils', [...P.tools, ...P.informatique], 'tools');
-    if (P.certifs.length) html += ligne('Certifications', P.certifs, '');
-    html += ligne('Autres compétences', P.customSkills, 'customSkills');
+    html += ligne('Domaines', compDomaines, 'subdomains');
+    html += ligne('Outils', compOutils, 'tools');
+    if (compCertifs.length) html += ligne('Certifications', compCertifs, '');
+    html += ligne('Compétences techniques', compTechniques, 'customSkills');
+    html += ligne('Savoir-être', compSavoirEtre, 'savoirEtre');
     html += `</div>`;
   }
 
@@ -655,7 +692,8 @@ const _SKILL_DB = {
   tools:       () => TOOLS,
   informatique:() => INFORMATIQUE,
   certifs:     () => (typeof CERTS !== 'undefined' ? CERTS : []),
-  customSkills:() => []
+  customSkills:() => [],
+  savoirEtre:  () => []
 };
 
 window._openSkillPicker = function(key, btnEl) {

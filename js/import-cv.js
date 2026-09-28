@@ -73,7 +73,8 @@ RÈGLES STRICTES :
 - Pour tools, ne mettre que les valeurs présentes dans cette liste : ${allTools}
 - Pour certifs, ne mettre que les valeurs présentes dans cette liste : ${allCerts}
 - Pour sectors, ne mettre que les valeurs présentes dans cette liste : ${allSects}
-- Les compétences non trouvées dans ces listes vont dans customSkills
+- Les compétences techniques non trouvées dans ces listes vont dans customSkills
+- Les qualités humaines et managériales (rigueur, management d'équipe, sens du terrain…) vont dans savoirEtre
 - Les descriptions d'expériences doivent conserver les bullet points avec • au début de chaque ligne
 - Les dates de durée : format "Mois AAAA – Mois AAAA" ou "AAAA – AAAA"
 
@@ -81,7 +82,7 @@ CV À ANALYSER :
 ${text}
 
 Réponds UNIQUEMENT en JSON valide sans markdown ni backticks :
-{"firstName":"","lastName":"","email":"","phone":"","location":"","linkedin":"","title":"","yearsExp":"","summary":"","experiences":[{"title":"","company":"","duration":"","location":"","description":""}],"education":[{"degree":"","school":"","year":"","mention":""}],"languages":[{"name":"","level":""}],"subdomains":[],"tools":[],"certifs":[],"sectors":[],"customSkills":[]}`;
+{"firstName":"","lastName":"","email":"","phone":"","location":"","linkedin":"","title":"","yearsExp":"","summary":"","experiences":[{"title":"","company":"","duration":"","location":"","description":""}],"education":[{"degree":"","school":"","year":"","mention":""}],"languages":[{"name":"","level":""}],"subdomains":[],"tools":[],"certifs":[],"sectors":[],"customSkills":[],"savoirEtre":[]}`;
 
   try {
     // Même bascule automatique que l'analyse d'offre : Gemini puis Groq
@@ -94,7 +95,7 @@ Réponds UNIQUEMENT en JSON valide sans markdown ni backticks :
     data.languages   = (data.languages   || []).filter(l => l.name).map(l => ({ ...l, id: Date.now().toString() + Math.random().toString(36).slice(2) }));
 
     // Nettoyer les tableaux
-    ['subdomains','tools','certifs','sectors','customSkills'].forEach(k => {
+    ['subdomains','tools','certifs','sectors','customSkills','savoirEtre'].forEach(k => {
       data[k] = Array.isArray(data[k]) ? data[k].filter(Boolean) : [];
     });
 
@@ -111,7 +112,7 @@ Réponds UNIQUEMENT en JSON valide sans markdown ni backticks :
 }
 
 function renderImportPreview(d) {
-  const skillCount = (d.subdomains?.length || 0) + (d.tools?.length || 0) + (d.certifs?.length || 0) + (d.customSkills?.length || 0);
+  const skillCount = (d.subdomains?.length || 0) + (d.tools?.length || 0) + (d.certifs?.length || 0) + (d.customSkills?.length || 0) + (d.savoirEtre?.length || 0);
   const lines = [
     d.firstName || d.lastName ? `<strong>Identité :</strong> ${[d.firstName, d.lastName].filter(Boolean).join(' ')}${d.title ? ' — ' + d.title : ''}` : null,
     d.email || d.phone ? `<strong>Contact :</strong> ${[d.email, d.phone, d.location].filter(Boolean).join(' · ')}` : null,
@@ -119,7 +120,7 @@ function renderImportPreview(d) {
     d.summary ? `<strong>Résumé :</strong> ${d.summary.slice(0, 120)}${d.summary.length > 120 ? '…' : ''}` : null,
     d.experiences?.length ? `<strong>Expériences :</strong> ${d.experiences.length} poste${d.experiences.length > 1 ? 's' : ''} — ${d.experiences.map(e => e.title + (e.company ? ' chez ' + e.company : '')).join(', ')}` : null,
     d.education?.length   ? `<strong>Formation :</strong> ${d.education.map(e => e.degree + (e.school ? ' · ' + e.school : '')).join(', ')}` : null,
-    skillCount ? `<strong>Compétences :</strong> ${skillCount} extraites (${d.tools?.length || 0} outils, ${d.certifs?.length || 0} certifications, ${d.customSkills?.length || 0} autres)` : null,
+    skillCount ? `<strong>Compétences :</strong> ${skillCount} extraites (${d.tools?.length || 0} outils, ${d.certifs?.length || 0} certifications, ${d.customSkills?.length || 0} techniques, ${d.savoirEtre?.length || 0} savoir-être)` : null,
     d.languages?.length ? `<strong>Langues :</strong> ${d.languages.map(l => l.name + ' (' + l.level + ')').join(', ')}` : null,
   ].filter(Boolean);
 
