@@ -567,16 +567,30 @@ async function analyzeCV() {
   const { errors, warnings } = detectCVErrors();
 
   // ── Partie 2 : analyse IA de la qualité du contenu ──
-  const cvText = [
-    P.title ? 'Titre : ' + P.title : '',
-    P.yearsExp ? 'Expérience : ' + P.yearsExp : '',
-    P.summary ? 'Résumé : ' + P.summary : '',
-    P.experiences.length ? 'Expériences :\n' + P.experiences.map(e =>
-      `- ${e.title} chez ${e.company} (${e.duration})\n${e.description || '(pas de description)'}`
-    ).join('\n') : '',
-    P.tools.length ? 'Outils : ' + P.tools.join(', ') : '',
-    P.certifs.length ? 'Certifications : ' + P.certifs.join(', ') : '',
-  ].filter(Boolean).join('\n\n');
+  // On analyse le CV RÉELLEMENT AFFICHÉ (donc ce que lit un recruteur ou un
+  // ATS). L'ancienne version reconstruisait un texte partiel : elle ignorait
+  // les réalisations (puces), la formation, les langues et l'accroche, et
+  // concluait que « les descriptions sont absentes ».
+  renderCV();
+  const cvDocEl = document.getElementById('cv-doc');
+  let cvText = (cvDocEl?.innerText || '').replace(/\n{3,}/g, '\n\n').trim();
+  if (cvText.length < 80) {                       // filet de sécurité
+    cvText = [
+      P.title ? 'Titre : ' + P.title : '',
+      P.yearsExp ? 'Expérience : ' + P.yearsExp : '',
+      P.experiences.map(e => `- ${e.title} chez ${e.company} (${e.duration})\n`
+        + (e.bullets || []).map(x => '  • ' + x.text).join('\n')).join('\n')
+    ].filter(Boolean).join('\n\n');
+  }
+
+  // Contexte utile au jugement, absent du CV lui-même
+  const edu0 = (P.education || [])[0] || {};
+  const contexte = [
+    _cvTarget ? 'Poste visé : ' + _cvTarget : '',
+    P.contratRecherche ? 'Contrat recherché : ' + P.contratRecherche : '',
+    P.disponibilite ? 'Disponibilité : ' + P.disponibilite : '',
+    edu0.degree ? `Formation en cours ou obtenue : ${edu0.degree} (${edu0.year || ''})` : ''
+  ].filter(Boolean).join(' · ');
 
   const prompt = `Tu es un expert en recrutement supply chain. Analyse la qualité de ce CV et donne des recommandations concrètes.
 
@@ -587,8 +601,12 @@ RÈGLES D'ÉVALUATION (basées sur les meilleures pratiques ATS 2025) :
 - Score ATS optimal : 65-75% de correspondance avec les offres cibles
 - Signale ce qui est fort ET ce qui doit être amélioré
 
-CV À ANALYSER :
+CONTEXTE DU CANDIDAT : ${contexte || '(non précisé)'}
+
+CV À ANALYSER — texte exact du CV tel qu'il est imprimé (les puces « • » sont les réalisations) :
 ${cvText}
+
+Juge UNIQUEMENT ce qui est écrit ci-dessus. Ne reproche pas l'absence d'un élément qui y figure.
 
 Réponds UNIQUEMENT en JSON valide sans markdown :
 {
@@ -602,7 +620,8 @@ Réponds UNIQUEMENT en JSON valide sans markdown :
 }`;
 
   try {
-    const raw  = await callGroq(prompt, { maxTokens: 1200, temperature: 0.3 });
+    // Même bascule que le reste du site : Gemini, puis Groq
+    const { text: raw } = await callAIAuto(prompt, { maxTokens: 1200, temperature: 0.3 });
     const data = safeParseJSON(raw);
     renderCVAnalysis(data, errors, warnings, result);
   } catch (e) {
