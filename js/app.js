@@ -1,9 +1,11 @@
 // ── CONSTANTS ─────────────────────────────────────────────
 const SUBS  = ['Logistique / Entrepôt','Transport','Planification / S&OP','Approvisionnement','Achats / Sourcing','Industriel / Lean','Import / Export','Customer Service SC'];
-const TOOLS = ['SAP MM','SAP WM/EWM','SAP APO/IBP','Oracle SCM','WMS','TMS','Excel avancé','Power BI','Tableau','Dynamics 365','AS400','EDI','Kinaxis','Blue Yonder','SAGE','Cegid','Generix','Reflex WMS','Manhattan WMS','Infor M3','Excel TCD'];
+const OUTILS_METIER = ['SAP MM','SAP WM/EWM','SAP APO/IBP','Oracle SCM','WMS','TMS','Excel avancé','Power BI','Tableau','Dynamics 365','AS400','EDI','Kinaxis','Blue Yonder','SAGE','Cegid','Generix','Reflex WMS','Manhattan WMS','Infor M3','Excel TCD'];
 const CERTS = ['APICS CPIM','APICS CSCP','Six Sigma Green Belt','Six Sigma Black Belt','Lean Manufacturing','CILT','PMP','Prince2','Agile/Scrum','CIPS','ISO 9001','ISO 14001','Lean Six Sigma'];
 const SECTS = ['Industrie','Retail / Distribution','Agroalimentaire','Pharmacie','Automobile','Luxe / Mode','Aéronautique','Grande consommation','E-commerce','BTP','Energie','Cosmétique','Santé / Médical'];
-const INFORMATIQUE = ['Microsoft Word','Claude Code','PowerPoint','Outlook','Teams','Antigravity','Google Sheets','Google Slides','Canva','Notion','Trello','Slack','Zoom','SharePoint','OneDrive','Adobe Acrobat','Salesforce','HubSpot','WordPress','ChatGPT / IA générative'];
+// Suggestions bureautiques, ajoutées aux outils (une seule rubrique)
+const BUREAUTIQUE = ['Microsoft Word','Claude Code','PowerPoint','Outlook','Teams','Antigravity','Google Sheets','Google Slides','Canva','Notion','Trello','Slack','Zoom','SharePoint','OneDrive','Adobe Acrobat','Salesforce','HubSpot','WordPress','ChatGPT / IA générative'];
+const TOOLS = [...OUTILS_METIER, ...BUREAUTIQUE];
 const STATS = ['À traiter','Envoyé','Message in','Entretien','Refusé'];
 let _dashFilter = 'Tous';
 let _dashFilterSource = 'Tous';
@@ -56,7 +58,7 @@ const DEF_PROFILE = {
   firstName:'',lastName:'',email:'',phone:'',location:'',linkedin:'',
   title:'',yearsExp:'',mobility:'',summaryTarget:'',
   permis:'',disponibilite:'',contratRecherche:'',domainesProfile:'',hobbies:'',photo:'',
-  subdomains:[],tools:[],certifs:[],sectors:[],customSkills:[],savoirEtre:[],informatique:[],
+  subdomains:[],tools:[],certifs:[],sectors:[],customSkills:[],savoirEtre:[],
   experiences:[],education:[],languages:[],
   emphases:[],
   highlightConfig:{ formation:true, contrat:true, dispo:true, mobility:true, permis:false }
@@ -124,7 +126,13 @@ function esc(s) {
 let P = { ...DEF_PROFILE, ...(ls('sc_profile', null) || {}) };
 if (!P.emphases) P.emphases = [];
 // Migrate old profiles missing newer fields
-['customSkills','savoirEtre','education','languages','informatique'].forEach(k => { if (!P[k]) P[k] = []; });
+['customSkills','savoirEtre','education','languages','tools'].forEach(k => { if (!P[k]) P[k] = []; });
+// Migration : « Bureautique & Informatique » n'existe plus, tout est dans « Outils et logiciels »
+if (P.informatique && P.informatique.length) {
+  P.informatique.forEach(s => { if (!P.tools.includes(s)) P.tools.push(s); });
+  delete P.informatique;
+  try { ss('sc_profile', P); } catch {}
+}
 ['linkedin','mobility','permis','disponibilite','contratRecherche','domainesProfile','hobbies','photo','summaryTarget'].forEach(k => { if (P[k] === undefined) P[k] = ''; });
 // Migration v3 : domainesProfile est désormais généré automatiquement par offre (split view)
 if (!P._v3_hookMigrated) { P.domainesProfile = ''; P._v3_hookMigrated = true; ss('sc_profile', P); }

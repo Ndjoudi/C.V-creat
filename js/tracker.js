@@ -1264,7 +1264,7 @@ function _enterCVEditMode(docId) {
 
   // ── Compétences : suppression du profil ──
   // Libellés du modèle unique → tableaux du profil (« Outils » regroupe deux listes)
-  const cles = { 'Domaines': ['subdomains'], 'Outils': ['tools', 'informatique'],
+  const cles = { 'Domaines': ['subdomains'], 'Outils': ['tools'],
                  'Certifications': ['certifs'], 'Compétences techniques': ['customSkills'],
                  'Savoir-être': ['savoirEtre'], 'Autres compétences': ['customSkills'] };
   doc.querySelectorAll('.cv-skill-row').forEach(row => {

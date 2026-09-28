@@ -494,7 +494,7 @@ function renderCV() {
   // Compétences affichées = communes (profil) + propres à la version active
   const comp = (cle) => (typeof competencesCV === 'function' ? competencesCV(cle) : (P[cle] || []));
   const compDomaines = comp('subdomains');
-  const compOutils   = [...comp('tools'), ...(P.informatique || [])];
+  const compOutils   = comp('tools');
   const compCertifs  = comp('certifs');
   const compTechniques = comp('customSkills');   // clé d'origine, libellé changé
   const compSavoirEtre = comp('savoirEtre');
@@ -690,7 +690,6 @@ function renderCVAnalysis(ai, errors, warnings, container) {
 const _SKILL_DB = {
   subdomains:  () => SUBS,
   tools:       () => TOOLS,
-  informatique:() => INFORMATIQUE,
   certifs:     () => (typeof CERTS !== 'undefined' ? CERTS : []),
   customSkills:() => [],
   savoirEtre:  () => []
