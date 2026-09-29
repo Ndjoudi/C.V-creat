@@ -20,7 +20,29 @@ async function callGroq(prompt, { maxTokens = 2000, temperature = 0.7, model = '
   });
   const d = await r.json();
   if (d.error) throw new Error(d.error.message);
+  noteIAUtilisee('Groq', model);
   return (d.choices?.[0]?.message?.content || '').trim();
+}
+
+// ── DERNIÈRE IA UTILISÉE ───────────────────────────────────
+// Affichée dans la barre de gauche : tu sais toujours qui a répondu.
+const CLE_DERNIERE_IA = 'sc_derniere_ia';
+
+const NOMS_MODELES = {
+  'gemini-3.8-flash': 'Gemini 3.8 Flash',
+  'gemini-3-flash':   'Gemini 3 Flash',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'llama-3.3-70b-versatile': 'Llama 3.3 70B',
+  'llama-3.3-70b':           'Llama 3.3 70B'
+};
+
+function noteIAUtilisee(fournisseur, modele) {
+  try {
+    localStorage.setItem(CLE_DERNIERE_IA, JSON.stringify({
+      fournisseur, modele, quand: new Date().toISOString()
+    }));
+  } catch {}
+  if (typeof renderDerniereIA === 'function') renderDerniereIA();
 }
 
 // ── MODÈLES GEMINI ─────────────────────────────────────────
@@ -76,6 +98,7 @@ async function _callGeminiWithKey(key, prompt, maxTokens, temperature) {
     const modele = aEssayer[i];
     try {
       const texte = await _appelGemini(modele, key, prompt, maxTokens, temperature);
+      noteIAUtilisee('Gemini', modele);
       if (localStorage.getItem(CLE_MODELE_GEMINI) !== modele) {
         localStorage.setItem(CLE_MODELE_GEMINI, modele);
         console.log('[AI] Gemini : modèle retenu →', modele);
@@ -150,6 +173,7 @@ async function _callGroqDirect(prompt, { maxTokens = 2000, temperature = 0.7, mo
   });
   const d = await r.json();
   if (d.error) throw new Error(d.error.message);
+  noteIAUtilisee('Groq', model);
   return (d.choices?.[0]?.message?.content || '').trim();
 }
 
@@ -180,4 +204,37 @@ async function callAIAuto(prompt, options = {}) {
     }
   }
   throw new Error('Tous les providers ont échoué — ' + errs.join(' | '));
+}
+
+// ── AFFICHAGE « DERNIÈRE IA » (barre de gauche) ────────────
+function renderDerniereIA() {
+  const ancre = document.getElementById('api-keys-panel');
+  if (!ancre) return;
+  let el = document.getElementById('derniere-ia');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'derniere-ia';
+    el.className = 'derniere-ia';
+    ancre.insertAdjacentElement('afterend', el);
+  }
+  let info = null;
+  try { info = JSON.parse(localStorage.getItem(CLE_DERNIERE_IA) || 'null'); } catch {}
+  if (!info) {
+    el.innerHTML = `<span class="derniere-ia-label">Dernière IA</span><span class="derniere-ia-vide">aucune action pour l'instant</span>`;
+    return;
+  }
+  const d = new Date(info.quand);
+  const heure = isNaN(d) ? '' : d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const jour  = isNaN(d) || d.toDateString() === new Date().toDateString()
+    ? '' : ' · ' + d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+  const nom = NOMS_MODELES[info.modele] || info.modele || info.fournisseur;
+  el.innerHTML = `<span class="derniere-ia-label">Dernière IA</span>
+    <span class="derniere-ia-nom">${nom}</span>
+    <span class="derniere-ia-heure">${heure}${jour}</span>`;
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', renderDerniereIA);
+} else {
+  renderDerniereIA();
 }
