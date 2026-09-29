@@ -1691,7 +1691,7 @@ Règles :
     provider = 'Groq'; model = 'llama-3.3-70b';
   } else if (forceProvider === 'gemini') {
     text = await callGemini(prompt, { maxTokens: 4000, temperature: 0 });
-    provider = 'Gemini'; model = 'gemini-2.5-flash';
+    provider = 'Gemini'; model = (typeof modeleGeminiRetenu === 'function' && modeleGeminiRetenu()) || GEMINI_MODELES[0];
   } else {
     ({ text, provider, model } = await callAIAuto(prompt, { maxTokens: 4000, temperature: 0 }));
   }

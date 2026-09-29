@@ -1,5 +1,5 @@
 // ── AI API LAYER ───────────────────────────────────────────
-// Supporte Groq (llama) et Gemini (Google)
+// Supporte Groq (llama) et Gemini (Google, modèles Flash gratuits)
 // Provider actif : localStorage 'sc_ai_provider' = 'groq' | 'gemini'
 
 function getProvider() {
@@ -23,9 +23,29 @@ async function callGroq(prompt, { maxTokens = 2000, temperature = 0.7, model = '
   return (d.choices?.[0]?.message?.content || '').trim();
 }
 
-async function _callGeminiWithKey(key, prompt, maxTokens, temperature) {
+// ── MODÈLES GEMINI ─────────────────────────────────────────
+// Du plus récent au plus ancien. Le site essaie dans cet ordre et retient
+// celui qui répond avec ta clé : pas besoin de toucher au code quand Google
+// change son catalogue. Tous sont des modèles « Flash », gratuits.
+const GEMINI_MODELES = ['gemini-3.8-flash', 'gemini-3-flash', 'gemini-2.5-flash'];
+const CLE_MODELE_GEMINI = 'sc_gemini_modele';
+
+function modeleGeminiRetenu() {
+  const m = localStorage.getItem(CLE_MODELE_GEMINI);
+  return GEMINI_MODELES.includes(m) ? m : null;
+}
+
+// Modèle inconnu ou non ouvert à cette clé → on essaie le suivant.
+// (À distinguer d'un quota dépassé, qui doit faire basculer sur Groq.)
+function _modeleIndisponible(msg) {
+  const m = (msg || '').toLowerCase();
+  return m.includes('404') || m.includes('not found') || m.includes('is not supported')
+      || m.includes('unsupported') || m.includes('does not exist') || m.includes('permission');
+}
+
+async function _appelGemini(modele, key, prompt, maxTokens, temperature) {
   const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${modele}:generateContent?key=${key}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -43,8 +63,35 @@ async function _callGeminiWithKey(key, prompt, maxTokens, temperature) {
   if (d.error) throw new Error(`Gemini: ${d.error.message} (code: ${d.error.code})`);
   const text = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
   if (!text) throw new Error(`Gemini: réponse vide — finish reason: ${d.candidates?.[0]?.finishReason || 'inconnu'}`);
-  console.log('🔵 Gemini raw response:', text);
   return text.trim();
+}
+
+async function _callGeminiWithKey(key, prompt, maxTokens, temperature) {
+  // Le modèle déjà validé passe en premier ; sinon on descend la liste
+  const retenu = modeleGeminiRetenu();
+  const aEssayer = retenu ? [retenu, ...GEMINI_MODELES.filter(m => m !== retenu)] : [...GEMINI_MODELES];
+
+  let derniereErreur;
+  for (let i = 0; i < aEssayer.length; i++) {
+    const modele = aEssayer[i];
+    try {
+      const texte = await _appelGemini(modele, key, prompt, maxTokens, temperature);
+      if (localStorage.getItem(CLE_MODELE_GEMINI) !== modele) {
+        localStorage.setItem(CLE_MODELE_GEMINI, modele);
+        console.log('[AI] Gemini : modèle retenu →', modele);
+      }
+      return texte;
+    } catch (e) {
+      derniereErreur = e;
+      if (_modeleIndisponible(e.message) && i < aEssayer.length - 1) {
+        console.warn(`[AI] ${modele} indisponible avec cette clé — essai de ${aEssayer[i + 1]}`);
+        if (localStorage.getItem(CLE_MODELE_GEMINI) === modele) localStorage.removeItem(CLE_MODELE_GEMINI);
+        continue;
+      }
+      throw e;   // quota, surcharge, clé invalide : la bascule se fait plus haut
+    }
+  }
+  throw derniereErreur;
 }
 
 // Erreur temporaire/surcharge → on doit basculer sur un autre provider
@@ -113,7 +160,7 @@ async function callAIAuto(prompt, options = {}) {
   const groqKey   = localStorage.getItem('sc_key') || '';
 
   const queue = [];
-  if (hasGemini) queue.push({ name: 'Gemini', model: 'gemini-2.5-flash', fn: () => callGemini(prompt, options) });
+  if (hasGemini) queue.push({ name: 'Gemini', model: modeleGeminiRetenu() || GEMINI_MODELES[0], fn: () => callGemini(prompt, options) });
   if (groqKey)   queue.push({ name: 'Groq',   model: 'llama-3.3-70b',   fn: () => _callGroqDirect(prompt, options) });
 
   if (!queue.length) throw new Error('Aucune clé API configurée — ajoute une clé Gemini ou Groq dans les paramètres');
