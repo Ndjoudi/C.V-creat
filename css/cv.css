@@ -53,7 +53,13 @@
 .cv-exp{margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid #F2F2F7}
 .cv-exp:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
 .cv-erow{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.cv-etitle{font-size:13px;font-weight:700;color:#000000}
+/* Intitulé de poste : bleu et gras, pour accrocher l'œil du recruteur.
+   La couleur est conservée à l'impression (le texte reste lu normalement
+   par les ATS, qui ignorent les couleurs). */
+.cv-etitle{
+  font-size:13px; font-weight:800; color:#1E3A8A;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
 .cv-eco{font-size:12px;color:#3A3A3C;margin-top:2px;font-weight:500}
 .cv-edates{font-size:11px;color:#86868B;white-space:nowrap;flex-shrink:0;font-weight:500}
 
