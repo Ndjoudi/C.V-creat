@@ -6,22 +6,34 @@ function getProvider() {
   return localStorage.getItem('sc_ai_provider') || 'groq';
 }
 
-async function callGroq(prompt, { maxTokens = 2000, temperature = 0.7, model = 'llama-3.3-70b-versatile' } = {}) {
+async function callGroq(prompt, { maxTokens = 2000, temperature = 0.7 } = {}) {
   const _p = getProvider();
   if (_p === 'gemini' || _p === 'gemini-pro') {
     return callGemini(prompt, { maxTokens, temperature });
   }
+  return _groqAvecBascule(localStorage.getItem('sc_key') || '', prompt, maxTokens, temperature);
+}
 
-  const key = localStorage.getItem('sc_key') || '';
-  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-    body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: maxTokens, temperature })
-  });
-  const d = await r.json();
-  if (d.error) throw new Error(d.error.message);
-  noteIAUtilisee('Groq', model);
-  return (d.choices?.[0]?.message?.content || '').trim();
+// ── IA ACTIVÉES / DÉSACTIVÉES ──────────────────────────────
+// Interrupteurs de la barre de gauche : une IA éteinte n'est jamais
+// appelée, même en secours. Au moins une doit rester allumée.
+const CLE_IA_ETEINTES = 'sc_ia_eteintes';
+
+function iaEteintes() {
+  try { return JSON.parse(localStorage.getItem(CLE_IA_ETEINTES)) || []; } catch { return []; }
+}
+
+function iaActive(id) {
+  return !iaEteintes().includes(id);
+}
+
+function basculeIA(id) {
+  const eteintes = iaEteintes();
+  const i = eteintes.indexOf(id);
+  if (i === -1) eteintes.push(id); else eteintes.splice(i, 1);
+  localStorage.setItem(CLE_IA_ETEINTES, JSON.stringify(eteintes));
+  if (typeof refreshProviderUI === 'function') refreshProviderUI();
+  if (typeof toast === 'function') toast(i === -1 ? `${id} désactivée` : `${id} réactivée`);
 }
 
 // ── DERNIÈRE IA UTILISÉE ───────────────────────────────────
@@ -32,6 +44,9 @@ const NOMS_MODELES = {
   'gemini-3.8-flash': 'Gemini 3.8 Flash',
   'gemini-3-flash':   'Gemini 3 Flash',
   'gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'openai/gpt-oss-120b': 'GPT-OSS 120B (Groq)',
+  'openai/gpt-oss-20b':  'GPT-OSS 20B (Groq)',
+  'qwen/qwen3.6-27b':    'Qwen 3.6 27B (Groq)',
   'llama-3.3-70b-versatile': 'Llama 3.3 70B',
   'llama-3.3-70b':           'Llama 3.3 70B'
 };
@@ -43,6 +58,61 @@ function noteIAUtilisee(fournisseur, modele) {
     }));
   } catch {}
   if (typeof renderDerniereIA === 'function') renderDerniereIA();
+}
+
+// ── MODÈLES GROQ ───────────────────────────────────────────
+// Groq retire régulièrement des modèles (llama-3.3-70b-versatile a été
+// supprimé le 16/08/2026). On essaie dans l'ordre et on retient celui qui
+// répond, comme pour Gemini.
+const GROQ_MODELES = ['openai/gpt-oss-120b', 'qwen/qwen3.6-27b', 'openai/gpt-oss-20b'];
+const CLE_MODELE_GROQ = 'sc_groq_modele';
+
+function modeleGroqRetenu() {
+  const m = localStorage.getItem(CLE_MODELE_GROQ);
+  return GROQ_MODELES.includes(m) ? m : null;
+}
+
+async function _appelGroq(modele, key, prompt, maxTokens, temperature) {
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+    body: JSON.stringify({ model: modele, messages: [{ role: 'user', content: prompt }], max_tokens: maxTokens, temperature })
+  });
+  const d = await r.json();
+  if (d.error) throw new Error(d.error.message);
+  const texte = (d.choices?.[0]?.message?.content || '').trim();
+  if (!texte) throw new Error('Groq: réponse vide');
+  return texte;
+}
+
+// Parcourt la liste jusqu'à trouver un modèle encore en service
+async function _groqAvecBascule(key, prompt, maxTokens, temperature) {
+  if (!key) throw new Error('Clé Groq manquante — ajoute-la dans les paramètres');
+  const retenu = modeleGroqRetenu();
+  const aEssayer = retenu ? [retenu, ...GROQ_MODELES.filter(m => m !== retenu)] : [...GROQ_MODELES];
+
+  let derniereErreur;
+  for (let i = 0; i < aEssayer.length; i++) {
+    const modele = aEssayer[i];
+    try {
+      const texte = await _appelGroq(modele, key, prompt, maxTokens, temperature);
+      if (localStorage.getItem(CLE_MODELE_GROQ) !== modele) {
+        localStorage.setItem(CLE_MODELE_GROQ, modele);
+        console.log('[AI] Groq : modèle retenu →', modele);
+      }
+      noteIAUtilisee('Groq', modele);
+      return texte;
+    } catch (e) {
+      derniereErreur = e;
+      if (_modeleIndisponible(e.message) && i < aEssayer.length - 1) {
+        console.warn(`[AI] ${modele} indisponible — essai de ${aEssayer[i + 1]}`);
+        if (localStorage.getItem(CLE_MODELE_GROQ) === modele) localStorage.removeItem(CLE_MODELE_GROQ);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw derniereErreur;
 }
 
 // ── MODÈLES GEMINI ─────────────────────────────────────────
@@ -62,7 +132,8 @@ function modeleGeminiRetenu() {
 function _modeleIndisponible(msg) {
   const m = (msg || '').toLowerCase();
   return m.includes('404') || m.includes('not found') || m.includes('is not supported')
-      || m.includes('unsupported') || m.includes('does not exist') || m.includes('permission');
+      || m.includes('unsupported') || m.includes('does not exist') || m.includes('permission')
+      || m.includes('decommissioned') || m.includes('deprecated') || m.includes('no longer');
 }
 
 // Réglage de la réflexion : Gemini 3 utilise « thinkingLevel » (high par
@@ -143,12 +214,16 @@ async function callGemini(prompt, { maxTokens = 2000, temperature = 0.7 } = {}) 
   const persoKey = localStorage.getItem('sc_gemini_key') || '';
   const groqKey  = localStorage.getItem('sc_key') || '';
   if (!proKey && !persoKey) throw new Error('Clé Gemini manquante — ajoute-la dans les paramètres');
+  if (!iaActive('gemini') && !iaActive('gemini-pro') && iaActive('groq')) {
+    return _callGroqDirect(prompt, { maxTokens, temperature });   // Gemini éteint
+  }
 
   // Chaîne de secours : Gemini Pro → Gemini perso → Groq
   const queue = [];
-  if (proKey)   queue.push({ name: 'Gemini Pro', fn: () => _callGeminiWithKey(proKey,   prompt, maxTokens, temperature) });
-  if (persoKey) queue.push({ name: 'Gemini',     fn: () => _callGeminiWithKey(persoKey, prompt, maxTokens, temperature) });
-  if (groqKey)  queue.push({ name: 'Groq',       fn: () => _callGroqDirect(prompt, { maxTokens, temperature }) });
+  if (proKey   && iaActive('gemini-pro')) queue.push({ name: 'Gemini Pro', fn: () => _callGeminiWithKey(proKey,   prompt, maxTokens, temperature) });
+  if (persoKey && iaActive('gemini'))     queue.push({ name: 'Gemini',     fn: () => _callGeminiWithKey(persoKey, prompt, maxTokens, temperature) });
+  if (groqKey  && iaActive('groq'))       queue.push({ name: 'Groq',       fn: () => _callGroqDirect(prompt, { maxTokens, temperature }) });
+  if (!queue.length) throw new Error('Toutes les IA sont désactivées — rallume-en une dans la barre de gauche');
 
   let lastErr;
   for (let i = 0; i < queue.length; i++) {
@@ -175,31 +250,22 @@ function groqErrorMessage(e) {
 }
 
 // ── APPEL GROQ FORCÉ (bypass du check provider) ────────────
-async function _callGroqDirect(prompt, { maxTokens = 2000, temperature = 0.7, model = 'llama-3.3-70b-versatile' } = {}) {
-  const key = localStorage.getItem('sc_key') || '';
-  if (!key) throw new Error('Clé Groq manquante — ajoute-la dans les paramètres');
-  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-    body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: maxTokens, temperature })
-  });
-  const d = await r.json();
-  if (d.error) throw new Error(d.error.message);
-  noteIAUtilisee('Groq', model);
-  return (d.choices?.[0]?.message?.content || '').trim();
+async function _callGroqDirect(prompt, { maxTokens = 2000, temperature = 0.7 } = {}) {
+  return _groqAvecBascule(localStorage.getItem('sc_key') || '', prompt, maxTokens, temperature);
 }
 
 // ── AUTO-FALLBACK : Gemini → Groq (ou l'inverse selon les clés dispo) ──
 // Retourne { text, provider } — bascule automatiquement sur 429 / quota
 async function callAIAuto(prompt, options = {}) {
-  const hasGemini = !!(localStorage.getItem('sc_gemini_pro_key') || localStorage.getItem('sc_gemini_key'));
-  const groqKey   = localStorage.getItem('sc_key') || '';
+  const hasGemini = !!((localStorage.getItem('sc_gemini_pro_key') && iaActive('gemini-pro'))
+                    || (localStorage.getItem('sc_gemini_key')     && iaActive('gemini')));
+  const groqKey   = iaActive('groq') ? (localStorage.getItem('sc_key') || '') : '';
 
   const queue = [];
   if (hasGemini) queue.push({ name: 'Gemini', model: modeleGeminiRetenu() || GEMINI_MODELES[0], fn: () => callGemini(prompt, options) });
-  if (groqKey)   queue.push({ name: 'Groq',   model: 'llama-3.3-70b',   fn: () => _callGroqDirect(prompt, options) });
+  if (groqKey)   queue.push({ name: 'Groq',   model: modeleGroqRetenu() || GROQ_MODELES[0], fn: () => _callGroqDirect(prompt, options) });
 
-  if (!queue.length) throw new Error('Aucune clé API configurée — ajoute une clé Gemini ou Groq dans les paramètres');
+  if (!queue.length) throw new Error('Aucune IA disponible — vérifie tes clés et les interrupteurs dans la barre de gauche');
 
   const errs = [];
   for (const p of queue) {

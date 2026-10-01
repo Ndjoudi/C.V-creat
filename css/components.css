@@ -847,3 +847,14 @@ select.inp{cursor:pointer}
 .derniere-ia-nom{ font-size:11.5px; font-weight:700; color:var(--ink); }
 .derniere-ia-heure{ font-size:10.5px; color:var(--ink3); margin-left:auto; }
 .derniere-ia-vide{ font-size:10.5px; color:var(--ink3); }
+
+/* Interrupteur ON/OFF des IA (bloc Clés API) */
+.api-key-switch{
+  flex-shrink:0; border-radius:100px; cursor:pointer;
+  border:1.5px solid var(--border); background:var(--bg);
+  color:var(--ink3); font-size:9.5px; font-weight:800; letter-spacing:.04em;
+  padding:2px 7px;
+}
+.api-key-switch.is-on{ background:var(--green); border-color:var(--green); color:#fff; }
+.api-key-row--off .api-key-name,
+.api-key-row--off .api-key-preview{ opacity:.45; }

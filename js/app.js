@@ -280,10 +280,15 @@ function _renderKeyRow(elId, label, provider, hasKey, rawKey, isActive) {
   if (!el) return;
   const masked = hasKey ? rawKey.slice(0, 4) + '•••' + rawKey.slice(-4) : '—';
   el.className = 'api-key-row' + (isActive ? ' active' : '');
+  // Interrupteur ON/OFF : une IA éteinte n'est jamais appelée
+  const allumee = typeof iaActive === 'function' ? iaActive(provider) : true;
+  el.className += allumee ? '' : ' api-key-row--off';
   el.innerHTML = `
     <span class="api-key-dot ${hasKey ? 'on' : 'off'}"></span>
     <span class="api-key-name">${label}</span>
     <span class="api-key-preview">${hasKey ? masked : 'Non configurée'}</span>
+    <button class="api-key-switch${allumee ? ' is-on' : ''}" title="${allumee ? 'Désactiver cette IA' : 'Activer cette IA'}"
+      onclick="event.stopPropagation();basculeIA('${provider}')">${allumee ? 'ON' : 'OFF'}</button>
     <button class="api-key-btn" onclick="event.stopPropagation();_editApiKey('${provider}')">${hasKey ? 'Modifier' : 'Ajouter'}</button>
   `;
 }
