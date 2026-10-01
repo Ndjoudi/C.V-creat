@@ -65,6 +65,17 @@ function _modeleIndisponible(msg) {
       || m.includes('unsupported') || m.includes('does not exist') || m.includes('permission');
 }
 
+// Réglage de la réflexion : Gemini 3 utilise « thinkingLevel » (high par
+// défaut, ce qui épuisait le budget de sortie et tronquait le JSON) ;
+// Gemini 2.5 utilise « thinkingBudget ». Les mélanger renvoie une erreur 400.
+function _configGeneration(modele, maxTokens, temperature) {
+  const cfg = { maxOutputTokens: Math.max(maxTokens * 3, 12000), temperature };
+  cfg.thinkingConfig = /^gemini-3/.test(modele)
+    ? { thinkingLevel: 'low' }
+    : { thinkingBudget: 0 };
+  return cfg;
+}
+
 async function _appelGemini(modele, key, prompt, maxTokens, temperature) {
   const r = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${modele}:generateContent?key=${key}`,
@@ -73,18 +84,18 @@ async function _appelGemini(modele, key, prompt, maxTokens, temperature) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          maxOutputTokens: Math.max(maxTokens * 2, 8000),
-          temperature,
-          thinkingConfig: { thinkingBudget: 0 }
-        }
+        generationConfig: _configGeneration(modele, maxTokens, temperature)
       })
     }
   );
   const d = await r.json();
   if (d.error) throw new Error(`Gemini: ${d.error.message} (code: ${d.error.code})`);
-  const text = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  if (!text) throw new Error(`Gemini: réponse vide — finish reason: ${d.candidates?.[0]?.finishReason || 'inconnu'}`);
+  const fin  = d.candidates?.[0]?.finishReason || '';
+  // Une réponse coupée donne un JSON invalide plus loin : on la refuse ici
+  // pour laisser la bascule faire son travail.
+  const text = (d.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+  if (!text) throw new Error(`Gemini: réponse vide — finish reason: ${fin || 'inconnu'}`);
+  if (fin === 'MAX_TOKENS') throw new Error(`Gemini: réponse tronquée (limite de tokens atteinte sur ${modele})`);
   return text.trim();
 }
 
@@ -123,7 +134,8 @@ function _isTransientAIError(e) {
   return msg.includes('429') || msg.includes('rate') || msg.includes('quota')
       || msg.includes('resource_exhausted') || msg.includes('too many')
       || msg.includes('503') || msg.includes('500') || msg.includes('overload')
-      || msg.includes('high demand') || msg.includes('unavailable') || msg.includes('try again');
+      || msg.includes('high demand') || msg.includes('unavailable') || msg.includes('try again')
+      || msg.includes('tronqu');
 }
 
 async function callGemini(prompt, { maxTokens = 2000, temperature = 0.7 } = {}) {
@@ -196,7 +208,7 @@ async function callAIAuto(prompt, options = {}) {
       return { text, provider: p.name, model: p.model };
     } catch (e) {
       const msg = (e.message || '').toLowerCase();
-      const isLimit = msg.includes('429') || msg.includes('rate') || msg.includes('quota') || msg.includes('resource_exhausted') || msg.includes('too many');
+      const isLimit = msg.includes('429') || msg.includes('rate') || msg.includes('quota') || msg.includes('resource_exhausted') || msg.includes('too many') || msg.includes('tronqu');
       console.warn(`[AI] ${p.name} ${isLimit ? 'rate limit' : 'erreur'}: ${e.message}`);
       errs.push(`${p.name}: ${e.message}`);
       // Toujours essayer le provider suivant (rate limit OU autre erreur)
