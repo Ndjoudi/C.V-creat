@@ -188,12 +188,31 @@ async function _callGeminiWithKey(key, prompt, maxTokens, temperature) {
       return texte;
     } catch (e) {
       derniereErreur = e;
+
+      // Modèle inconnu pour cette clé → on descend la liste définitivement
       if (_modeleIndisponible(e.message) && i < aEssayer.length - 1) {
         console.warn(`[AI] ${modele} indisponible avec cette clé — essai de ${aEssayer[i + 1]}`);
         if (localStorage.getItem(CLE_MODELE_GEMINI) === modele) localStorage.removeItem(CLE_MODELE_GEMINI);
         continue;
       }
-      throw e;   // quota, surcharge, clé invalide : la bascule se fait plus haut
+
+      // Modèle saturé (503) ou trop sollicité : une 2e tentative après une
+      // pause, puis on essaie un AUTRE modèle — changer de clé n'y ferait rien.
+      if (_isTransientAIError(e.message ? e : new Error(''))) {
+        try {
+          await new Promise(r => setTimeout(r, 1200));
+          const texte = await _appelGemini(modele, key, prompt, maxTokens, temperature);
+          noteIAUtilisee('Gemini', modele);
+          return texte;
+        } catch (e2) {
+          derniereErreur = e2;
+          if (i < aEssayer.length - 1) {
+            console.warn(`[AI] ${modele} saturé — essai de ${aEssayer[i + 1]}`);
+            continue;
+          }
+        }
+      }
+      throw derniereErreur;   // quota épuisé, clé invalide : bascule plus haut
     }
   }
   throw derniereErreur;
