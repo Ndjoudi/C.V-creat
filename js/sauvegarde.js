@@ -7,13 +7,13 @@
 //   • bouton ⬆ (barre de gauche) → sauvegardeMaintenant()
 //   • bouton ⬇ (barre de gauche) → restaureDepuisFichier()
 //   • au chargement : sauvegarde automatique si la dernière date de plus de
-//     7 jours (verifieSauvegardeHebdo)
+//     2 jours, soit environ 4 fois par semaine (verifieSauvegardeHebdo)
 //
 // Le fichier contient aussi tes clés API : ne le partage pas.
 
 const SAUVEGARDE_PREFIXE = 'sc_';
 const SAUVEGARDE_DATE    = 'sc_derniere_sauvegarde';
-const SAUVEGARDE_JOURS   = 7;
+const SAUVEGARDE_JOURS   = 2;   // ~4 sauvegardes par semaine
 
 function _jourISO(d = new Date()) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -52,7 +52,7 @@ function sauvegardeMaintenant(auto = false) {
   localStorage.setItem(SAUVEGARDE_DATE, _jourISO());
   if (typeof toast === 'function') {
     toast(auto
-      ? `✓ Sauvegarde hebdomadaire téléchargée (${nbCands} candidature${nbCands > 1 ? 's' : ''})`
+      ? `✓ Sauvegarde automatique téléchargée (${nbCands} candidature${nbCands > 1 ? 's' : ''})`
       : `✓ Sauvegarde téléchargée (${nbCands} candidature${nbCands > 1 ? 's' : ''})`);
   }
   if (auto) _bandeauSauvegarde(nbCands);
@@ -66,7 +66,7 @@ function _bandeauSauvegarde(nbCands) {
   b.id = 'sauvegarde-bandeau';
   b.className = 'sv-bandeau';
   b.innerHTML = `
-    <span>💾 Sauvegarde hebdomadaire téléchargée — <strong>supply-copilot-${_jourISO()}.json</strong>
+    <span>💾 Sauvegarde automatique téléchargée — <strong>supply-copilot-${_jourISO()}.json</strong>
       (${nbCands} candidature${nbCands > 1 ? 's' : ''}). Range-la ailleurs que dans « Téléchargements ».</span>
     <button class="btn btn-g sv-mini" onclick="sauvegardeMaintenant()">Retélécharger</button>
     <button class="btn btn-g sv-mini" onclick="this.parentElement.remove()">OK</button>`;
