@@ -304,7 +304,8 @@ function supprimeLienRecherche(idSite, idLien) {
   renderPanneauRecherches();
 }
 
-// Renommage et changement d'adresse, à la sortie du champ
+// Renommage et changement d'adresse : enregistré à chaque frappe, pour ne
+// rien perdre quel que soit l'endroit où l'on clique ensuite.
 function majRecherche(idSite, idLien, champ, valeur) {
   const liste = recherches();
   const s = liste.find(x => x.id === idSite);
@@ -328,7 +329,7 @@ function renderPanneauRecherches() {
   const colonnes = liste.map(s => {
     const tete = _modeEdition
       ? `<input class="inp rch-champ-site" value="${esc(s.nom)}"
-           onblur="majRecherche('${s.id}', null, 'nom', this.value)">
+           oninput="majRecherche('${s.id}', null, 'nom', this.value)">
          <button class="rch-suppr-site" title="Supprimer ce site"
            onclick="supprimeSiteRecherche('${s.id}')">× Supprimer le site</button>`
       : `<div class="rch-site-nom" style="color:${s.couleur || 'var(--ink)'}">${esc(s.nom)}</div>`;
@@ -340,7 +341,7 @@ function renderPanneauRecherches() {
         return _modeEdition
           ? `<div class="rch-ligne-edit" data-id="${esc(l.id)}" data-type="titre">${poignee}
               <input class="inp rch-champ-titre" value="${esc(l.nom)}" placeholder="Nom de la catégorie"
-                onblur="majRecherche('${s.id}', '${l.id}', 'nom', this.value)">
+                oninput="majRecherche('${s.id}', '${l.id}', 'nom', this.value)">
               <button class="rch-suppr" title="Supprimer" onclick="supprimeLienRecherche('${s.id}', '${l.id}')">×</button>
             </div>`
           : `<div class="rch-categorie">${esc(l.nom)}</div>`;
@@ -349,9 +350,9 @@ function renderPanneauRecherches() {
       if (_modeEdition) {
         return `<div class="rch-ligne-edit" data-id="${esc(l.id)}" data-type="lien">${poignee}
           <input class="inp" value="${esc(l.nom)}" placeholder="Nom affiché"
-            onblur="majRecherche('${s.id}', '${l.id}', 'nom', this.value)">
+            oninput="majRecherche('${s.id}', '${l.id}', 'nom', this.value)">
           <input class="inp rch-url" value="${esc(l.url)}" placeholder="https://…"
-            onblur="majRecherche('${s.id}', '${l.id}', 'url', this.value)">
+            oninput="majRecherche('${s.id}', '${l.id}', 'url', this.value)">
           <button class="rch-suppr" title="Supprimer" onclick="supprimeLienRecherche('${s.id}', '${l.id}')">×</button>
         </div>`;
       }
