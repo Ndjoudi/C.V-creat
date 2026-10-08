@@ -377,6 +377,8 @@ function goTo(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'sc-' + id));
   if (id === 'cv')     { renderCV(); if (typeof renderLettreReco === 'function') renderLettreReco();
                          if (typeof renderVersionsCV === 'function') renderVersionsCV(); }
+  // Le panneau des recherches reste tel que l'utilisateur l'a laissé
+  if (id === 'dash' && typeof restaurePanneauRecherches === 'function') restaurePanneauRecherches();
   if (id === 'feed')     ouvreFeed();
   if (id === 'dash')     refreshDash();
   if (id === 'tracker')  renderTracker();

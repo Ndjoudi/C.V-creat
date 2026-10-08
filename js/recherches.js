@@ -390,7 +390,7 @@ function renderPanneauRecherches() {
     const lien = e.target.closest('a[data-lien]');
     if (!lien) return;
     _noteClic(lien.dataset.lien);
-    fermeMenuRecherches();
+    renderPanneauRecherches();   // la ligne passe au vert, le panneau reste ouvert
   });
 }
 
@@ -432,6 +432,6 @@ if (document.readyState === 'loading') {
   setTimeout(restaurePanneauRecherches, 300);
 }
 
-// Le panneau fait partie de la page : il ne se ferme qu'avec le bouton
-// (ou avec Échap), pas au premier clic ailleurs.
-document.addEventListener('keydown', e => { if (e.key === 'Escape') fermeMenuRecherches(); });
+// Le panneau fait partie de la page : il ne se ferme QUE par le bouton
+// « Recherches ». Ni un clic ailleurs, ni l'ouverture d'une recherche, ni un
+// changement de page ne le referment.
