@@ -60,7 +60,7 @@ site : il est déployé séparément sur Cloudflare.
 | `js/tracker.js` | Candidatures, récupération d'annonces, **fenêtre d'annonce** (split view) |
 | `js/lettre-reco.js` | Lettre de recommandation ajoutée en page 2 du PDF |
 | `js/sauvegarde.js` | Sauvegarde et restauration de TOUTES les données (`sc_*`, clés API comprises) dans un fichier JSON daté. Automatique au chargement si la dernière date de plus de 7 jours (`sc_derniere_sauvegarde`), avec bandeau flottant. Boutons ⬆ / ⬇ de la barre de gauche |
-| `js/recherches-indeed.js` | Menus déroulants des boutons « Indeed », « LinkedIn » et « HelloWork » (tableau de bord) : mêmes catégories supply chain pour les trois sites (Indeed : Île-de-France, tri par date, contrats ; LinkedIn : geoId Île-de-France, tri par date, 7 jours ; HelloWork : `k` + Île-de-France rayon 20 km, CDI/intérim/fonctionnaire/freelance, tri pertinence, `d=w`). Retient la date du dernier clic par site et catégorie (`sc_indeed_clics`, clés `site:motclé`) : vert si lancée aujourd'hui, rouge sinon |
+| `js/recherches.js` | Menu unique « Recherches » (tableau de bord) : une colonne par site, chaque ligne = un nom + une adresse complète. Entièrement modifiable depuis le site (ajouter/renommer/supprimer une recherche ou un site), stocké dans `sc_recherches`. Au premier chargement, les 3 sites et 19 catégories d'origine sont convertis en lignes, avec des identifiants `site:motclé` pour conserver le suivi des clics (`sc_indeed_clics`) : vert si lancée aujourd'hui, rouge sinon |
 | `js/feed.js` | Écran « Feed » |
 | `js/navigation.js` | Bouton retour du navigateur dans l'app |
 | `js/import-annonce.js` | Réception d'une annonce envoyée par le bouton favori |
