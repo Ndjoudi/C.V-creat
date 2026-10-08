@@ -9,6 +9,7 @@
 // Suivi des clics : sc_indeed_clics, par identifiant de lien.
 
 const CLE_RECHERCHES = 'sc_recherches';
+const CLE_PANNEAU_OUVERT = 'sc_recherches_ouvert';
 const CLE_CLICS      = 'sc_indeed_clics';
 
 // ── POINT DE DÉPART ────────────────────────────────────────
@@ -400,6 +401,8 @@ function basculeMenuRecherches(e) {
   const ouvrir = panneau.hidden;
   if (ouvrir) renderPanneauRecherches();
   panneau.hidden = !ouvrir;
+  // L'état est retenu : le panneau se rouvre tout seul au prochain passage
+  localStorage.setItem(CLE_PANNEAU_OUVERT, ouvrir ? '1' : '0');
   document.querySelector('#rch-menu .rch-bouton')?.setAttribute('aria-expanded', String(ouvrir));
 }
 
@@ -408,8 +411,25 @@ function fermeMenuRecherches() {
   if (panneau && !panneau.hidden) {
     panneau.hidden = true;
     _modeEdition = false;
+    localStorage.setItem(CLE_PANNEAU_OUVERT, '0');
     document.querySelector('#rch-menu .rch-bouton')?.setAttribute('aria-expanded', 'false');
   }
+}
+
+// Au chargement : on retrouve le panneau tel qu'on l'a laissé
+function restaurePanneauRecherches() {
+  if (localStorage.getItem(CLE_PANNEAU_OUVERT) !== '1') return;
+  const panneau = document.getElementById('rch-panneau');
+  if (!panneau || !panneau.hidden) return;
+  renderPanneauRecherches();
+  panneau.hidden = false;
+  document.querySelector('#rch-menu .rch-bouton')?.setAttribute('aria-expanded', 'true');
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => setTimeout(restaurePanneauRecherches, 300));
+} else {
+  setTimeout(restaurePanneauRecherches, 300);
 }
 
 // Le panneau fait partie de la page : il ne se ferme qu'avec le bouton
