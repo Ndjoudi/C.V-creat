@@ -166,13 +166,15 @@ function _noteClic(id) {
   localStorage.setItem(CLE_CLICS, JSON.stringify(c));
 }
 
-// Vert si la recherche a été lancée aujourd'hui, rouge sinon
+// Vert : lancée aujourd'hui. Orange : hier ou avant-hier, encore fraîche.
+// Rouge : plus de deux jours, ou jamais lancée.
 function _etatClic(id) {
   const date = _clics()[id];
   if (!date) return { texte: 'jamais', classe: 'ri-etat--oublie' };
   const jours = Math.round((new Date(_jour()) - new Date(date)) / 86400000);
   if (jours <= 0)  return { texte: '✓ aujourd\'hui', classe: 'ri-etat--fait' };
-  if (jours === 1) return { texte: 'hier',            classe: 'ri-etat--oublie' };
+  if (jours === 1) return { texte: 'hier',            classe: 'ri-etat--recent' };
+  if (jours === 2) return { texte: 'il y a 2 j',      classe: 'ri-etat--recent' };
   return { texte: `il y a ${jours} j`,                classe: 'ri-etat--oublie' };
 }
 
@@ -376,7 +378,7 @@ function renderPanneauRecherches() {
       <span class="rch-titre">Mes recherches</span>
       <span class="rch-aide">${_modeEdition
         ? 'Modifie les noms et les adresses, puis clique sur Terminer.'
-        : 'Vert : lancée aujourd\'hui. Rouge : à faire.'}</span>
+        : 'Vert : lancée aujourd\'hui. Orange : hier ou avant-hier. Rouge : à faire.'}</span>
       <button class="btn btn-g rch-mini" onclick="basculeEditionRecherches()">${_modeEdition ? '✓ Terminer' : '✏️ Modifier'}</button>
     </div>
     <div class="rch-colonnes">${colonnes}
