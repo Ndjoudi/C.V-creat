@@ -1,0 +1,1561 @@
+/* Identifiant de synchronisation : long, à lire et à recopier. */
+.settings__field {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  box-shadow: var(--sh-sm);
+}
+/* ==========================================================================
+   components.css — styles de TOUS les composants de l'inventaire README §10.
+   Une section par composant, dans l'ordre de l'inventaire.
+   Aucune valeur visuelle en dur : uniquement les variables de tokens.css.
+   Les sections des composants non encore codés sont volontairement vides.
+   ========================================================================== */
+
+
+/* ==========================================================================
+   10.1 — ATOMS
+   ========================================================================== */
+
+/* --- Button --------------------------------------------------------------
+   variant: primary | secondary | ghost | danger    +  fullWidth
+   -------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--touch-min);
+  padding: var(--sp-2) var(--sp-5);
+  border-radius: var(--r-full);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  text-align: center;
+  transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+
+.btn--full { display: flex; width: 100%; }
+
+.btn__icon { display: flex; }
+.btn__icon svg { width: var(--sp-5); height: var(--sp-5); }
+.btn__label:empty { display: none; }
+
+.btn--primary {
+  background: var(--c-primary);
+  color: var(--c-surface);
+  box-shadow: var(--sh-sm);
+}
+.btn--primary:active:not(:disabled) { background: var(--c-primary-dark); }
+
+.btn--secondary {
+  background: var(--c-surface);
+  color: var(--c-primary-dark);
+  box-shadow: var(--sh-sm);
+}
+.btn--secondary:active:not(:disabled) { background: var(--c-surface-alt); }
+
+.btn--ghost {
+  background: transparent;
+  color: var(--c-text-muted);
+}
+.btn--ghost:active:not(:disabled) { background: var(--c-surface-alt); }
+
+.btn--danger {
+  background: var(--c-error);
+  color: var(--c-surface);
+  box-shadow: var(--sh-sm);
+}
+
+.btn:disabled { opacity: .45; box-shadow: none; }
+
+/* --- IconButton ----------------------------------------------------------
+   variant: primary | secondary | ghost | danger    +  badge
+   -------------------------------------------------------------------------- */
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border-radius: var(--r-full);
+  transition: background-color .15s ease, color .15s ease;
+}
+
+.icon-btn svg { width: var(--sp-5); height: var(--sp-5); }
+
+.icon-btn--primary   { background: var(--c-primary); color: var(--c-surface); box-shadow: var(--sh-sm); }
+.icon-btn--secondary { background: var(--c-surface); color: var(--c-text);    box-shadow: var(--sh-sm); }
+.icon-btn--ghost     { background: transparent;      color: var(--c-text-muted); }
+.icon-btn--danger    { background: var(--c-error);   color: var(--c-surface); box-shadow: var(--sh-sm); }
+
+.icon-btn--ghost:active:not(:disabled)     { background: var(--c-surface-alt); }
+.icon-btn--primary:active:not(:disabled)   { background: var(--c-primary-dark); }
+.icon-btn--secondary:active:not(:disabled) { background: var(--c-surface-alt); }
+
+.icon-btn:disabled { opacity: .45; box-shadow: none; }
+
+.icon-btn__badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: var(--sp-4);
+  height: var(--sp-4);
+  padding: 0 var(--sp-1);
+  border-radius: var(--r-full);
+  background: var(--c-accent);
+  color: var(--c-text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  line-height: var(--sp-4);
+  text-align: center;
+}
+
+/* --- Tile ----------------------------------------------------------------
+   state: empty | filled | active | offered | error | revealed
+   -------------------------------------------------------------------------- */
+.tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border-radius: var(--r-sm);
+  background: var(--c-tile);
+  color: var(--c-text);
+  box-shadow: var(--sh-sm);
+  transition: background-color .15s ease, color .15s ease;
+}
+
+.tile__letter {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.tile__number {
+  position: absolute;
+  top: var(--sp-1);
+  left: var(--sp-1);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  line-height: 1;
+  color: var(--c-text-muted);
+}
+
+.tile--filled   { background: var(--c-tile-filled); }
+.tile--active   { background: var(--c-tile-active); box-shadow: var(--sh-md); }
+.tile--offered  { background: var(--c-tile-offered); }
+.tile--error    { background: var(--c-error); color: var(--c-surface); }
+.tile--revealed { background: var(--c-success); color: var(--c-surface); }
+.tile--block    { background: var(--c-tile-block); box-shadow: none; }
+
+.tile--error .tile__number,
+.tile--revealed .tile__number { color: var(--c-surface); }
+
+.tile:disabled { cursor: default; }
+
+/* --- Chip ----------------------------------------------------------------
+   variant: theme | palier | source
+   -------------------------------------------------------------------------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-full);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+
+.chip--theme  { background: var(--c-surface-alt); color: var(--c-text-muted); }
+.chip--palier { background: var(--c-primary);     color: var(--c-surface); }
+.chip--source { background: var(--c-accent);      color: var(--c-text); }
+/* §08 — un mot imposé déjà placé dans la rédaction. */
+.chip--success { background: var(--c-success);    color: var(--c-surface); }
+
+/* --- ProgressDots --------------------------------------------------------- */
+.progress-dots {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.progress-dots__dot {
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--r-full);
+  background: var(--c-surface-alt);
+  transition: background-color .15s ease, transform .15s ease;
+}
+
+.progress-dots__dot--done    { background: var(--c-primary); }
+.progress-dots__dot--current { background: var(--c-primary); transform: scale(1.6); }
+
+/* --- ProgressBar ---------------------------------------------------------
+   variant: primary | success | accent
+   La seule donnée écrite en JS est le ratio --progress-bar-value (0 → 1) :
+   aucune valeur visuelle ne quitte cette feuille.
+   -------------------------------------------------------------------------- */
+.progress-bar {
+  overflow: hidden;
+  width: 100%;
+  height: var(--sp-2);
+  border-radius: var(--r-full);
+  background: var(--c-surface-alt);
+}
+
+.progress-bar__fill {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--r-full);
+  transform: scaleX(var(--progress-bar-value, 0));
+  transform-origin: left center;
+  transition: transform .3s ease;
+}
+
+.progress-bar--primary .progress-bar__fill { background: var(--c-primary); }
+.progress-bar--success .progress-bar__fill { background: var(--c-success); }
+.progress-bar--accent  .progress-bar__fill { background: var(--c-accent); }
+
+/* --- Counter -------------------------------------------------------------- */
+.counter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.counter__icon { display: flex; color: var(--c-accent); }
+.counter__icon svg { width: var(--sp-5); height: var(--sp-5); }
+
+.counter__value {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+}
+
+.counter__label {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+/* --- Spinner -------------------------------------------------------------
+   size: sm | md | lg
+   -------------------------------------------------------------------------- */
+.spinner {
+  display: block;
+  border-radius: var(--r-full);
+  border: var(--sp-1) solid var(--c-surface-alt);
+  border-top-color: var(--c-primary);
+  animation: spinner-turn .8s linear infinite;
+}
+
+.spinner--sm { width: var(--sp-5); height: var(--sp-5); border-width: 2px; }
+.spinner--md { width: var(--sp-6); height: var(--sp-6); }
+.spinner--lg { width: var(--sp-7); height: var(--sp-7); }
+
+@keyframes spinner-turn { to { transform: rotate(360deg); } }
+
+/* --- Toast ---------------------------------------------------------------
+   variant: info | success | error
+   -------------------------------------------------------------------------- */
+.toast {
+  display: block;
+  max-width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  box-shadow: var(--sh-md);
+}
+
+.toast--info    { background: var(--c-text);    color: var(--c-surface); }
+.toast--success { background: var(--c-success); color: var(--c-surface); }
+.toast--error   { background: var(--c-error);   color: var(--c-surface); }
+
+/* --- Divider -------------------------------------------------------------
+   spacing: 1 → 7 (échelle --sp-*)
+
+   NOTE — le filet fait 1px. La §9 ne définit aucun token de largeur de trait et
+   la liste est close ; le plus petit espacement (--sp-1) vaut 4px, beaucoup trop
+   épais pour un séparateur. Les seules valeurs en dur du projet sont donc ces
+   épaisseurs de trait : ce filet de 1px et la bordure de .spinner--sm (2px).
+   Si tu veux les supprimer, il faut ajouter un token de largeur à la §9.
+   -------------------------------------------------------------------------- */
+.divider {
+  height: 1px;
+  border: 0;
+  background: var(--c-surface-alt);
+}
+
+.divider--sp-1 { margin: var(--sp-1) 0; }
+.divider--sp-2 { margin: var(--sp-2) 0; }
+.divider--sp-3 { margin: var(--sp-3) 0; }
+.divider--sp-4 { margin: var(--sp-4) 0; }
+.divider--sp-5 { margin: var(--sp-5) 0; }
+.divider--sp-6 { margin: var(--sp-6) 0; }
+.divider--sp-7 { margin: var(--sp-7) 0; }
+
+
+/* ==========================================================================
+   10.2 — MOLECULES  (étape 2)
+   ========================================================================== */
+
+/* --- TileGroup ------------------------------------------------------------ */
+.tile-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+/* --- ClueText -------------------------------------------------------------
+   Le mot tappable est un <button> en ligne : aucun atom ne couvre ce besoin.
+   -------------------------------------------------------------------------- */
+.clue-text {
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  color: var(--c-text);
+}
+
+.clue-text__tool { color: var(--c-text-muted); }
+
+.clue-text__word {
+  display: inline;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--c-surface-alt);
+  color: var(--c-text);
+  font-size: inherit;
+  font-weight: var(--fw-medium);
+  line-height: inherit;
+}
+
+.clue-text__word:active { background: var(--c-tile-active); }
+
+/* --- ClueRow -------------------------------------------------------------- */
+.clue-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+}
+
+.clue-row--solved { opacity: .5; }
+
+/* --- TranslationPopover --------------------------------------------------- */
+.translation-popover {
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-lg);
+}
+
+.translation-popover__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.translation-popover__en {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+}
+
+.translation-popover__fr { color: var(--c-text-muted); }
+
+.translation-popover__limit {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+/* --- WordCard ------------------------------------------------------------- */
+.word-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-md);
+}
+
+.word-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.word-card__en   { font-size: var(--fs-2xl); font-weight: var(--fw-bold); line-height: 1.1; }
+.word-card__phon { margin-top: var(--sp-1); color: var(--c-text-muted); font-size: var(--fs-sm); }
+.word-card__fr   { font-size: var(--fs-lg); font-weight: var(--fw-medium); }
+
+.word-card__themes { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+.word-card__other {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--c-surface-alt);
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+.word-card__example { display: flex; flex-direction: column; gap: var(--sp-1); }
+.word-card__example-en { font-weight: var(--fw-medium); }
+.word-card__example-fr { color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+/* --- MCQ ------------------------------------------------------------------ */
+.mcq { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.mcq__question {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  text-align: center;
+}
+
+.mcq__options { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.mcq__option:disabled { opacity: 1; }
+
+.mcq__option--correct {
+  background: var(--c-success);
+  color: var(--c-surface);
+}
+
+.mcq__option--wrong {
+  background: var(--c-error);
+  color: var(--c-surface);
+}
+
+/* --- InputAnswer ---------------------------------------------------------- */
+.input-answer { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.input-answer__prompt {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  text-align: center;
+}
+
+.input-answer__hint { color: var(--c-text-muted); font-size: var(--fs-sm); text-align: center; }
+
+.input-answer__field {
+  min-height: var(--touch-min);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+  text-align: center;
+}
+
+.input-answer__field--correct { background: var(--c-tile-offered); }
+.input-answer__field--wrong   { background: var(--c-tile-filled); color: var(--c-error); }
+
+.input-answer__verdict:empty { display: none; }
+.input-answer__verdict {
+  color: var(--c-success);
+  font-weight: var(--fw-bold);
+  text-align: center;
+}
+
+/* --- ClozeInput ----------------------------------------------------------- */
+.cloze-input { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.cloze-input__sentence {
+  font-size: var(--fs-lg);
+  line-height: 2;
+  text-align: center;
+}
+
+.cloze-input__field {
+  min-width: var(--sp-7);
+  max-width: 100%;
+  min-height: var(--touch-min);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+  text-align: center;
+}
+
+.cloze-input__field--correct { background: var(--c-tile-offered); }
+.cloze-input__field--wrong   { background: var(--c-tile-filled); color: var(--c-error); }
+
+.cloze-input__translation { color: var(--c-text-muted); font-size: var(--fs-sm); text-align: center; }
+
+.cloze-input__verdict:empty { display: none; }
+.cloze-input__verdict { color: var(--c-success); font-weight: var(--fw-bold); text-align: center; }
+
+/* --- VerbTriad ------------------------------------------------------------ */
+.verb-triad { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.verb-triad__base { font-size: var(--fs-xl); font-weight: var(--fw-bold); text-align: center; }
+.verb-triad__fr   { color: var(--c-text-muted); text-align: center; }
+
+.verb-triad__fields { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.verb-triad__field { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+.verb-triad__label { font-size: var(--fs-sm); color: var(--c-text-muted); }
+
+.verb-triad__input {
+  min-height: var(--touch-min);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+}
+
+.verb-triad__input--correct { background: var(--c-tile-offered); }
+.verb-triad__input--wrong   { background: var(--c-tile-filled); color: var(--c-error); }
+
+.verb-triad__verdict:empty { display: none; }
+.verb-triad__verdict { color: var(--c-success); font-size: var(--fs-sm); font-weight: var(--fw-bold); }
+
+/* --- WordOrder ------------------------------------------------------------ */
+.word-order { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.word-order__answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--sp-2);
+  min-height: var(--sp-7);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--c-surface-alt);
+}
+
+.word-order__answer--correct { background: var(--c-tile-offered); }
+.word-order__answer--wrong   { background: var(--c-tile-filled); }
+
+.word-order__pool { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+.word-order__token { padding: var(--sp-2) var(--sp-4); }
+
+.word-order__verdict:empty { display: none; }
+.word-order__verdict { color: var(--c-success); font-weight: var(--fw-bold); text-align: center; }
+
+/* --- Keyboard -------------------------------------------------------------
+   Ancré en bas, toujours visible pendant la phase 3 (README §17.1, §17.6).
+   Les touches sont des `Button` dont seule la géométrie est resserrée ici.
+   -------------------------------------------------------------------------- */
+.keyboard {
+  z-index: var(--z-keyboard);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-1) calc(var(--sp-4) + env(safe-area-inset-bottom));
+  background: var(--c-surface-alt);
+}
+
+.keyboard__row {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-1);
+}
+
+.keyboard .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: var(--sp-2) 0;
+  border-radius: var(--r-sm);
+  color: var(--c-text);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+}
+
+.keyboard .icon-btn {
+  flex: 1 1 0;
+  width: auto;
+  border-radius: var(--r-sm);
+  color: var(--c-text);
+}
+
+/* --- SessionHeader -------------------------------------------------------- */
+.session-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-bg);
+}
+
+.session-header__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.session-header__title {
+  flex: 1 1 auto;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  text-align: center;
+}
+
+.session-header__progress { display: flex; justify-content: center; }
+
+/* --- StatRow -------------------------------------------------------------- */
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--touch-min);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+
+.stat-row__icon { display: flex; color: var(--c-primary); }
+.stat-row__icon svg { width: var(--sp-5); height: var(--sp-5); }
+
+.stat-row__label { flex: 1 1 auto; color: var(--c-text-muted); }
+
+.stat-row__value { font-size: var(--fs-lg); font-weight: var(--fw-bold); }
+
+/* --- WordListItem --------------------------------------------------------- */
+.word-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--touch-min);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+
+.word-list-item__texts { flex: 1 1 auto; min-width: 0; }
+
+.word-list-item__en { font-weight: var(--fw-medium); }
+.word-list-item__fr { color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+.word-list-item__actions { display: flex; gap: var(--sp-1); }
+/* Les deux réponses de la découverte tiennent sur une ligne : elles sont
+   le même geste, pas deux actions de poids différent. */
+.deck__choices { display: flex; gap: var(--sp-2); }
+.deck__choices > * { flex: 1 1 0; min-width: 0; }
+
+
+/* ==========================================================================
+   10.3 — ORGANISMS  (étapes 5 à 8)
+   ========================================================================== */
+
+/* --- CodewordBoard --------------------------------------------------------
+   Le clavier est ancré en bas et ne bouge jamais ; c'est la zone de jeu qui
+   défile au-dessus (README §17.1).
+   -------------------------------------------------------------------------- */
+.codeword {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.codeword__play {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-4) var(--sp-5);
+}
+
+.codeword__phrase {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+}
+
+.codeword__phrase--solved { background: var(--c-tile-offered); }
+
+.codeword__clues { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.codeword__popover { padding: 0 var(--sp-4); }
+.codeword__popover:empty { display: none; }
+
+.codeword__keyboard { flex: 0 0 auto; }
+
+/* La grille resserre les cases : cinq à huit lettres doivent tenir en largeur. */
+.codeword .tile {
+  width: var(--sp-6);
+  height: var(--sp-7);
+}
+
+.codeword .tile__letter { font-size: var(--fs-md); }
+
+.codeword__phrase .tile-group { gap: var(--sp-1); }
+
+@keyframes secousse {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(calc(var(--sp-1) * -1)); }
+  75%      { transform: translateX(var(--sp-1)); }
+}
+
+.tile--shake { animation: secousse .2s ease-in-out; }
+
+
+/* --- ClueList -------------------------------------------------------------- */
+.clue-list { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.clue-list__title {
+  font-size: var(--fs-xs);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+  margin-bottom: var(--sp-2);
+}
+
+.clue-list__items { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+.clue-list__item { border-radius: var(--r-sm); }
+.clue-list__item--active { background: var(--c-tile-active); }
+.clue-list__item--solved { opacity: .5; }
+
+.clue-list__button {
+  justify-content: flex-start;
+  min-height: var(--touch-min);
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--c-text);
+  font-weight: var(--fw-regular);
+  text-align: left;
+}
+
+.clue-list__button .btn__label { text-align: left; }
+
+/* --- CrosswordBoard -------------------------------------------------------
+   La grille occupe la largeur disponible : les cases se dimensionnent seules
+   à partir du nombre de colonnes, transmis en donnée par le composant.
+   -------------------------------------------------------------------------- */
+.crossword {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* La case prend la plus petite des deux contraintes : la largeur disponible
+   divisée par le nombre de colonnes, et la part de hauteur allouée à la grille
+   divisée par le nombre de lignes. Sans la seconde, une grille de 9 lignes
+   occupe tout l'écran et repousse les indices sous le clavier. */
+.crossword__grid {
+  --gouttiere: var(--sp-1);
+  --dispo-large: calc(min(100vw, 520px) - var(--sp-4) * 2);
+  --dispo-haute: 40dvh;
+  --case: min(
+    calc((var(--dispo-large) - (var(--crossword-colonnes, 1) - 1) * var(--gouttiere))
+         / var(--crossword-colonnes, 1)),
+    calc((var(--dispo-haute) - (var(--crossword-lignes, 1) - 1) * var(--gouttiere))
+         / var(--crossword-lignes, 1))
+  );
+
+  display: grid;
+  grid-template-columns: repeat(var(--crossword-colonnes, 1), var(--case));
+  grid-auto-rows: var(--case);
+  justify-content: center;
+  gap: var(--gouttiere);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.crossword__grid .tile {
+  width: auto;
+  height: auto;
+  min-width: 0;
+}
+
+.crossword__grid .tile__letter { font-size: var(--fs-sm); }
+.crossword__grid .tile__number { font-size: var(--fs-xs); }
+
+/* Les indices occupent tout ce qui reste et défilent seuls : c'est la partie
+   qu'on lit, elle ne doit jamais passer sous le clavier. */
+.crossword__clues {
+  flex: 1 1 auto;
+  min-height: var(--sp-7);
+  overflow-y: auto;
+  padding: 0 var(--sp-4) var(--sp-4);
+}
+
+.crossword__keyboard { flex: 0 0 auto; }
+
+/* --- DiscoveryDeck, AnchorDeck, RecallDeck --------------------------------
+   Les trois decks partagent la même ossature : progression en tête, contenu
+   dessous. Seule la molecule enchaînée change.
+   -------------------------------------------------------------------------- */
+.deck {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-5);
+}
+
+.deck > .progress-dots { align-self: center; }
+
+.deck__body { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.deck__continue { margin-top: var(--sp-2); }
+
+/* Phase 4 : le clavier virtuel est ancré au bas de la fenêtre, comme en
+   phase 3 (README §17.6). L'écran réserve la place sous le contenu. */
+.deck__keyboard {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.ecran:has(.deck__keyboard) {
+  padding-bottom: calc(var(--sp-7) * 5 + env(safe-area-inset-bottom));
+}
+
+/* --- EndCard -------------------------------------------------------------- */
+.end-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-md);
+}
+
+.end-card__phrase {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.end-card__phrase-fr { color: var(--c-text-muted); text-align: center; }
+
+.end-card__context {
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--c-surface-alt);
+  font-size: var(--fs-sm);
+}
+
+.end-card__title { font-size: var(--fs-md); }
+
+.end-card__list { display: flex; flex-direction: column; gap: var(--sp-1); }
+.end-card__list .word-list-item { background: var(--c-surface-alt); }
+
+/* --- QueueSummary --------------------------------------------------------- */
+.queue-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-md);
+}
+
+.queue-summary__title { font-size: var(--fs-lg); }
+
+.queue-summary__list { display: flex; flex-direction: column; gap: var(--sp-1); }
+.queue-summary__list .word-list-item { background: var(--c-surface-alt); }
+
+.queue-summary__note { color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+/* --- SectionCard (§13, les six sections de Home) --------------------------- */
+.section-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+}
+
+.section-card--verrouille,
+.section-card--vide { background: var(--c-surface-alt); box-shadow: none; }
+
+.section-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.section-card__num {
+  flex: 0 0 auto;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--c-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.section-card__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+}
+
+.section-card__message {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+.home__sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* --- Écrire : dictée et traduction (§08) ---------------------------------- */
+.input-answer__audio { display: flex; justify-content: center; padding: var(--sp-2) 0; }
+
+.writing__bilan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface-alt);
+}
+
+.writing__bilan--ok { background: var(--c-tile-offered); }
+.writing__verdict   { margin: 0; font-weight: var(--fw-medium); }
+.writing__attendu   { margin: 0; font-size: var(--fs-lg); }
+.writing__traduction { margin: 0; color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+/* Le crédit est une obligation de licence : il reste lisible, pas caché. */
+.writing__credit {
+  margin: var(--sp-5) 0 0;
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+/* --- Micro : dicter au lieu d'écrire (§17) --------------------------------- */
+.input-answer__micro,
+.composition__micro,
+.manual-entry__micro {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-2) 0;
+}
+
+/* Pendant l'écoute, le bouton pulse : sans retour visible, on ne sait pas si
+   l'application entend quelque chose. */
+.input-answer__micro--actif .icon-btn,
+.composition__micro--actif .icon-btn,
+.manual-entry__micro--actif .icon-btn {
+  background: var(--c-error);
+  color: var(--c-surface);
+  animation: micro-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes micro-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input-answer__micro--actif .icon-btn,
+  .composition__micro--actif .icon-btn,
+  .manual-entry__micro--actif .icon-btn { animation: none; }
+}
+
+/* --- Rédaction libre (§08) ------------------------------------------------ */
+.composition {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-md);
+}
+
+.composition__consigne    { margin: 0; font-size: var(--fs-lg); }
+.composition__consigne-en { margin: 0; color: var(--c-text-muted); font-size: var(--fs-sm); }
+.composition__mots        { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+.composition__field {
+  width: 100%;
+  min-height: 180px;
+  padding: var(--sp-3);
+  border: 1px solid var(--c-surface-alt);
+  border-radius: var(--r-md);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.composition__compteur { margin: 0; color: var(--c-text-muted); font-size: var(--fs-sm); }
+.composition__actions  { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.correction {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface-alt);
+}
+
+.correction__reussi { margin: 0; font-weight: var(--fw-medium); color: var(--c-success); }
+.correction__texte  { margin: 0; line-height: 1.6; }
+
+.correction__remarques {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.correction__paire    { margin: 0; }
+.correction__faux     { color: var(--c-error); text-decoration: line-through; }
+.correction__juste    { color: var(--c-success); font-weight: var(--fw-medium); }
+.correction__pourquoi { margin: var(--sp-1) 0 0; color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+/* --- Vidéo : conférence phrase par phrase (§10) ---------------------------- */
+.video-screen__form { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.video-screen__field {
+  width: 100%;
+  padding: var(--sp-3);
+  border: 1px solid var(--c-surface-alt);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font: inherit;
+}
+
+.video-screen__vide { margin: 0; color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+.video-screen__liste { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.video-screen__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.video-screen__item-titre { flex: 1 1 auto; min-width: 0; font-weight: var(--fw-medium); }
+.video-screen__item-etat  { flex: 0 0 auto; color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+.lecteur { display: block; }
+
+.lecteur__video {
+  width: 100%;
+  max-height: 45vh;
+  border-radius: var(--r-md);
+  background: #000;
+}
+
+/* Une case par phrase : le chapitrage de la conférence, d'un coup d'œil. */
+.video-screen__barre {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: var(--sp-3);
+}
+
+.video-screen__segment {
+  flex: 1 1 6px;
+  min-width: 4px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--c-surface-alt);
+}
+
+.video-screen__segment--faite    { background: var(--c-success); }
+.video-screen__segment--courante { background: var(--c-primary); height: 7px; }
+
+.video-screen__compte {
+  flex: 1 0 100%;
+  margin: var(--sp-2) 0 0;
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+.video-screen__jeu    { display: flex; flex-direction: column; gap: var(--sp-3); }
+.video-screen__outils { display: flex; gap: var(--sp-2); }
+/* Choix après une erreur : les deux options sont de même poids visuel,
+   c'est à l'utilisateur de décider s'il refait ou s'il avance. */
+.video-screen__reprise { display: flex; flex-direction: column; gap: var(--sp-2);
+                         margin-top: var(--sp-3); }
+.video-screen__quizz  { display: flex; flex-direction: column; gap: var(--sp-2);
+                        margin-top: var(--sp-4); }
+.video-screen__note   { color: var(--c-text-muted); font-size: var(--fs-sm);
+                        text-align: center; margin: 0; }
+.video-screen__bilan  { font-size: var(--fs-lg); font-weight: 600;
+                        text-align: center; margin: var(--sp-4) 0; }
+
+.video-screen__credit {
+  margin: var(--sp-5) 0 0;
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+/* --- WordList (§01, §04) --------------------------------------------------- */
+.word-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.word-list__title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--c-text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.word-list__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.word-list__empty {
+  margin: 0;
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* --- Indices de grille (§15.7) -------------------------------------------- */
+.codeword__hint {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 var(--sp-4) var(--sp-2);
+}
+
+.codeword__hint .btn { width: auto; }
+
+/* --- Quizz (§03) ---------------------------------------------------------- */
+/* L'énoncé est une définition tappable, pas une simple phrase : il respire. */
+.quiz-screen .mcq__question {
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface-alt);
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+}
+
+/* --- StoryReader (§06) ---------------------------------------------------- */
+.story {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-md);
+}
+
+.story__title { margin: 0; font-size: var(--fs-xl); }
+
+.story__text, .story__fr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.story__para { margin: 0; line-height: 1.7; }
+.story__fr .story__para { color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+/* Chaque mot est tappable : le bouton doit rester invisible dans le texte. */
+.story__word {
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.story__word:hover,
+.story__word:focus-visible { background: var(--c-tile-filled); }
+
+.story-screen__warning {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-tile-active);
+  font-size: var(--fs-sm);
+}
+
+.home__defi-etat { color: var(--c-text-muted); text-align: center; }
+
+.ecran__empty-detail { color: var(--c-text-muted); font-size: var(--fs-sm); text-align: center; }
+
+/* --- ManualEntryForm ------------------------------------------------------ */
+.manual-entry { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.manual-entry__field {
+  width: 100%;
+  min-height: var(--sp-7);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.manual-entry__hint { color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+.manual-entry__result { display: flex; flex-direction: column; gap: var(--sp-3); }
+.manual-entry__result:empty { display: none; }
+.manual-entry__result > .spinner { align-self: center; }
+
+.manual-entry__phrase {
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--c-surface-alt);
+  font-size: var(--fs-lg);
+}
+
+.manual-entry__title { font-weight: var(--fw-medium); }
+
+.manual-entry__words { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.manual-entry__word { flex-wrap: wrap; }
+.manual-entry__word--kept { background: var(--c-tile-offered); }
+
+.manual-entry__notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  flex-basis: 100%;
+}
+
+.manual-entry__warning {
+  flex-basis: 100%;
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+}
+/* --- PalierList ----------------------------------------------------------- */
+.palier-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.palier-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+}
+
+.palier-list__item--current { background: var(--c-tile-filled); }
+
+.palier-list__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.palier-list__number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--sp-6);
+  height: var(--sp-6);
+  border-radius: var(--r-full);
+  background: var(--c-surface-alt);
+  font-weight: var(--fw-bold);
+}
+
+.palier-list__item--current .palier-list__number {
+  background: var(--c-primary);
+  color: var(--c-surface);
+}
+
+.palier-list__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: var(--fw-medium);
+}
+
+.palier-list__detail { color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+.palier-list__threshold { color: var(--c-text-muted); font-size: var(--fs-xs); }
+
+
+
+/* ==========================================================================
+   ÉCRANS  (README §11)
+   ========================================================================== */
+
+/* `env(safe-area-inset-*)` vaut 0 dans un navigateur classique : ces règles
+   ne servent qu'en mode application, où il n'y a plus de barre de navigateur
+   pour écarter le contenu de l'encoche et de la barre d'accueil. */
+.ecran {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-height: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding:
+    calc(var(--sp-4) + env(safe-area-inset-top))
+    calc(var(--sp-4) + env(safe-area-inset-right))
+    calc(var(--sp-7) + env(safe-area-inset-bottom))
+    calc(var(--sp-4) + env(safe-area-inset-left));
+}
+
+.ecran--loading { align-items: center; justify-content: center; }
+
+.ecran__body { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.ecran__empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  text-align: center;
+}
+
+.ecran__empty-text { color: var(--c-text-muted); }
+
+/* --- Home ----------------------------------------------------------------- */
+.home__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.home__title { font-size: var(--fs-xl); }
+
+.home__actions { display: flex; gap: var(--sp-1); }
+
+.home__counters {
+  display: flex;
+  gap: var(--sp-6);
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+}
+
+
+
+.home__summary { color: var(--c-text-muted); text-align: center; }
+
+.home__filieres { display: flex; flex-direction: column; gap: var(--sp-2); }
+.home__filieres:empty { display: none; }
+
+/* --- Session -------------------------------------------------------------- */
+.session { gap: var(--sp-5); padding-top: 0; }
+.session__body { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+/* Pendant la grille, l'écran occupe la hauteur exacte de la fenêtre : le
+   clavier reste collé en bas et seule la zone de jeu défile (§17.1). */
+.session--grille {
+  height: 100dvh;
+  max-width: 520px;
+  gap: 0;
+  padding: 0;
+  /* Après `padding: 0`, sinon la déclaration courte l'écraserait et l'en-tête
+     passerait sous l'encoche en mode application. */
+  padding-top: env(safe-area-inset-top);
+  overflow: hidden;
+}
+
+.session--grille .session-header { flex: 0 0 auto; }
+
+.session--grille .session__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+}
+
+/* --- Verbs ---------------------------------------------------------------- */
+.verbs { padding-top: 0; }
+
+.verbs__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+}
+
+.verbs__group-head { display: flex; align-items: center; gap: var(--sp-3); }
+.verbs__group-name { font-weight: var(--fw-medium); }
+.verbs__group-detail { color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+.verb-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  box-shadow: var(--sh-md);
+}
+
+.verb-intro__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.verb-intro__base { font-size: var(--fs-2xl); line-height: 1.1; }
+.verb-intro__fr { color: var(--c-text-muted); font-size: var(--fs-lg); }
+
+.verb-intro__forms { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+.verb-intro__form {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--c-surface-alt);
+}
+
+.verb-intro__form-label { color: var(--c-text-muted); font-size: var(--fs-sm); }
+.verb-intro__form-value { font-size: var(--fs-lg); font-weight: var(--fw-bold); }
+
+/* --- ManualAdd ------------------------------------------------------------ */
+.manual-add { padding-top: 0; }
+.manual-add__messages:empty { display: none; }
+
+/* --- Phrasal --------------------------------------------------------------- */
+.phrasal { padding-top: 0; }
+
+.phrasal__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--sh-sm);
+}
+
+.phrasal__litteral { flex: 1 1 auto; color: var(--c-text-muted); font-size: var(--fs-sm); }
+.phrasal__prompt { font-size: var(--fs-lg); font-weight: var(--fw-medium); text-align: center; }
+
+.phrasal__phrase {
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--c-surface-alt);
+  font-size: var(--fs-lg);
+  text-align: center;
+}
+
+/* --- Progress ------------------------------------------------------------- */
+.progress { padding-top: 0; }
+
+.progress__title { font-size: var(--fs-md); }
+
+.progress__stats { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+.progress__boxes { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.progress__box { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.progress__box-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.progress__box-delay { color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+.progress__paliers { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.progress__palier { display: flex; flex-direction: column; gap: var(--sp-2); }
+.progress__palier-name { font-weight: var(--fw-medium); }
+.progress__palier-detail { color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+/* --- Settings ------------------------------------------------------------- */
+.settings { padding-top: 0; }
+
+.settings__title { font-size: var(--fs-md); }
+.settings__subtitle { font-size: var(--fs-sm); color: var(--c-text-muted); }
+
+.settings__note { color: var(--c-text-muted); font-size: var(--fs-sm); }
+
+/* Le sélecteur de fichier natif reste caché : c'est un Button qui l'ouvre. */
+.settings__file { display: none; }
+
+.settings__objectif {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+
+.settings__filieres { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+.settings__messages { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.settings__errors { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.settings__error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  font-size: var(--fs-sm);
+}
+
+.settings__error--bloquant { background: var(--c-tile-filled); }
+
+.settings__error-file { color: var(--c-text-muted); font-size: var(--fs-xs); }

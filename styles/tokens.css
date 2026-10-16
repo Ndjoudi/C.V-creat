@@ -1,0 +1,48 @@
+/* ==========================================================================
+   tokens.css — SEULE source de vérité visuelle du projet (README §9).
+   Aucune valeur visuelle en dur ailleurs : couleurs, espacements, rayons et
+   tailles de police passent tous par ces variables.
+   ========================================================================== */
+
+:root {
+  /* Couleurs */
+  --c-bg:            #f4f7fb;
+  --c-surface:       #ffffff;
+  --c-surface-alt:   #eaf0f8;
+  --c-text:          #2c3e56;
+  --c-text-muted:    #7a8ca3;
+  --c-primary:       #5b8def;
+  --c-primary-dark:  #3f6fd1;
+  --c-accent:        #ffb340;
+  --c-success:       #3fbf7f;
+  --c-error:         #e5544b;
+  --c-tile:          #ffffff;
+  --c-tile-filled:   #dcecff;
+  --c-tile-active:   #ffe4b0;
+  --c-tile-offered:  #d6f2e4;
+  --c-tile-block:    #c9d6e6;
+
+  /* Espacements */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;
+  --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+
+  /* Rayons */
+  --r-sm: 6px; --r-md: 12px; --r-lg: 20px; --r-full: 999px;
+
+  /* Typographie */
+  --f-base: -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-xs: 12px; --fs-sm: 14px; --fs-md: 16px;
+  --fs-lg: 20px; --fs-xl: 26px; --fs-2xl: 34px;
+  --fw-regular: 400; --fw-medium: 600; --fw-bold: 800;
+
+  /* Ombres */
+  --sh-sm: 0 1px 3px rgba(44,62,86,.10);
+  --sh-md: 0 4px 12px rgba(44,62,86,.12);
+  --sh-lg: 0 8px 28px rgba(44,62,86,.16);
+
+  /* Couches */
+  --z-popover: 100; --z-keyboard: 200; --z-modal: 300; --z-toast: 400;
+
+  /* Cibles tactiles */
+  --touch-min: 44px;
+}

@@ -1,0 +1,114 @@
+/* ==========================================================================
+   base.css — reset, typographie, comportements de document.
+   Aucune classe de composant ici : elles vivent toutes dans components.css.
+   ========================================================================== */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+html {
+  /* Empêche l'agrandissement automatique du texte en rotation sur iOS. */
+  -webkit-text-size-adjust: 100%;
+          text-size-adjust: 100%;
+
+  /*
+   * Supprime le zoom au double-tap.
+   *
+   * Sans cela, taper deux fois de suite la MÊME touche du clavier — « n » puis
+   * « n » — est interprété comme un double-tap et fait zoomer l'écran au lieu
+   * d'écrire la lettre. Le mot devient impossible à saisir.
+   *
+   * `manipulation` désactive le double-tap ET le délai de 300 ms qui
+   * l'accompagne, tout en laissant le **pincement** fonctionner : on ne retire
+   * pas le zoom aux gens qui en ont besoin pour lire. C'est pourquoi on n'écrit
+   * pas `user-scalable=no` dans la balise viewport, qui lui l'interdirait
+   * vraiment — et qu'iOS ignore de toute façon depuis la version 10.
+   */
+  touch-action: manipulation;
+}
+
+body {
+  margin: 0;
+  /* `touch-action` ne s'hérite pas : le poser aussi ici couvre les zones qui
+     ne sont ni un bouton ni une case, où le double-tap zoomait encore. */
+  touch-action: manipulation;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--f-base);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-regular);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Lancée depuis l'écran d'accueil, l'application n'a plus la barre du
+   navigateur : elle doit se comporter comme une application native. */
+button, .tile, .clue-text__word {
+  -webkit-touch-callout: none;   /* pas de menu contextuel au appui long */
+  user-select: none;
+}
+
+/* La saisie, elle, reste sélectionnable. */
+input, textarea { user-select: text; }
+
+h1, h2, h3, h4, h5, h6, p, figure, blockquote { margin: 0; }
+h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: var(--fw-bold); }
+
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+img, svg { display: block; max-width: 100%; }
+
+button, input, textarea, select {
+  font-family: inherit;
+  color: inherit;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled { cursor: default; }
+
+/* iOS zoome sur tout champ dont la police est < 16px. --fs-md vaut 16px :
+   c'est le plancher, il ne doit jamais être abaissé sur un champ de saisie. */
+input, textarea, select {
+  font-size: var(--fs-md);
+  border: 0;
+  border-radius: 0;
+  -webkit-appearance: none;
+          appearance: none;
+}
+
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* ==========================================================================
+   Double-tap : rappel sur les éléments qu'on tape en rafale.
+   `touch-action` posé sur <html> suffit en théorie ; en pratique certains
+   navigateurs mobiles le réévaluent au niveau de la cible du geste.
+   ========================================================================== */
+button,
+.tile,
+.keyboard,
+.story__word,
+.clue-text__word { touch-action: manipulation; }
