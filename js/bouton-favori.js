@@ -73,6 +73,12 @@ if(!d.company)d.company=t(['[data-cy="companyName"]','[itemprop="hiringOrganizat
 if(!d.url)d.url=location.href;
 var CT=(document.body.innerText.match(/\\b(CDI|CDD|Int[ée]rim|Alternance|Stage|Freelance)\\b/)||[])[1];
 if(CT&&!d.contract)d.contract=CT;
+// HelloWork suffixe ses titres par le contrat ("… - CDI H/F").
+// On enlève d'abord la mention de mixité, puis le contrat, qu'on récupère
+// comme type de contrat s'il manquait.
+d.title=d.title.replace(/\\s*\\(?\\s*[hfwmxd](\\s*\\/\\s*[hfwmxd])+\\s*\\)?\\s*$/i,'').trim();
+var SF=d.title.match(/\\s*[-–—]\\s*(CDI|CDD|Int[ée]rim|Alternance|Stage|Freelance)\\s*$/i);
+if(SF){if(!d.contract)d.contract=SF[1];d.title=d.title.slice(0,SF.index).trim();}
 }else{alert('Ouvre d\\'abord une offre Indeed, LinkedIn ou HelloWork, puis clique sur ce favori.');return;}
 if(!d.descText)d.descText=blocSecours();
 if(!d.descText){alert('Description introuvable sur cette page.\\n\\nLu : '+(d.title||'(pas de titre)')+' / '+(d.company||'(pas d\\'entreprise)')+'\\n\\nOuvre l\\'offre en plein écran (pas la liste de résultats), attends qu\\'elle s\\'affiche, puis réessaie.');return;}

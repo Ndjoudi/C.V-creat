@@ -20,7 +20,7 @@ const STAT_COLORS = {
   'À traiter':  ['var(--ink3)','var(--bg)','var(--border)'],
   'Envoyé':     ['#3B82F6','#EFF6FF','#BFDBFE'],
   'Message in': ['#D97706','#FFFBEB','#FDE68A'],
-  'Entretien':  ['var(--teal)','var(--teal-bg)','var(--teal-border)'],
+  'Entretien':  ['#16A34A','#F0FDF4','#86EFAC'],
   'Refusé':     ['#DC2626','var(--red-bg)','var(--red-border)']
 };
 // Bouton vers l'annonce d'origine — rien si aucun lien n'a été enregistré
