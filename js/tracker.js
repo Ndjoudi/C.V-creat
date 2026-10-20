@@ -3156,17 +3156,20 @@ function _renderInterviewResult(d) {
       ${qs.map(item => {
         // Ancien format : la question était une simple chaîne
         const txt   = typeof item === 'string' ? item : (item.q || '');
-        const piste = typeof item === 'string' ? ''   : (item.piste || '');
         const piege = typeof item === 'string' ? ''   : (item.piege || '');
+        // Formats successifs : chaîne seule, puis { piste }, puis { reponses[] }
+        const reps  = typeof item === 'string' ? []
+                    : (item.reponses && item.reponses.length ? item.reponses
+                    : (item.piste ? [item.piste] : []));
         return `<div style="margin-bottom:7px;padding:8px 10px;background:var(--bg2);border-radius:7px">
         <div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--ink)">
           <span style="color:${qt.col};font-weight:700;flex-shrink:0">Q</span>
           <span style="line-height:1.5;font-weight:600">${esc(txt)}</span>
         </div>
-        ${piste ? `<div style="margin:7px 0 0 18px;padding-left:9px;border-left:2px solid ${qt.col}44;
+        ${reps.map((r, i) => `<div style="margin:7px 0 0 18px;padding-left:9px;border-left:2px solid ${qt.col}44;
           font-size:11.5px;line-height:1.55;color:var(--ink2);text-align:left">
-          <span style="color:${qt.col};font-weight:700">Piste · </span>${esc(piste)}
-        </div>` : ''}
+          <span style="color:${qt.col};font-weight:700">Réponse ${i + 1} · </span>${esc(r)}
+        </div>`).join('')}
         ${piege ? `<div style="margin:5px 0 0 18px;padding-left:9px;border-left:2px solid #fca5a5;
           font-size:11px;line-height:1.5;color:#b91c1c;text-align:left">
           <span style="font-weight:700">À éviter · </span>${esc(piege)}
@@ -3271,12 +3274,16 @@ Réponds UNIQUEMENT en JSON valide :
     "recruteur": [
       {
         "q": "la question posée",
-        "piste": "comment y répondre : angle à prendre + élément PRÉCIS du CV à citer (chiffre, mission, outil). 2 phrases max, à la 2e personne : 'Appuie-toi sur…'",
+        "reponses": [
+          "une réponse COMPLÈTE prête à dire, à la 1re personne ('Chez X, j'ai…'), 2 à 3 phrases, qui cite une expérience, un chiffre ou un outil RÉEL du CV",
+          "une 2e réponse sur un ANGLE DIFFÉRENT (autre expérience, autre argument)",
+          "une 3e réponse, angle encore différent"
+        ],
         "piege": "le piège à éviter sur cette question, en 8 mots max — champ facultatif, à omettre s'il n'y en a pas"
       }
     ],
-    "hiring_manager": [{ "q": "…", "piste": "…" }],
-    "technique": [{ "q": "…", "piste": "…" }]
+    "hiring_manager": [{ "q": "…", "reponses": ["…", "…"] }],
+    "technique": [{ "q": "…", "reponses": ["…", "…"] }]
   },
   "questions_a_poser": [
     "question intelligente à poser à l'interviewer 1",
@@ -3294,15 +3301,19 @@ Règles :
 - Stories basées sur les VRAIES expériences du CV — pas inventées
 - La Réflexion est obligatoire : c'est ce qui distingue un junior d'un senior
 - Questions en français, réalistes pour le secteur supply chain
-- 3 questions par catégorie, chacune AVEC sa piste de réponse
-- Les pistes s'appuient sur le CV ci-dessus : cite une expérience, un chiffre ou
-  un outil réel du candidat. Jamais de conseil générique type "sois concret"
+- 3 questions par catégorie, chacune avec 2 à 3 réponses au choix
+- Les réponses sont PRÊTES À DIRE, à la 1re personne, pas des conseils :
+  écris "Chez Deleev, j'ai réorganisé…", jamais "parle de ton expérience"
+- Chaque réponse s'appuie sur le CV ci-dessus (expérience, chiffre, outil réels)
+  et prend un angle DIFFÉRENT des autres réponses de la même question
+- 2 à 3 phrases par réponse : de quoi être dit à l'oral sans réciter
 - Questions à poser : spécifiques à l'entreprise/poste, pas génériques
 - Points de vigilance : honnêtes, avec suggestion de mitigation concrète`;
 
   try {
     const provider = window._itwProvider || 'groq';
-    const text     = await (provider === 'gemini' ? callGemini : callGroq)(prompt, { maxTokens: 2500, temperature: 0.4 });
+    // 9 questions × 3 réponses + 5 stories : il faut de la marge, sinon le JSON est coupé
+    const text     = await (provider === 'gemini' ? callGemini : callGroq)(prompt, { maxTokens: 5000, temperature: 0.4 });
     const d        = safeParseJSON(text);
     if (!d || !d.stories) throw new Error('Réponse invalide de l\'IA');
 
