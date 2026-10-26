@@ -478,7 +478,8 @@ function renderCV() {
 
   // ── Formation : une ligne par diplôme ──
   if (P.education.length) {
-    html += `<div class="cv-sec"><div class="cv-stitle">Formation</div>`;
+    // Titre à gauche, diplômes à droite : gagne une ligne par rubrique
+    html += `<div class="cv-sec cv-sec--cote"><div class="cv-stitle">Formation</div><div class="cv-sec-corps">`;
     P.education.forEach(e => {
       const endYear = e.year ? e.year.trim().split(/\s*[-–—]\s*/).pop() : '';
       const parts = [
@@ -487,7 +488,7 @@ function renderCV() {
       ].filter(Boolean);
       html += `<div class="cv-edu-row">${parts.join(sep)}</div>`;
     });
-    html += `</div>`;
+    html += `</div></div>`;
   }
 
   // ── Compétences : listes séparées par des virgules ──
@@ -529,8 +530,8 @@ function renderCV() {
 
   // ── Langues ──
   if (P.languages.length) {
-    html += `<div class="cv-sec"><div class="cv-stitle">Langues</div>
-      <div class="cv-summary-text">${P.languages.map(l => `${esc(l.name)}${l.level ? ' — ' + esc(l.level) : ''}`).join(sep)}</div>
+    html += `<div class="cv-sec cv-sec--cote"><div class="cv-stitle">Langues</div>
+      <div class="cv-sec-corps cv-summary-text">${P.languages.map(l => `${esc(l.name)}${l.level ? ' — ' + esc(l.level) : ''}`).join(sep)}</div>
     </div>`;
   }
 
@@ -543,8 +544,8 @@ function renderCV() {
 
   // ── Centres d'intérêt ──
   if (P.hobbies) {
-    html += `<div class="cv-sec"><div class="cv-stitle">Centres d'intérêt</div>
-      <div class="cv-summary-text">${esc(P.hobbies)}</div>
+    html += `<div class="cv-sec cv-sec--cote"><div class="cv-stitle">Centres d'intérêt</div>
+      <div class="cv-sec-corps cv-summary-text">${esc(P.hobbies)}</div>
     </div>`;
   }
 

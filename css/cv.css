@@ -284,6 +284,22 @@
 /* Espace réduit entre l'état civil et le trait */
 .cv-doc--ats .cv-div{ margin-top:2px; }
 
+/* Rubriques en deux colonnes : titre à gauche, contenu à droite.
+   Fait gagner une ligne par rubrique (Formation, Langues, Centres d'intérêt). */
+.cv-doc--ats .cv-sec--cote{
+  display:flex;align-items:flex-start;gap:14px;
+}
+.cv-doc--ats .cv-sec--cote > .cv-stitle{
+  flex:0 0 104px;          /* colonne de gauche, largeur fixe */
+  margin-bottom:0;
+  padding-bottom:0;
+  border-bottom:none;      /* un trait sous le seul libellé serait bancal */
+  padding-top:1px;
+}
+.cv-doc--ats .cv-sec--cote > .cv-sec-corps{
+  flex:1;min-width:0;      /* min-width:0 évite les débordements de texte long */
+}
+
 /* Trait de séparation entre les blocs en mode ATS */
 .cv-doc--ats .cv-sec{
   border-top:1px solid #E5E5EA;
