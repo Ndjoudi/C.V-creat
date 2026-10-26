@@ -294,11 +294,21 @@
   margin-bottom:0;
   padding-bottom:0;
   border-bottom:none;      /* un trait sous le seul libellé serait bancal */
-  padding-top:1px;
+  padding-top:0;
 }
 .cv-doc--ats .cv-sec--cote > .cv-sec-corps{
   flex:1;min-width:0;      /* min-width:0 évite les débordements de texte long */
 }
+/* Espaces resserrés au maximum autour du trait de séparation.
+   Double classe (.cv-sec.cv-sec--cote) pour passer devant la règle
+   générale `.cv-doc--ats .cv-sec` définie plus bas dans ce fichier. */
+.cv-doc--ats .cv-sec.cv-sec--cote{
+  margin-top:3px;          /* au-dessus du trait */
+  padding-top:3px;         /* entre le trait et le texte */
+}
+/* Les diplômes collent au trait : on enlève le retrait de la 1re ligne */
+.cv-doc--ats .cv-sec--cote .cv-edu-row:first-child{ padding-top:0; }
+.cv-doc--ats .cv-sec--cote .cv-edu-row:last-child{ padding-bottom:0; }
 
 /* Trait de séparation entre les blocs en mode ATS */
 .cv-doc--ats .cv-sec{
