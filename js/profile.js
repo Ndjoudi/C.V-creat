@@ -171,17 +171,14 @@ function renderExpList() {
     const bullets = e.bullets || [];
     const bulletsHtml = bullets.length
       ? bullets.map((b, bi) =>
-          '<div class="bullet-item" id="bi-' + b.id + '">' +
+          // Ordre des réalisations : c'est celui du CV.
+          // On attrape la ligne et on la fait glisser — pas de boutons.
+          '<div class="bullet-item" id="bi-' + b.id + '" draggable="true"' +
+              ' data-bid="' + b.id + '" data-expid="' + e.id + '"' +
+              ' title="Glisse la ligne pour la déplacer">' +
             '<button class="bullet-req-btn ' + (b.required ? 'is-req' : '') + '" onclick="toggleRequired(\'' + e.id + '\',\'' + b.id + '\')" title="' + (b.required ? 'Toujours affiché' : 'Affiché si sélectionné') + '">' +
               (b.required ? '★' : '○') +
             '</button>' +
-            // Ordre des réalisations : c'est celui du CV
-            '<span class="bullet-move">' +
-              '<button class="bullet-move-btn" title="Monter"' + (bi === 0 ? ' disabled' : '') +
-                ' onclick="deplaceBullet(\'' + e.id + '\',\'' + b.id + '\',-1)">▲</button>' +
-              '<button class="bullet-move-btn" title="Descendre"' + (bi === bullets.length - 1 ? ' disabled' : '') +
-                ' onclick="deplaceBullet(\'' + e.id + '\',\'' + b.id + '\',1)">▼</button>' +
-            '</span>' +
             '<span class="bullet-item-text" id="bt-' + b.id + '" contenteditable="true" onblur="updBulletText(\'' + e.id + '\',\'' + b.id + '\',this.textContent)">' + esc(b.text) + '</span>' +
             '<button onclick="delBullet(\'' + e.id + '\',\'' + b.id + '\')" class="bullet-del-btn">×</button>' +
           '</div>'
@@ -243,6 +240,7 @@ function renderExpList() {
     '</div>';
   }).join('');
   if (typeof lucide !== 'undefined') lucide.createIcons();
+  initTriBullets();   // (re)branche le glisser-déposer sur les listes redessinées
 }
 
 function addExp() {
@@ -282,19 +280,76 @@ function delBullet(expId, bId) {
   renderExpList();
 }
 
-// Monte (sens = -1) ou descend (sens = 1) une réalisation dans la liste.
-// L'ordre du profil est celui du CV : on le redessine dans la foulée.
-function deplaceBullet(expId, bId, sens) {
-  const exp = P.experiences.find(e => e.id === expId);
-  if (!exp || !exp.bullets) return;
-  const i = exp.bullets.findIndex(b => b.id === bId);
-  const j = i + sens;
-  if (i === -1 || j < 0 || j >= exp.bullets.length) return;
-  [exp.bullets[i], exp.bullets[j]] = [exp.bullets[j], exp.bullets[i]];
+// ── RÉORDONNER LES RÉALISATIONS PAR GLISSER-DÉPOSER ────────
+// On attrape la ligne entière et on la déplace. L'ordre du profil
+// est celui du CV : on le redessine une fois le déplacement terminé.
+
+// Enregistre le nouvel ordre d'après la position réelle des lignes
+function _enregistreOrdreBullets(expId) {
+  const liste = document.getElementById('bullets-list-' + expId);
+  const exp   = P.experiences.find(e => e.id === expId);
+  if (!liste || !exp || !exp.bullets) return;
+
+  const ordre = [...liste.querySelectorAll('.bullet-item')].map(el => el.dataset.bid);
+  const avant = exp.bullets.map(b => b.id).join('|');
+  const apres = ordre.join('|');
+  if (avant === apres) return;                 // rien n'a bougé
+
+  exp.bullets = ordre
+    .map(id => exp.bullets.find(b => b.id === id))
+    .filter(Boolean);
   ss('sc_profile', P);
-  renderExpList();
   if (typeof renderCV      === 'function') renderCV();
   if (typeof _syncSplitCV  === 'function') _syncSplitCV();
+}
+
+// Branche le glisser-déposer sur toutes les listes de réalisations
+function initTriBullets() {
+  document.querySelectorAll('[id^="bullets-list-"]').forEach(liste => {
+    if (liste.dataset.triPret) return;         // déjà branché
+    liste.dataset.triPret = '1';
+    const expId = liste.id.replace('bullets-list-', '');
+    let porte = null;
+
+    // Le texte est modifiable : un cliquer-glisser dedans doit sélectionner,
+    // pas déplacer la ligne. On coupe donc le déplacement le temps de la saisie.
+    liste.addEventListener('mousedown', e => {
+      const ligne = e.target.closest('.bullet-item');
+      if (!ligne) return;
+      const dansLeTexte = e.target.closest('.bullet-item-text');
+      ligne.draggable = !dansLeTexte;
+    });
+    liste.addEventListener('mouseup', () => {
+      liste.querySelectorAll('.bullet-item').forEach(l => { l.draggable = true; });
+    });
+
+    liste.addEventListener('dragstart', e => {
+      porte = e.target.closest('.bullet-item');
+      if (!porte) return;
+      porte.classList.add('bullet-item--porte');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', porte.dataset.bid);   // requis par Firefox
+    });
+
+    liste.addEventListener('dragover', e => {
+      if (!porte) return;
+      e.preventDefault();
+      const cible = e.target.closest('.bullet-item');
+      if (!cible || cible === porte) return;
+      // Au-dessus ou en dessous du milieu de la ligne survolée ?
+      const r = cible.getBoundingClientRect();
+      const avant = e.clientY < r.top + r.height / 2;
+      cible.parentNode.insertBefore(porte, avant ? cible : cible.nextSibling);
+    });
+
+    liste.addEventListener('drop', e => e.preventDefault());
+
+    liste.addEventListener('dragend', () => {
+      if (porte) porte.classList.remove('bullet-item--porte');
+      porte = null;
+      _enregistreOrdreBullets(expId);
+    });
+  });
 }
 
 function updBulletText(expId, bId, text) {
