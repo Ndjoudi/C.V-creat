@@ -149,6 +149,18 @@ function recherches() {
 }
 
 function _sauveRecherches(liste) { ss(CLE_RECHERCHES, liste); }
+
+// Échappe une valeur placée dans une chaîne JS entre apostrophes, elle-même
+// dans un attribut HTML (onclick="f('ici')"). Indispensable : les identifiants
+// contiennent des apostrophes — « hellowork:chef d'équipe logistique » —
+// qui refermaient la chaîne et cassaient le bouton.
+function _js(v) {
+  return String(v == null ? '' : v)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
 function _nouvelId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
 // ── SUIVI DES CLICS ────────────────────────────────────────
@@ -331,9 +343,9 @@ function renderPanneauRecherches() {
   const colonnes = liste.map(s => {
     const tete = _modeEdition
       ? `<input class="inp rch-champ-site" value="${esc(s.nom)}"
-           oninput="majRecherche('${s.id}', null, 'nom', this.value)">
+           oninput="majRecherche('${_js(s.id)}', null, 'nom', this.value)">
          <button class="rch-suppr-site" title="Supprimer ce site"
-           onclick="supprimeSiteRecherche('${s.id}')">× Supprimer le site</button>`
+           onclick="supprimeSiteRecherche('${_js(s.id)}')">× Supprimer le site</button>`
       : `<div class="rch-site-nom" style="color:${s.couleur || 'var(--ink)'}">${esc(s.nom)}</div>`;
 
     const liens = s.elements.map(l => {
@@ -343,8 +355,8 @@ function renderPanneauRecherches() {
         return _modeEdition
           ? `<div class="rch-ligne-edit" data-id="${esc(l.id)}" data-type="titre">${poignee}
               <input class="inp rch-champ-titre" value="${esc(l.nom)}" placeholder="Nom de la catégorie"
-                oninput="majRecherche('${s.id}', '${l.id}', 'nom', this.value)">
-              <button class="rch-suppr" title="Supprimer" onclick="supprimeLienRecherche('${s.id}', '${l.id}')">×</button>
+                oninput="majRecherche('${_js(s.id)}', '${_js(l.id)}', 'nom', this.value)">
+              <button class="rch-suppr" title="Supprimer" onclick="supprimeLienRecherche('${_js(s.id)}', '${_js(l.id)}')">×</button>
             </div>`
           : `<div class="rch-categorie">${esc(l.nom)}</div>`;
       }
@@ -352,10 +364,10 @@ function renderPanneauRecherches() {
       if (_modeEdition) {
         return `<div class="rch-ligne-edit" data-id="${esc(l.id)}" data-type="lien">${poignee}
           <input class="inp" value="${esc(l.nom)}" placeholder="Nom affiché"
-            oninput="majRecherche('${s.id}', '${l.id}', 'nom', this.value)">
+            oninput="majRecherche('${_js(s.id)}', '${_js(l.id)}', 'nom', this.value)">
           <input class="inp rch-url" value="${esc(l.url)}" placeholder="https://…"
-            oninput="majRecherche('${s.id}', '${l.id}', 'url', this.value)">
-          <button class="rch-suppr" title="Supprimer" onclick="supprimeLienRecherche('${s.id}', '${l.id}')">×</button>
+            oninput="majRecherche('${_js(s.id)}', '${_js(l.id)}', 'url', this.value)">
+          <button class="rch-suppr" title="Supprimer" onclick="supprimeLienRecherche('${_js(s.id)}', '${_js(l.id)}')">×</button>
         </div>`;
       }
       const e = _etatClic(l.id);
@@ -364,9 +376,9 @@ function renderPanneauRecherches() {
     }).join('') || (_modeEdition ? '' : '<div class="rch-vide">Aucune recherche</div>');
 
     const pied = _modeEdition
-      ? `<button class="rch-ajout" onclick="ajouteLienRecherche('${s.id}')">＋ Recherche</button>
-         <button class="rch-ajout" onclick="ajouteCategorieRecherche('${s.id}')">＋ Catégorie</button>
-         <button class="rch-ajout" onclick="classeParFamilles('${s.id}')" title="Range cette colonne dans les 5 familles supply chain">⟲ Classer par familles</button>`
+      ? `<button class="rch-ajout" onclick="ajouteLienRecherche('${_js(s.id)}')">＋ Recherche</button>
+         <button class="rch-ajout" onclick="ajouteCategorieRecherche('${_js(s.id)}')">＋ Catégorie</button>
+         <button class="rch-ajout" onclick="classeParFamilles('${_js(s.id)}')" title="Range cette colonne dans les 5 familles supply chain">⟲ Classer par familles</button>`
       : '';
 
     return `<div class="rch-colonne">${tete}
