@@ -280,7 +280,7 @@
   color:#3A3A3C;margin-bottom:4px;line-height:1.2;
 }
 /* Le nom reste le plus visible : c'est aussi ce que l'ATS lit en premier */
-.cv-doc--ats .cv-nm{ font-size:23px;margin-bottom:2px; }
+.cv-doc--ats .cv-nm{ font-size:19px;margin-bottom:2px; }
 /* Espace réduit entre l'état civil et le trait */
 .cv-doc--ats .cv-div{ margin-top:2px; }
 
